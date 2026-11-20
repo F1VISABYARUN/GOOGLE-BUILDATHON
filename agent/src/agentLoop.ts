@@ -132,7 +132,6 @@ async function inspectElementAtPoint(page: Page, px: number, py: number): Promis
           target.getAttribute('value') || '',
           target.getAttribute('name') || '',
           target.id || '',
-          target.getAttribute('type') || '',
         ]
           .join(' ')
           .replace(/\s+/g, ' ')
