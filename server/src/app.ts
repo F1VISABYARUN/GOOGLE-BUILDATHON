@@ -25,6 +25,7 @@ import {
 import { runAllChecks } from './checks/runChecks.js';
 import { evaluateExceptionRouting } from './checks/exceptionRouting.js';
 import { maskFactIfSensitive } from './checks/masking.js';
+import { validateOwnPortalUrl } from './checks/portalUrlGuard.js';
 import {
   appendAuditLog,
   createApprovalToken,
@@ -846,7 +847,20 @@ export function createApp() {
     const caseId = String(req.body?.caseId || '').trim();
     const studentEmail = String(req.body?.studentEmail || '').trim().toLowerCase();
     const studentPhone = String(req.body?.studentPhone || '').trim();
-    let portalUrl = String(req.body?.portalUrl || '').trim();
+    const rawPortalUrl = String(req.body?.portalUrl || '').trim();
+
+    // Strict SSRF check FIRST: only accept our own /portal URL on the exact same host.
+    // Rejects localhost, 169.254.169.254, internal/private IPs, foreign hosts, and redirects with 400.
+    const publicBaseUrl =
+      process.env.PUBLIC_WEB_URL ||
+      `${req.protocol}://${req.get('host')}`;
+    const portalValidation = validateOwnPortalUrl(rawPortalUrl, publicBaseUrl);
+    if (!portalValidation.ok) {
+      return res.status(400).json({
+        error: portalValidation.error,
+        code: 'INVALID_PORTAL_URL',
+      });
+    }
 
     if (!caseId) {
       return res.status(400).json({ error: 'caseId is required.' });
@@ -860,32 +874,10 @@ export function createApp() {
       return res.status(404).json({ error: `Case ${caseId} not found.` });
     }
 
-    const publicBaseUrl =
-      process.env.PUBLIC_WEB_URL ||
-      `${req.protocol}://${req.get('host')}`;
-    if (!portalUrl || portalUrl === '/portal') {
-      portalUrl = `${publicBaseUrl.replace(/\/+$/, '')}/portal`;
-    }
-
-    let parsedPortalUrl: URL;
-    try {
-      parsedPortalUrl = new URL(portalUrl);
-    } catch {
-      return res.status(400).json({ error: 'Please provide a valid full portal URL.' });
-    }
-
-    const host = parsedPortalUrl.hostname.toLowerCase();
-    if (host.includes('commonapp.org') || host.includes('ucas.com')) {
-      return res.status(403).json({
-        error:
-          'Blocked: Common App and UCAS ban automated bots. Aira only automates direct university portals (Slate, PeopleSoft, SITS) and /portal.',
-      });
-    }
-
+    const portalUrl = portalValidation.normalizedUrl;
     const runId = `run_${crypto.randomBytes(6).toString('hex')}`;
     const now = new Date().toISOString();
-    const ownHost = new URL(publicBaseUrl).hostname.toLowerCase();
-    const allowlistedDomains = Array.from(new Set([ownHost, host, 'localhost', '127.0.0.1']));
+    const allowlistedDomains = [portalValidation.allowedHost];
 
     const runRecord = {
       id: runId,

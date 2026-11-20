@@ -140,4 +140,24 @@ describe('actionFilter (Phase 4)', () => {
     expect(res.allowed).toBe(false);
     expect(res.blockReason).toBe('captcha_or_phone_otp_detected');
   });
+
+  it('blocks SSRF targets (localhost, 169.254.169.254, private IPs, metadata host) even if in allowlist', () => {
+    for (const ssrfUrl of [
+      'http://169.254.169.254/latest/meta-data/',
+      'http://localhost:8080/portal',
+      'http://127.0.0.1:8080/portal',
+      'http://10.0.0.5/internal',
+      'http://metadata.google.internal/computeMetadata/v1/',
+    ]) {
+      const res = evaluateActionFilter({
+        actionName: 'navigate',
+        args: { url: ssrfUrl },
+        currentUrl: 'about:blank',
+        allowlistedDomains: [...ALLOWLIST, 'localhost', '127.0.0.1', '169.254.169.254', '10.0.0.5', 'metadata.google.internal'],
+        hasValidApprovalToken: true,
+      });
+      expect(res.allowed, `Expected blocked for ${ssrfUrl}`).toBe(false);
+      expect(res.blockReason).toBe('domain_not_allowlisted');
+    }
+  });
 });

@@ -58,19 +58,202 @@ function findCurrencyForDocument(facts: VerifiedFact[], docName: string): string
   return normalizeCurrencyCode(currencyFact?.value || 'INR');
 }
 
+export interface DailyClosingBalanceEntry {
+  date: string;
+  amount: number;
+  currency: string;
+  amountInr: number;
+  quote: string;
+  sourceDocName: string;
+}
+
+function extractDateStringFromText(text: string): string | null {
+  const iso = text.match(/\b(\d{4}-\d{2}-\d{2})\b/);
+  if (iso) return iso[1];
+  const dmy = text.match(/\b(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})\b/);
+  if (dmy) {
+    const day = dmy[1].padStart(2, '0');
+    const month = dmy[2].padStart(2, '0');
+    const year = dmy[3];
+    return `${year}-${month}-${day}`;
+  }
+  return null;
+}
+
+function parseDailyClosingBalanceFact(
+  fact: VerifiedFact,
+  facts: VerifiedFact[],
+  exchangeRates: ExchangeRateConfig
+): DailyClosingBalanceEntry | null {
+  const rawVal = fact.value.trim();
+  const currency = findCurrencyForDocument(facts, fact.sourceDocName);
+
+  // Supports formats like "2026-11-04: 2600000", "2026-11-04 | INR 26,00,000", or plain number paired with date in quote
+  let dateStr = extractDateStringFromText(rawVal) || extractDateStringFromText(fact.quote);
+  let amountPart = rawVal;
+  if (dateStr && rawVal.includes(':')) {
+    const colonIdx = rawVal.indexOf(':');
+    amountPart = rawVal.slice(colonIdx + 1).trim();
+  } else if (dateStr && rawVal.includes('|')) {
+    const pipeIdx = rawVal.indexOf('|');
+    amountPart = rawVal.slice(pipeIdx + 1).trim();
+  } else if (dateStr) {
+    amountPart = rawVal.replace(dateStr, '').trim();
+  }
+
+  const amount = parseNumericAmount(amountPart);
+  if (amount === null) return null;
+  const amountInr = convertToInr(amount, currency, exchangeRates);
+  if (amountInr === null) return null;
+
+  if (!dateStr) {
+    const fallbackDateFact = facts.find(
+      (f) => f.field === 'lowest_balance_28_day_date' && f.sourceDocName === fact.sourceDocName
+    );
+    dateStr = fallbackDateFact?.value.trim() || 'unspecified date';
+  }
+
+  return {
+    date: dateStr,
+    amount,
+    currency,
+    amountInr,
+    quote: fact.quote,
+    sourceDocName: fact.sourceDocName,
+  };
+}
+
+function findLowest28DayBalanceForDoc(
+  docName: string,
+  facts: VerifiedFact[],
+  exchangeRates: ExchangeRateConfig
+): DailyClosingBalanceEntry | null {
+  const candidates: DailyClosingBalanceEntry[] = [];
+
+  for (const f of facts) {
+    if (f.sourceDocName !== docName) continue;
+    if (f.field === 'daily_closing_balance') {
+      const parsed = parseDailyClosingBalanceFact(f, facts, exchangeRates);
+      if (parsed) candidates.push(parsed);
+    } else if (f.field === 'lowest_balance_28_day') {
+      const amount = parseNumericAmount(f.value);
+      if (amount === null) continue;
+      const currency = findCurrencyForDocument(facts, docName);
+      const amountInr = convertToInr(amount, currency, exchangeRates);
+      if (amountInr === null) continue;
+      const dateFact = facts.find(
+        (d) => d.field === 'lowest_balance_28_day_date' && d.sourceDocName === docName
+      );
+      const dateStr =
+        dateFact?.value.trim() ||
+        extractDateStringFromText(f.quote) ||
+        'unspecified date';
+      candidates.push({
+        date: dateStr,
+        amount,
+        currency,
+        amountInr,
+        quote: f.quote,
+        sourceDocName: docName,
+      });
+    }
+  }
+
+  if (candidates.length === 0) return null;
+  return candidates.reduce((min, cur) => (cur.amountInr < min.amountInr ? cur : min));
+}
+
 export function checkFundsVsRequiredCost(input: FundsCheckInput): CheckFlag {
   const { facts, destinationCountry, ukRegion = 'outside_london', requiredCostOverride, exchangeRates } = input;
   const ukRules = input.ukRules ?? loadUkRules();
 
-  // 1. Sum available funds (bank_balance + loan_amount) in INR using visible dated exchange rates
-  const fundFacts = facts.filter(
-    (f) => (f.field === 'bank_balance' || f.field === 'loan_amount') && f.value.trim().length > 0
+  // 1. Sum available funds (bank_balance + loan_amount) in INR using visible dated exchange rates.
+  //    For UK: UKVI requires funds to stay at or above the required amount on EVERY day of the 28-day
+  //    window, so we check the LOWEST closing balance across the 28 days (not just the final balance).
+  const bankDocNames = Array.from(
+    new Set(
+      facts
+        .filter(
+          (f) =>
+            (f.field === 'bank_balance' ||
+              f.field === 'lowest_balance_28_day' ||
+              f.field === 'daily_closing_balance') &&
+            f.value.trim().length > 0
+        )
+        .map((f) => f.sourceDocName)
+    )
   );
+  const loanFacts = facts.filter((f) => f.field === 'loan_amount' && f.value.trim().length > 0);
 
   let totalAvailableInr = 0;
+  let finalBalanceTotalInr = 0;
+  let lowestUkDipEntry: DailyClosingBalanceEntry | null = null;
   const fundQuotes: string[] = [];
+  const mathLines: string[] = [];
+  let hasAnyFundProof = false;
 
-  for (const fact of fundFacts) {
+  for (const docName of bankDocNames) {
+    const finalBankFact = facts.find(
+      (f) => f.field === 'bank_balance' && f.sourceDocName === docName && f.value.trim().length > 0
+    );
+    const lowest28Day =
+      destinationCountry === 'UK' ? findLowest28DayBalanceForDoc(docName, facts, exchangeRates) : null;
+
+    const currency = findCurrencyForDocument(facts, docName);
+    let finalAmtInr: number | null = null;
+    if (finalBankFact) {
+      const finalAmt = parseNumericAmount(finalBankFact.value);
+      if (finalAmt !== null) {
+        finalAmtInr = convertToInr(finalAmt, currency, exchangeRates);
+        if (finalAmtInr === null) {
+          return {
+            id: 'funds-missing-rate',
+            checkType: 'funds',
+            severity: 'amber',
+            title: `Exchange rate missing for ${currency}`,
+            summary: `Cannot convert ${finalBankFact.value} (${currency}) to INR because no exchange rate is set for ${currency}. Counselor can add a dated rate.`,
+            quote: finalBankFact.quote,
+            sourceDocName: finalBankFact.sourceDocName,
+          };
+        }
+      }
+    }
+
+    if (destinationCountry === 'UK' && lowest28Day) {
+      hasAnyFundProof = true;
+      // Pick the lower of the 28-day lowest entry and the final closing balance (if both exist)
+      const useLowestEntry = finalAmtInr === null || lowest28Day.amountInr <= finalAmtInr;
+      const effectiveInr = useLowestEntry ? lowest28Day.amountInr : (finalAmtInr as number);
+      totalAvailableInr += effectiveInr;
+      finalBalanceTotalInr += finalAmtInr ?? lowest28Day.amountInr;
+
+      if (!lowestUkDipEntry || lowest28Day.amountInr < lowestUkDipEntry.amountInr) {
+        lowestUkDipEntry = lowest28Day;
+      }
+
+      mathLines.push(
+        `Bank lowest 28-day closing balance (${docName}, on ${lowest28Day.date}): ${lowest28Day.currency} ${lowest28Day.amount.toLocaleString('en-US')} = ${formatInr(lowest28Day.amountInr)}`
+      );
+      if (finalBankFact && finalAmtInr !== null && finalAmtInr !== lowest28Day.amountInr) {
+        const finalAmt = parseNumericAmount(finalBankFact.value) ?? 0;
+        mathLines.push(
+          `Bank final closing balance (${docName}, informational only — UK checks 28-day lowest): ${currency} ${finalAmt.toLocaleString('en-US')} = ${formatInr(finalAmtInr)}`
+        );
+      }
+      fundQuotes.push(`${lowest28Day.sourceDocName}: "${lowest28Day.quote}"`);
+    } else if (finalBankFact && finalAmtInr !== null) {
+      hasAnyFundProof = true;
+      const finalAmt = parseNumericAmount(finalBankFact.value) ?? 0;
+      totalAvailableInr += finalAmtInr;
+      finalBalanceTotalInr += finalAmtInr;
+      mathLines.push(
+        `Bank balance (${docName}): ${currency} ${finalAmt.toLocaleString('en-US')} = ${formatInr(finalAmtInr)}`
+      );
+      fundQuotes.push(`${finalBankFact.sourceDocName}: "${finalBankFact.quote}"`);
+    }
+  }
+
+  for (const fact of loanFacts) {
     const amount = parseNumericAmount(fact.value);
     if (amount === null) continue;
     const currency = findCurrencyForDocument(facts, fact.sourceDocName);
@@ -86,8 +269,21 @@ export function checkFundsVsRequiredCost(input: FundsCheckInput): CheckFlag {
         sourceDocName: fact.sourceDocName,
       };
     }
+    hasAnyFundProof = true;
     totalAvailableInr += inr;
+    finalBalanceTotalInr += inr;
+    mathLines.push(
+      `Education loan (${fact.sourceDocName}): ${currency} ${amount.toLocaleString('en-US')} = ${formatInr(inr)}`
+    );
     fundQuotes.push(`${fact.sourceDocName}: "${fact.quote}"`);
+  }
+
+  if (hasAnyFundProof) {
+    mathLines.push(
+      lowestUkDipEntry
+        ? `Total available funds (using 28-day lowest closing balance): ${formatInr(totalAvailableInr)}`
+        : `Total available funds: ${formatInr(totalAvailableInr)}`
+    );
   }
 
   // 2. Determine required cost ONLY from:
@@ -101,23 +297,6 @@ export function checkFundsVsRequiredCost(input: FundsCheckInput): CheckFlag {
   let ruleAsOf: string | undefined;
   let missingUkTuitionNote = false;
   const requiredQuotes: string[] = [];
-  const mathLines: string[] = [];
-
-  for (const fact of fundFacts) {
-    const amount = parseNumericAmount(fact.value);
-    if (amount === null) continue;
-    const currency = findCurrencyForDocument(facts, fact.sourceDocName);
-    const inr = convertToInr(amount, currency, exchangeRates);
-    if (inr !== null) {
-      const label = fact.field === 'loan_amount' ? 'Education loan' : 'Bank balance';
-      mathLines.push(
-        `${label} (${fact.sourceDocName}): ${currency} ${amount.toLocaleString('en-US')} = ${formatInr(inr)}`
-      );
-    }
-  }
-  if (fundFacts.length > 0) {
-    mathLines.push(`Total available funds: ${formatInr(totalAvailableInr)}`);
-  }
 
   if (requiredCostOverride && requiredCostOverride.amount > 0) {
     const converted = convertToInr(
@@ -232,7 +411,7 @@ export function checkFundsVsRequiredCost(input: FundsCheckInput): CheckFlag {
     }
   }
 
-  if (fundFacts.length === 0) {
+  if (!hasAnyFundProof) {
     return {
       id: 'funds-missing-proof',
       checkType: 'funds',
@@ -261,6 +440,27 @@ export function checkFundsVsRequiredCost(input: FundsCheckInput): CheckFlag {
   if (totalAvailableInr < requiredInr) {
     const shortfall = requiredInr - totalAvailableInr;
     mathLines.push(`Shortfall: -${formatInr(shortfall)}`);
+
+    if (destinationCountry === 'UK' && lowestUkDipEntry) {
+      const dippedDespiteFinalOk = finalBalanceTotalInr >= requiredInr;
+      return {
+        id: dippedDespiteFinalOk ? 'funds-uk-28-day-dip' : 'funds-shortfall',
+        checkType: 'funds',
+        severity: 'red',
+        title: dippedDespiteFinalOk
+          ? `UK 28-day balance dipped below required funds on ${lowestUkDipEntry.date}`
+          : `Funds are short of required cost (lowest 28-day balance on ${lowestUkDipEntry.date})`,
+        summary: dippedDespiteFinalOk
+          ? `On ${lowestUkDipEntry.date}, your closing balance dipped to ${formatInr(lowestUkDipEntry.amountInr)} (lowest across the 28-day window), putting available funds (${formatInr(totalAvailableInr)}) short by ${formatInr(shortfall)} of ${requiredSourceSummary} (${formatInr(requiredInr)}) even though the final balance recovered to ${formatInr(finalBalanceTotalInr)}.`
+          : `Lowest 28-day closing balance on ${lowestUkDipEntry.date} (${formatInr(lowestUkDipEntry.amountInr)}) leaves available funds (${formatInr(totalAvailableInr)}) short by ${formatInr(shortfall)} compared to ${requiredSourceSummary} (${formatInr(requiredInr)}) using rates as of ${exchangeRates.asOfDate}.`,
+        quote: `${lowestUkDipEntry.sourceDocName}: "${lowestUkDipEntry.quote}"${requiredQuotes.length > 0 ? ` | ${requiredQuotes.join(' | ')}` : ''}`,
+        sourceDocName: lowestUkDipEntry.sourceDocName,
+        sourceUrl: ukRules.bankStatement.sourceUrl,
+        ruleAsOf: ukRules.asOf,
+        mathLines,
+      };
+    }
+
     return {
       id: 'funds-shortfall',
       checkType: 'funds',

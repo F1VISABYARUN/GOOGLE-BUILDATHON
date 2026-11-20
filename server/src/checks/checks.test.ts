@@ -281,6 +281,84 @@ describe('money maths & UK rules', () => {
     expect(flag.severity).toBe('amber');
     expect(flag.id).toBe('funds-missing-cas-tuition');
   });
+
+  it('flags red with date and verbatim quote when UK 28-day lowest closing balance dips below required funds even if final balance recovers', () => {
+    // CAS tuition GBP 18,000 - deposit GBP 4,000 = unpaid GBP 14,000
+    // Outside London living = GBP 1,203 * 9 = GBP 10,827
+    // Total required = GBP 24,827 * 120 = INR 29,79,240
+    // Final balance is INR 32,00,000 (ABOVE required), but on 2026-11-04 it dipped to INR 26,00,000!
+    const flag = checkFundsVsRequiredCost({
+      facts: [
+        makeFact({
+          field: 'tuition',
+          value: '18000',
+          quote: 'Total Tuition Fee: GBP 18,000',
+          sourceDocName: 'cas.pdf',
+          sourceDocType: 'i20_cas_offer',
+        }),
+        makeFact({
+          field: 'deposit_paid',
+          value: '4000',
+          quote: 'Tuition Deposit Paid: GBP 4,000',
+          sourceDocName: 'cas.pdf',
+          sourceDocType: 'i20_cas_offer',
+        }),
+        makeFact({
+          field: 'currency',
+          value: 'GBP',
+          quote: 'Currency: GBP',
+          sourceDocName: 'cas.pdf',
+          sourceDocType: 'i20_cas_offer',
+        }),
+        makeFact({
+          field: 'bank_balance',
+          value: '3200000',
+          quote: '18/11/2026 Final Closing Balance: INR 32,00,000',
+          sourceDocName: 'bank.pdf',
+          sourceDocType: 'bank_statement',
+        }),
+        makeFact({
+          field: 'daily_closing_balance',
+          value: '2026-10-22: 3150000',
+          quote: '22/10/2026 Closing Balance: INR 31,50,000',
+          sourceDocName: 'bank.pdf',
+          sourceDocType: 'bank_statement',
+        }),
+        makeFact({
+          field: 'daily_closing_balance',
+          value: '2026-11-04: 2600000',
+          quote: '04/11/2026 Closing Balance: INR 26,00,000',
+          sourceDocName: 'bank.pdf',
+          sourceDocType: 'bank_statement',
+        }),
+        makeFact({
+          field: 'daily_closing_balance',
+          value: '2026-11-18: 3200000',
+          quote: '18/11/2026 Final Closing Balance: INR 32,00,000',
+          sourceDocName: 'bank.pdf',
+          sourceDocType: 'bank_statement',
+        }),
+        makeFact({
+          field: 'currency',
+          value: 'INR',
+          quote: 'Currency: INR',
+          sourceDocName: 'bank.pdf',
+          sourceDocType: 'bank_statement',
+        }),
+      ],
+      destinationCountry: 'UK',
+      ukRegion: 'outside_london',
+      exchangeRates: SAMPLE_RATES,
+    });
+
+    expect(flag.severity).toBe('red');
+    expect(flag.id).toBe('funds-uk-28-day-dip');
+    expect(flag.title).toContain('2026-11-04');
+    expect(flag.summary).toContain('2026-11-04');
+    expect(flag.summary).toContain('26,00,000');
+    expect(flag.quote).toContain('04/11/2026 Closing Balance: INR 26,00,000');
+    expect(flag.mathLines?.some((l) => l.includes('lowest 28-day closing balance') && l.includes('2026-11-04'))).toBe(true);
+  });
 });
 
 describe('document dates & UK 28-day rule', () => {

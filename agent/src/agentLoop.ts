@@ -444,6 +444,26 @@ export async function runComputerUseAgent(params: {
     const context = await browser.newContext({
       viewport: { width: VIEWPORT_WIDTH, height: VIEWPORT_HEIGHT },
     });
+
+    // Defense-in-depth SSRF & redirect guard at browser network layer:
+    // Block every request or HTTP 3xx redirect leaving our allowlisted host or hitting internal IPs.
+    const allowedOriginHost = extractHostname(run.portalUrl);
+    await context.route('**/*', async (route) => {
+      const reqUrl = route.request().url();
+      const decision = evaluateActionFilter({
+        actionName: 'navigate',
+        args: { url: reqUrl },
+        currentUrl: reqUrl,
+        allowlistedDomains: allowedOriginHost ? [allowedOriginHost] : run.allowlistedDomains,
+        hasValidApprovalToken: true,
+      });
+      if (!decision.allowed) {
+        await route.abort('blockedbyclient');
+        return;
+      }
+      await route.continue();
+    });
+
     const page = await context.newPage();
 
     // Pass caseId (and approval token ONLY when valid) into /portal URL query/context
@@ -479,6 +499,23 @@ export async function runComputerUseAgent(params: {
 
     await page.goto(startUrl, { waitUntil: 'domcontentloaded', timeout: 30_000 });
     await page.waitForTimeout(1000);
+
+    // Verify no HTTP redirect escaped our own /portal host
+    const landedDecision = evaluateActionFilter({
+      actionName: 'navigate',
+      args: { url: page.url() },
+      currentUrl: page.url(),
+      allowlistedDomains: allowedOriginHost ? [allowedOriginHost] : run.allowlistedDomains,
+      hasValidApprovalToken: tokenStatus.valid,
+    });
+    if (!landedDecision.allowed) {
+      run.status = 'escalated_to_counselor';
+      run.statusMessage = `Blocked redirect to disallowed URL (${page.url()}).`;
+      run.updatedAt = new Date().toISOString();
+      await runRef.set(run);
+      await routeCaseToCounselor(db, run.caseId, run.statusMessage);
+      return run;
+    }
 
     // Prepare strictly factual student data table (never include raw secrets in logs!)
     const factsSummary = (caseDoc.facts || [])

@@ -1,3 +1,5 @@
+import net from 'node:net';
+
 export const VIEWPORT_WIDTH = 1440;
 export const VIEWPORT_HEIGHT = 900;
 
@@ -89,9 +91,73 @@ export function isPaymentUrl(urlStr: string): boolean {
   return PAYMENT_URL_REGEX.test(urlStr);
 }
 
+const BLOCKED_INTERNAL_HOSTS = new Set([
+  'localhost',
+  'localhost.localdomain',
+  'metadata.google.internal',
+  'metadata.goog',
+  'metadata',
+  'instance-data',
+]);
+
+export function isBlockedInternalUrl(urlStr: string): boolean {
+  if (!urlStr || urlStr === 'about:blank') return false;
+  let parsed: URL;
+  try {
+    parsed = new URL(urlStr);
+  } catch {
+    return true;
+  }
+  if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') return true;
+  if (parsed.username || parsed.password) return true;
+
+  const host = parsed.hostname.toLowerCase().replace(/^\[|\]$/g, '').replace(/\.$/, '');
+  if (!host || BLOCKED_INTERNAL_HOSTS.has(host)) return true;
+  if (host.endsWith('.internal') || host.endsWith('.local') || host.endsWith('.localhost')) {
+    return true;
+  }
+
+  const ipVer = net.isIP(host);
+  if (ipVer === 4) {
+    const parts = host.split('.').map(Number);
+    const [a, b] = parts;
+    if (
+      a === 0 ||
+      a === 10 ||
+      a === 127 ||
+      (a === 169 && b === 254) ||
+      (a === 172 && b >= 16 && b <= 31) ||
+      (a === 192 && b === 168) ||
+      (a === 100 && b >= 64 && b <= 127) ||
+      a >= 224
+    ) {
+      return true;
+    }
+  } else if (ipVer === 6) {
+    if (
+      host === '::1' ||
+      host === '::' ||
+      host.startsWith('fc') ||
+      host.startsWith('fd') ||
+      host.startsWith('fe8') ||
+      host.startsWith('fe9') ||
+      host.startsWith('fea') ||
+      host.startsWith('feb') ||
+      host.includes('::ffff:')
+    ) {
+      return true;
+    }
+  } else if (/^(0x[0-9a-f]+|\d+)$/i.test(host)) {
+    return true;
+  }
+
+  return false;
+}
+
 export function isAllowlistedUrl(urlStr: string, allowlistedDomains: string[]): boolean {
   if (!urlStr || urlStr === 'about:blank') return true;
   if (isBannedPortalUrl(urlStr)) return false;
+  if (isBlockedInternalUrl(urlStr)) return false;
   const host = extractHostname(urlStr);
   if (!host) return false;
   return allowlistedDomains.some((domain) => isDomainMatch(host, domain));

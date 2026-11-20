@@ -132,8 +132,8 @@ export async function extractDocumentFacts(
     '1. First transcribe the complete readable text of the document into `fullText`.',
     `2. Then extract any facts that belong to these exact field names: ${FACT_FIELDS.join(', ')}.`,
     '3. For every fact, copy the EXACT verbatim substring from `fullText` into `quote`. Do not paraphrase quotes.',
-    '4. For dates (date_of_birth, graduation_date, statement_date, statement_start_date, statement_end_date, start_date), write value in YYYY-MM-DD format if clear, while keeping the exact original document text in `quote`.',
-    '5. For numeric fields (bank_balance, loan_amount, tuition, deposit_paid, living_cost, cgpa, cgpa_scale, backlogs), put the plain number in `value` and the exact original text in `quote`. On CAS or offer letters, extract both total `tuition` and any `deposit_paid` (tuition fee paid / deposit received).',
+    '4. For dates (date_of_birth, graduation_date, statement_date, statement_start_date, statement_end_date, lowest_balance_28_day_date, start_date), write value in YYYY-MM-DD format if clear, while keeping the exact original document text in `quote`.',
+    '5. For numeric fields (bank_balance, lowest_balance_28_day, loan_amount, tuition, deposit_paid, living_cost, cgpa, cgpa_scale, backlogs), put the plain number in `value` and the exact original text in `quote`. On CAS or offer letters, extract both total `tuition` and any `deposit_paid` (tuition fee paid / deposit received). On bank statements, ALWAYS extract the final closing `bank_balance`, the single lowest closing balance during the 28-day period (`lowest_balance_28_day` and `lowest_balance_28_day_date`), AND every dated closing balance row as `daily_closing_balance` with value formatted `YYYY-MM-DD: <number>` and the exact verbatim transaction/balance line in `quote`.',
     '6. Set `confidence` between 0 and 1. Only extract facts actually present in the document.',
   ].join('\n');
 
