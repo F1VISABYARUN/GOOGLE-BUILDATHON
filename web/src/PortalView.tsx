@@ -1,5 +1,4 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { CheckCircle2, Lock, ShieldAlert } from 'lucide-react';
 import TopNav from './TopNav.tsx';
 import { formatRupees } from './formatInr.ts';
 
@@ -32,7 +31,7 @@ export default function PortalView({ onNavigate }: PortalViewProps) {
   const [approvalToken, setApprovalToken] = useState(initialApprovalToken);
   const [latestApprovedCaseId, setLatestApprovedCaseId] = useState('');
 
-  // Page 1: Account Creation + Email Verification (only reachable via ?mode=account)
+  // Account creation mode (only via ?mode=account)
   const [fullName, setFullName] = useState('Sample Applicant');
   const [email, setEmail] = useState('sample.applicant@aira-demo.example');
   const [phone, setPhone] = useState('+91 9876543210');
@@ -41,12 +40,12 @@ export default function PortalView({ onNavigate }: PortalViewProps) {
   const [verificationCode, setVerificationCode] = useState('');
   const [sessionId, setSessionId] = useState('sess_demo');
 
-  // Page 2: Personal Details
+  // Step 1 (page 2): Personal Details
   const [dob, setDob] = useState('2002-04-15');
   const [nationality, setNationality] = useState('India');
   const [passportLast4, setPassportLast4] = useState('****9103');
 
-  // Page 3: Academics (includes custom dropdown + date picker)
+  // Step 2 (page 3): Academics
   const [university, setUniversity] = useState('Jawaharlal Nehru Technological University');
   const [degree, setDegree] = useState('B.Tech Computer Science');
   const [cgpa, setCgpa] = useState('8.4');
@@ -56,16 +55,20 @@ export default function PortalView({ onNavigate }: PortalViewProps) {
   const [selectedProgram, setSelectedProgram] = useState('MSc Computer Science');
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
-  // Page 4: Funding
+  // Step 3 (page 4): English
+  const [englishTestType, setEnglishTestType] = useState('IELTS Academic');
+  const [englishOverallScore, setEnglishOverallScore] = useState('7.0');
+  const [englishWritingScore, setEnglishWritingScore] = useState('6.5');
+  const [englishTestDate, setEnglishTestDate] = useState('2026-08-12');
+
+  // Step 4 (page 5): Funding
   const [bankBalance, setBankBalance] = useState('2200000');
   const [currency, setCurrency] = useState('INR');
   const [loanAmount, setLoanAmount] = useState('1200000');
   const [sponsor, setSponsor] = useState('Self + Education Loan');
 
-  // Page 5: Document Upload
-  const [docFileName, setDocFileName] = useState('SAMPLE_UK_CAS_OFFER.pdf');
-
-  // Page 6: Declaration
+  // Step 5 (page 6): Documents
+  const [docFileName, setDocFileName] = useState('SAMPLE_UK_OFFER_LETTER.pdf');
   const [declarationAccepted, setDeclarationAccepted] = useState(true);
   const [declarationName, setDeclarationName] = useState('Sample Applicant');
 
@@ -95,9 +98,7 @@ export default function PortalView({ onNavigate }: PortalViewProps) {
         if (c.targetUniversity) setUniversity(String(c.targetUniversity));
         if (c.targetProgram) setSelectedProgram(String(c.targetProgram));
       })
-      .catch(() => {
-        // ignore prefill lookup errors
-      });
+      .catch(() => {});
   }, [initialCaseId]);
 
   useEffect(() => {
@@ -115,7 +116,9 @@ export default function PortalView({ onNavigate }: PortalViewProps) {
             createdAt?: string;
           }>
         )
-          .filter((c) => c && c.status === 'approved' && typeof c.id === 'string' && c.id.length > 0)
+          .filter(
+            (c) => c && c.status === 'approved' && typeof c.id === 'string' && c.id.length > 0
+          )
           .sort((a, b) => {
             const ta = Date.parse(a.approvedAt || a.createdAt || '') || 0;
             const tb = Date.parse(b.approvedAt || b.createdAt || '') || 0;
@@ -126,32 +129,20 @@ export default function PortalView({ onNavigate }: PortalViewProps) {
         setLatestApprovedCaseId(latestId);
         setCaseId((prev) => (prev.trim() ? prev : latestId));
       })
-      .catch(() => {
-        // ignore queue lookup errors
-      });
+      .catch(() => {});
     return () => {
       cancelled = true;
     };
   }, [page]);
 
-  const progressSteps = accountMode
-    ? [
-        { pageNum: 1, label: '1. Account' },
-        { pageNum: 2, label: '2. Personal' },
-        { pageNum: 3, label: '3. Academics' },
-        { pageNum: 4, label: '4. Funding' },
-        { pageNum: 5, label: '5. Documents' },
-        { pageNum: 6, label: '6. Declaration' },
-        { pageNum: 7, label: '7. Submit' },
-      ]
-    : [
-        { pageNum: 2, label: '1. Personal' },
-        { pageNum: 3, label: '2. Academics' },
-        { pageNum: 4, label: '3. Funding' },
-        { pageNum: 5, label: '4. Documents' },
-        { pageNum: 6, label: '5. Declaration' },
-        { pageNum: 7, label: '6. Submit' },
-      ];
+  const verticalSteps = [
+    { pageNum: 2, num: 1, title: 'Personal', buttonLabel: '1. Personal' },
+    { pageNum: 3, num: 2, title: 'Academics', buttonLabel: '2. Academics' },
+    { pageNum: 4, num: 3, title: 'English', buttonLabel: '3. English' },
+    { pageNum: 5, num: 4, title: 'Funding', buttonLabel: '4. Funding' },
+    { pageNum: 6, num: 5, title: 'Documents', buttonLabel: '5. Documents' },
+    { pageNum: 7, num: 6, title: 'Submit', buttonLabel: '6. Submit' },
+  ];
 
   async function handleRegister(e: FormEvent) {
     e.preventDefault();
@@ -258,7 +249,7 @@ export default function PortalView({ onNavigate }: PortalViewProps) {
         if (res.status === 403 || !trimmedToken) {
           const detail = data?.error ? ` ${String(data.error)}` : '';
           setSubmitError(
-            `403 — Counselor approval required. Approve this case in Step 2 (Counselor approves), copy the full single-use token, and paste it into the 'Paste approval token' box above.${detail}`
+            `403 — Counselor approval required. Approve this case in Step 2 (Approve), copy the approval code, and paste it above.${detail}`
           );
           return;
         }
@@ -272,7 +263,7 @@ export default function PortalView({ onNavigate }: PortalViewProps) {
     } catch (err) {
       if (!trimmedToken) {
         setSubmitError(
-          "403 — Counselor approval required. Approve this case in Step 2 (Counselor approves), copy the full single-use token, and paste it into the 'Paste approval token' box above."
+          '403 — Counselor approval required. Approve this case in Step 2 (Approve), copy the approval code, and paste it above.'
         );
       } else {
         setSubmitError(err instanceof Error ? err.message : 'Submission blocked.');
@@ -283,643 +274,839 @@ export default function PortalView({ onNavigate }: PortalViewProps) {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-slate-100 text-slate-900">
+    <div className="flex min-h-screen flex-col bg-gray-50 text-gray-900">
       <TopNav
         activeRoute="portal"
         onNavigate={onNavigate}
         submitCompleted={Boolean(submitReceipt)}
       />
-      <main className="mx-auto w-full max-w-3xl flex-1 space-y-5 px-4 py-6 sm:px-6 lg:px-8">
-        <header className="overflow-hidden rounded-3xl border border-slate-800 bg-slate-900 p-6 text-white shadow-md">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div className="flex items-center gap-4">
-              {/* Inline SVG university crest (always crisp, never broken) */}
-              <div
-                aria-hidden="true"
-                className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-amber-400/40 bg-slate-800 shadow-sm"
+
+      {/* Institutional University System Header (deliberately neutral & distinct from Aira) */}
+      <div className="border-b border-gray-200 bg-white">
+        <div className="mx-auto flex max-w-[1120px] flex-wrap items-center justify-between gap-4 px-4 py-4 sm:px-6">
+          <div className="flex items-center gap-3.5">
+            <div
+              aria-hidden="true"
+              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[8px] border border-gray-300 bg-gray-50"
+            >
+              <svg
+                viewBox="0 0 64 64"
+                className="h-8 w-8"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
               >
-                <svg viewBox="0 0 64 64" className="h-10 w-10" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path
-                    d="M32 6L52 14V30C52 44.5 43.2 53.8 32 58C20.8 53.8 12 44.5 12 30V14L32 6Z"
-                    fill="#1E3A8A"
-                    stroke="#FBBF24"
-                    strokeWidth="2.5"
-                  />
-                  <path d="M21 26L32 20L43 26L32 32L21 26Z" fill="#FBBF24" />
-                  <path d="M25 29V37C25 39.2 28.1 41 32 41C35.9 41 39 39.2 39 37V29" stroke="#FFFFFF" strokeWidth="2.2" strokeLinecap="round" />
-                  <path d="M43 26V35" stroke="#FBBF24" strokeWidth="2" strokeLinecap="round" />
-                </svg>
-              </div>
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-widest text-amber-300">
-                  University Application Portal
-                </p>
-                <h1 className="mt-1 text-2xl font-extrabold sm:text-3xl">
-                  Sample University: Postgraduate Application (demo)
-                </h1>
-              </div>
+                <path
+                  d="M32 6L52 14V30C52 44.5 43.2 53.8 32 58C20.8 53.8 12 44.5 12 30V14L32 6Z"
+                  fill="#F9FAFB"
+                  stroke="#111827"
+                  strokeWidth="3"
+                />
+                <path d="M21 26L32 20L43 26L32 32L21 26Z" fill="#111827" />
+                <path
+                  d="M25 29V37C25 39.2 28.1 41 32 41C35.9 41 39 39.2 39 37V29"
+                  stroke="#111827"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                />
+                <path d="M43 26V35" stroke="#111827" strokeWidth="2.5" strokeLinecap="round" />
+              </svg>
             </div>
-            <div className="space-y-1 text-left sm:text-right">
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-400/40 bg-slate-800 px-3 py-1 text-xs font-semibold text-amber-200">
-                <Lock className="h-3.5 w-3.5 text-amber-300" aria-hidden="true" />
-                Counselor approval required
-              </span>
-              <p className="text-xs text-slate-300">
-                Submit stays locked until a counselor issues a one-time token.
+            <div>
+              <p className="text-[14px] font-medium text-gray-600">
+                University Admissions System
               </p>
+              <h1 className="text-[24px] font-bold tracking-tight text-gray-900">
+                Sample University: Postgraduate Application (demo)
+              </h1>
             </div>
           </div>
 
-          <ol className="mt-5 flex flex-wrap gap-2 text-xs font-semibold">
-            {progressSteps.map((step) => (
-              <li key={step.pageNum}>
-                <button
-                  type="button"
-                  aria-current={page === step.pageNum ? 'step' : undefined}
-                  onClick={() => {
-                    setErrorMsg(null);
-                    setSubmitError(null);
-                    setPage(step.pageNum);
-                  }}
-                  className={`cursor-pointer rounded-full px-3.5 py-1.5 transition focus:outline-none focus:ring-2 focus:ring-blue-400 ${
-                    page === step.pageNum
-                      ? 'bg-blue-600 text-white shadow-sm'
-                      : page > step.pageNum
-                        ? 'bg-slate-700 text-emerald-300 hover:bg-slate-600'
-                        : 'bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white'
-                  }`}
-                >
-                  {step.label}
-                </button>
-              </li>
-            ))}
-          </ol>
-        </header>
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-[14px] font-medium text-gray-600">
+            <span className="material-symbols-outlined !text-[16px]" aria-hidden="true">
+              lock
+            </span>
+            <span>Submit unlocks with a one-time counselor approval</span>
+          </span>
+        </div>
+      </div>
 
+      {/* Main 2-column University Portal Body: Left vertical steps + Right 2-col form */}
+      <main className="mx-auto w-full max-w-[1120px] flex-1 px-4 py-6 sm:px-6">
         {infoMsg && (
-          <div role="status" className="rounded-xl border border-blue-300 bg-blue-50 p-4 text-base text-blue-950">
+          <div
+            role="status"
+            className="mb-4 rounded-[12px] border border-gray-200 bg-white p-4 text-[16px] text-gray-900"
+          >
             {infoMsg}
           </div>
         )}
 
         {errorMsg && (
-          <div role="alert" className="rounded-xl border-2 border-red-400 bg-red-50 p-4 text-base font-medium text-red-950">
+          <div
+            role="alert"
+            className="mb-4 rounded-[12px] border border-[#F6AEA9] bg-[#FCE8E6] p-4 text-[16px] text-[#D93025]"
+          >
             {errorMsg}
           </div>
         )}
 
-        {/* PAGE 1: ACCOUNT CREATION + EMAIL VERIFICATION (only reachable via ?mode=account) */}
-        {accountMode && page === 1 && (
-          <section className="space-y-5 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="text-2xl font-bold text-slate-950">Page 1: Create Applicant Account</h2>
-            {!accountCreated ? (
-              <form onSubmit={handleRegister} className="space-y-4">
-                <div>
-                  <label htmlFor="p-name" className="block text-sm font-semibold">Full Legal Name</label>
-                  <input
-                    id="p-name"
-                    type="text"
-                    required
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    placeholder="Arun Reddy"
-                    className="mt-1 w-full rounded-xl border border-slate-300 px-4 py-3 text-base"
-                  />
-                </div>
-                <div>
-                  <label htmlFor="p-email" className="block text-sm font-semibold">Student Email Address</label>
-                  <input
-                    id="p-email"
-                    type="email"
-                    required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="student@example.com"
-                    className="mt-1 w-full rounded-xl border border-slate-300 px-4 py-3 text-base"
-                  />
-                </div>
-                <div>
-                  <label htmlFor="p-phone" className="block text-sm font-semibold">Phone Number</label>
-                  <input
-                    id="p-phone"
-                    type="tel"
-                    required
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    placeholder="+91 9876543210"
-                    className="mt-1 w-full rounded-xl border border-slate-300 px-4 py-3 text-base"
-                  />
-                </div>
-                <div>
-                  <label htmlFor="p-pass" className="block text-sm font-semibold">Create Portal Password</label>
-                  <input
-                    id="p-pass"
-                    type="password"
-                    required
-                    minLength={8}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Minimum 8 characters"
-                    className="mt-1 w-full rounded-xl border border-slate-300 px-4 py-3 text-base"
-                  />
-                </div>
-                <button
-                  type="submit"
-                  disabled={busy}
-                  className="rounded-xl bg-blue-600 px-6 py-3.5 text-base font-semibold text-white hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300 disabled:opacity-50"
-                >
-                  {busy ? 'Creating Account...' : 'Create Account & Send Verification Code'}
-                </button>
-              </form>
-            ) : (
-              <form onSubmit={handleVerifyEmail} className="space-y-4">
-                <p className="text-base text-slate-700">
-                  Enter the 6-digit email verification code sent to <strong>{email}</strong>.
-                </p>
-                <div>
-                  <label htmlFor="p-code" className="block text-sm font-semibold">
-                    Email Verification Code
-                  </label>
-                  <input
-                    id="p-code"
-                    type="text"
-                    required
-                    value={verificationCode}
-                    onChange={(e) => setVerificationCode(e.target.value)}
-                    placeholder="6-digit code"
-                    className="mt-1 w-full rounded-xl border border-slate-300 px-4 py-3 font-mono text-lg"
-                  />
-                </div>
-                <button
-                  type="submit"
-                  disabled={busy}
-                  className="rounded-xl bg-blue-600 px-6 py-3.5 text-base font-semibold text-white hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300"
-                >
-                  {busy ? 'Verifying...' : 'Verify Email & Continue'}
-                </button>
-              </form>
-            )}
-          </section>
-        )}
+        <div className="grid items-start gap-6 lg:grid-cols-[240px_1fr]">
+          {/* Left: Vertical steps with ticks */}
+          <aside className="rounded-[12px] border border-gray-200 bg-white p-3">
+            <p className="px-3 py-2 text-[14px] font-bold text-gray-600">Application sections</p>
+            <ol className="flex flex-wrap gap-1 lg:flex-col">
+              {verticalSteps.map((s) => {
+                const isCurrent = page === s.pageNum;
+                const isDone = page > s.pageNum || Boolean(submitReceipt);
+                return (
+                  <li key={s.pageNum} className="lg:w-full">
+                    <button
+                      type="button"
+                      aria-current={isCurrent ? 'step' : undefined}
+                      onClick={() => {
+                        setErrorMsg(null);
+                        setSubmitError(null);
+                        setPage(s.pageNum);
+                      }}
+                      className={`flex h-11 w-full items-center justify-between gap-2 rounded-[8px] px-3 text-left text-[14px] font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1A73E8] ${
+                        isCurrent
+                          ? 'bg-[#1A73E8] text-white'
+                          : isDone
+                            ? 'text-gray-900 hover:bg-gray-50'
+                            : 'text-gray-600 hover:bg-gray-50'
+                      }`}
+                    >
+                      <span>{s.buttonLabel}</span>
+                      {isDone && !isCurrent && (
+                        <span
+                          className="material-symbols-outlined !text-[18px] text-[#188038]"
+                          aria-hidden="true"
+                        >
+                          check_circle
+                        </span>
+                      )}
+                    </button>
+                  </li>
+                );
+              })}
+            </ol>
+          </aside>
 
-        {/* PAGE 2: PERSONAL DETAILS */}
-        {page === 2 && (
-          <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="text-2xl font-bold text-slate-950">
-              Step {accountMode ? 2 : 1}: Personal Details
-            </h2>
-            <div>
-              <label htmlFor="p2-name" className="block text-sm font-semibold">Full Legal Name</label>
-              <input
-                id="p2-name"
-                type="text"
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                className="mt-1 w-full rounded-xl border border-slate-300 px-4 py-3 text-base"
-              />
-            </div>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div>
-                <label htmlFor="p2-dob" className="block text-sm font-semibold">Date of Birth</label>
-                <input
-                  id="p2-dob"
-                  type="date"
-                  value={dob}
-                  onChange={(e) => setDob(e.target.value)}
-                  className="mt-1 w-full rounded-xl border border-slate-300 px-4 py-3 text-base"
-                />
-              </div>
-              <div>
-                <label htmlFor="p2-nat" className="block text-sm font-semibold">Nationality</label>
-                <input
-                  id="p2-nat"
-                  type="text"
-                  value={nationality}
-                  onChange={(e) => setNationality(e.target.value)}
-                  className="mt-1 w-full rounded-xl border border-slate-300 px-4 py-3 text-base"
-                />
-              </div>
-            </div>
-            <div>
-              <label htmlFor="p2-pass4" className="block text-sm font-semibold">Passport Reference (Last 4 Digits)</label>
-              <input
-                id="p2-pass4"
-                type="text"
-                value={passportLast4}
-                onChange={(e) => setPassportLast4(e.target.value)}
-                placeholder="e.g. ****9103"
-                className="mt-1 w-full rounded-xl border border-slate-300 px-4 py-3 text-base"
-              />
-            </div>
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => void saveDraftAndAdvance(3)}
-              className="rounded-xl bg-blue-600 px-6 py-3.5 text-base font-semibold text-white hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300"
-            >
-              Save &amp; Continue to Academics
-            </button>
-          </section>
-        )}
-
-        {/* PAGE 3: ACADEMICS (WITH CUSTOM DROPDOWN & DATE PICKER) */}
-        {page === 3 && (
-          <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="text-2xl font-bold text-slate-950">
-              Step {accountMode ? 3 : 2}: Academic History
-            </h2>
-
-            {/* Custom ARIA Dropdown (non-native select to test computer-use agent clicks) */}
-            <div className="relative">
-              <span className="block text-sm font-semibold">Target Degree Programme (Custom Dropdown)</span>
-              <button
-                type="button"
-                aria-haspopup="listbox"
-                aria-expanded={dropdownOpen}
-                onClick={() => setDropdownOpen((o) => !o)}
-                className="mt-1 flex w-full items-center justify-between rounded-xl border border-slate-300 bg-white px-4 py-3 text-left text-base"
-              >
-                <span>{selectedProgram || 'Select a programme...'}</span>
-                <span aria-hidden="true">▾</span>
-              </button>
-              {dropdownOpen && (
-                <ul
-                  role="listbox"
-                  className="absolute z-20 mt-1 w-full rounded-xl border border-slate-300 bg-white py-1 shadow-lg"
-                >
-                  {PROGRAM_OPTIONS.map((opt) => (
-                    <li key={opt}>
+          {/* Right: The form (2-column on desktop, labelled inputs) */}
+          <div className="rounded-[12px] border border-gray-200 bg-white p-6">
+            {/* ACCOUNT MODE PAGE 1 (only reachable via ?mode=account) */}
+            {accountMode && page === 1 && (
+              <section className="space-y-4">
+                <h2 className="text-[24px] font-bold text-gray-900">Create Applicant Account</h2>
+                {!accountCreated ? (
+                  <form onSubmit={handleRegister} className="grid gap-4 sm:grid-cols-2">
+                    <div>
+                      <label htmlFor="p-name" className="block text-[14px] font-medium text-gray-900">
+                        Full name
+                      </label>
+                      <input
+                        id="p-name"
+                        type="text"
+                        required
+                        value={fullName}
+                        onChange={(e) => setFullName(e.target.value)}
+                        className="mt-1 h-11 w-full rounded-[8px] border border-gray-300 px-3 text-[16px]"
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="p-email" className="block text-[14px] font-medium text-gray-900">
+                        Email address
+                      </label>
+                      <input
+                        id="p-email"
+                        type="email"
+                        required
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        className="mt-1 h-11 w-full rounded-[8px] border border-gray-300 px-3 text-[16px]"
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="p-phone" className="block text-[14px] font-medium text-gray-900">
+                        Phone number
+                      </label>
+                      <input
+                        id="p-phone"
+                        type="tel"
+                        required
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value)}
+                        className="mt-1 h-11 w-full rounded-[8px] border border-gray-300 px-3 text-[16px]"
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="p-pass" className="block text-[14px] font-medium text-gray-900">
+                        Portal password
+                      </label>
+                      <input
+                        id="p-pass"
+                        type="password"
+                        required
+                        minLength={8}
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        className="mt-1 h-11 w-full rounded-[8px] border border-gray-300 px-3 text-[16px]"
+                      />
+                    </div>
+                    <div className="sm:col-span-2">
                       <button
-                        type="button"
-                        role="option"
-                        aria-selected={selectedProgram === opt}
-                        onClick={() => {
-                          setSelectedProgram(opt);
-                          setDropdownOpen(false);
-                        }}
-                        className="block w-full px-4 py-2.5 text-left text-base hover:bg-indigo-50"
+                        type="submit"
+                        disabled={busy}
+                        className="inline-flex h-11 items-center rounded-[8px] bg-[#1A73E8] px-5 text-[16px] font-semibold text-white hover:bg-[#1557B0]"
                       >
-                        {opt}
+                        {busy ? 'Creating...' : 'Create account'}
                       </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
+                    </div>
+                  </form>
+                ) : (
+                  <form onSubmit={handleVerifyEmail} className="space-y-4">
+                    <div>
+                      <label htmlFor="p-code" className="block text-[14px] font-medium text-gray-900">
+                        6-digit email code
+                      </label>
+                      <input
+                        id="p-code"
+                        type="text"
+                        required
+                        value={verificationCode}
+                        onChange={(e) => setVerificationCode(e.target.value)}
+                        className="mt-1 h-11 w-full rounded-[8px] border border-gray-300 px-3 font-mono text-[16px]"
+                      />
+                    </div>
+                    <button
+                      type="submit"
+                      disabled={busy}
+                      className="inline-flex h-11 items-center rounded-[8px] bg-[#1A73E8] px-5 text-[16px] font-semibold text-white hover:bg-[#1557B0]"
+                    >
+                      Verify &amp; continue
+                    </button>
+                  </form>
+                )}
+              </section>
+            )}
 
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div>
-                <label htmlFor="p3-uni" className="block text-sm font-semibold">Undergraduate University</label>
-                <input
-                  id="p3-uni"
-                  type="text"
-                  value={university}
-                  onChange={(e) => setUniversity(e.target.value)}
-                  className="mt-1 w-full rounded-xl border border-slate-300 px-4 py-3 text-base"
-                />
-              </div>
-              <div>
-                <label htmlFor="p3-deg" className="block text-sm font-semibold">Degree Title</label>
-                <input
-                  id="p3-deg"
-                  type="text"
-                  value={degree}
-                  onChange={(e) => setDegree(e.target.value)}
-                  className="mt-1 w-full rounded-xl border border-slate-300 px-4 py-3 text-base"
-                />
-              </div>
-            </div>
+            {/* STEP 1 (page 2): PERSONAL DETAILS */}
+            {page === 2 && (
+              <section className="space-y-5">
+                <div className="border-b border-gray-200 pb-3">
+                  <h2 className="text-[24px] font-bold text-gray-900">Step 1: Personal Details</h2>
+                  <p className="text-[14px] text-gray-600">
+                    Matches the identity details on your passport.
+                  </p>
+                </div>
 
-            <div className="grid gap-4 sm:grid-cols-3">
-              <div>
-                <label htmlFor="p3-cgpa" className="block text-sm font-semibold">CGPA / Score</label>
-                <input
-                  id="p3-cgpa"
-                  type="text"
-                  value={cgpa}
-                  onChange={(e) => setCgpa(e.target.value)}
-                  className="mt-1 w-full rounded-xl border border-slate-300 px-4 py-3 text-base"
-                />
-              </div>
-              <div>
-                <label htmlFor="p3-scale" className="block text-sm font-semibold">Grading Scale</label>
-                <input
-                  id="p3-scale"
-                  type="text"
-                  value={cgpaScale}
-                  onChange={(e) => setCgpaScale(e.target.value)}
-                  className="mt-1 w-full rounded-xl border border-slate-300 px-4 py-3 text-base"
-                />
-              </div>
-              <div>
-                <label htmlFor="p3-backlogs" className="block text-sm font-semibold">Total Backlogs</label>
-                <input
-                  id="p3-backlogs"
-                  type="number"
-                  min="0"
-                  value={backlogs}
-                  onChange={(e) => setBacklogs(e.target.value)}
-                  className="mt-1 w-full rounded-xl border border-slate-300 px-4 py-3 text-base"
-                />
-              </div>
-            </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <label htmlFor="p2-name" className="block text-[14px] font-medium text-gray-900">
+                      Full legal name
+                    </label>
+                    <input
+                      id="p2-name"
+                      type="text"
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                      className="mt-1 h-11 w-full rounded-[8px] border border-gray-300 px-3 text-[16px]"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="p2-dob" className="block text-[14px] font-medium text-gray-900">
+                      Date of birth
+                    </label>
+                    <input
+                      id="p2-dob"
+                      type="date"
+                      value={dob}
+                      onChange={(e) => setDob(e.target.value)}
+                      className="mt-1 h-11 w-full rounded-[8px] border border-gray-300 px-3 text-[16px]"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="p2-nat" className="block text-[14px] font-medium text-gray-900">
+                      Country of nationality
+                    </label>
+                    <input
+                      id="p2-nat"
+                      type="text"
+                      value={nationality}
+                      onChange={(e) => setNationality(e.target.value)}
+                      className="mt-1 h-11 w-full rounded-[8px] border border-gray-300 px-3 text-[16px]"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="p2-pass4" className="block text-[14px] font-medium text-gray-900">
+                      Passport number (last 4 digits)
+                    </label>
+                    <input
+                      id="p2-pass4"
+                      type="text"
+                      value={passportLast4}
+                      onChange={(e) => setPassportLast4(e.target.value)}
+                      placeholder="e.g. ****9103"
+                      className="mt-1 h-11 w-full rounded-[8px] border border-gray-300 px-3 text-[16px]"
+                    />
+                  </div>
+                </div>
 
-            <div>
-              <label htmlFor="p3-grad" className="block text-sm font-semibold">Graduation Date (Date Picker)</label>
-              <input
-                id="p3-grad"
-                type="date"
-                value={graduationDate}
-                onChange={(e) => setGraduationDate(e.target.value)}
-                className="mt-1 w-full rounded-xl border border-slate-300 px-4 py-3 text-base"
-              />
-            </div>
-
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => void saveDraftAndAdvance(4)}
-              className="rounded-xl bg-blue-600 px-6 py-3.5 text-base font-semibold text-white hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300"
-            >
-              Save &amp; Continue to Funding
-            </button>
-          </section>
-        )}
-
-        {/* PAGE 4: FUNDING */}
-        {page === 4 && (
-          <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="text-2xl font-bold text-slate-950">
-              Step {accountMode ? 4 : 3}: Funding &amp; Financial Proof
-            </h2>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div>
-                <label htmlFor="p4-bal" className="block text-sm font-semibold">Bank Balance</label>
-                <input
-                  id="p4-bal"
-                  type="text"
-                  value={bankBalance}
-                  onChange={(e) => setBankBalance(e.target.value)}
-                  className="mt-1 w-full rounded-xl border border-slate-300 px-4 py-3 text-base"
-                />
-              </div>
-              <div>
-                <label htmlFor="p4-curr" className="block text-sm font-semibold">Currency</label>
-                <input
-                  id="p4-curr"
-                  type="text"
-                  value={currency}
-                  onChange={(e) => setCurrency(e.target.value)}
-                  className="mt-1 w-full rounded-xl border border-slate-300 px-4 py-3 text-base"
-                />
-              </div>
-            </div>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div>
-                <label htmlFor="p4-loan" className="block text-sm font-semibold">Education Loan Amount</label>
-                <input
-                  id="p4-loan"
-                  type="text"
-                  value={loanAmount}
-                  onChange={(e) => setLoanAmount(e.target.value)}
-                  className="mt-1 w-full rounded-xl border border-slate-300 px-4 py-3 text-base"
-                />
-              </div>
-              <div>
-                <label htmlFor="p4-spon" className="block text-sm font-semibold">Sponsor Name</label>
-                <input
-                  id="p4-spon"
-                  type="text"
-                  value={sponsor}
-                  onChange={(e) => setSponsor(e.target.value)}
-                  className="mt-1 w-full rounded-xl border border-slate-300 px-4 py-3 text-base"
-                />
-              </div>
-            </div>
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => void saveDraftAndAdvance(5)}
-              className="rounded-xl bg-blue-600 px-6 py-3.5 text-base font-semibold text-white hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300"
-            >
-              Save &amp; Continue to Document Upload
-            </button>
-          </section>
-        )}
-
-        {/* PAGE 5: DOCUMENT UPLOAD */}
-        {page === 5 && (
-          <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="text-2xl font-bold text-slate-950">
-              Step {accountMode ? 5 : 4}: Supporting Documents
-            </h2>
-            <div>
-              <label htmlFor="p5-file" className="block text-sm font-semibold">
-                Upload verified transcript / financial packet (optional for draft test)
-              </label>
-              <input
-                id="p5-file"
-                type="file"
-                onChange={(e) => setDocFileName(e.target.files?.[0]?.name || '')}
-                className="mt-2 block w-full rounded-xl border border-slate-300 bg-slate-50 p-3 text-base"
-              />
-              {docFileName && (
-                <p className="mt-2 text-sm text-emerald-800">Attached: {docFileName}</p>
-              )}
-            </div>
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => void saveDraftAndAdvance(6)}
-              className="rounded-xl bg-blue-600 px-6 py-3.5 text-base font-semibold text-white hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300"
-            >
-              Save &amp; Continue to Declaration
-            </button>
-          </section>
-        )}
-
-        {/* PAGE 6: DECLARATION */}
-        {page === 6 && (
-          <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="text-2xl font-bold text-slate-950">
-              Step {accountMode ? 6 : 5}: Applicant Declaration
-            </h2>
-            <p className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-base text-amber-950">
-              High-stakes gate: Confirming a legal declaration and submitting an application requires
-              a valid single-use counselor approval token.
-            </p>
-            <label className="flex items-start gap-3 text-base">
-              <input
-                type="checkbox"
-                checked={declarationAccepted}
-                onChange={(e) => setDeclarationAccepted(e.target.checked)}
-                className="mt-1 h-5 w-5 rounded border-slate-400"
-              />
-              <span>
-                I declare that all academic and financial details entered in this application match
-                the original verified documents.
-              </span>
-            </label>
-            <div>
-              <label htmlFor="p6-sig" className="block text-sm font-semibold">Applicant Name</label>
-              <input
-                id="p6-sig"
-                type="text"
-                value={declarationName}
-                onChange={(e) => setDeclarationName(e.target.value)}
-                placeholder={fullName || 'Type full name'}
-                className="mt-1 w-full rounded-xl border border-slate-300 px-4 py-3 text-base"
-              />
-            </div>
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => void saveDraftAndAdvance(7)}
-              className="rounded-xl bg-blue-600 px-6 py-3.5 text-base font-semibold text-white hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300"
-            >
-              Continue to Final Review
-            </button>
-          </section>
-        )}
-
-        {/* PAGE 7: REVIEW & SUBMIT GATE */}
-        {page === 7 && (
-          <section className="space-y-5 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="text-2xl font-bold text-slate-950">
-              Step {accountMode ? 7 : 6}: Final Review &amp; Submit
-            </h2>
-
-            <dl className="grid gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 text-base sm:grid-cols-2">
-              <div><dt className="text-xs uppercase text-slate-500">Applicant</dt><dd className="font-semibold">{fullName || '—'}</dd></div>
-              <div><dt className="text-xs uppercase text-slate-500">Email</dt><dd className="font-semibold">{email || '—'}</dd></div>
-              <div><dt className="text-xs uppercase text-slate-500">Programme</dt><dd className="font-semibold">{selectedProgram || '—'}</dd></div>
-              <div><dt className="text-xs uppercase text-slate-500">University / CGPA</dt><dd className="font-semibold">{university || '—'} ({cgpa || '—'}/{cgpaScale})</dd></div>
-              <div><dt className="text-xs uppercase text-slate-500">Graduation Date</dt><dd className="font-semibold">{graduationDate || '—'}</dd></div>
-              <div>
-                <dt className="text-xs uppercase text-slate-500">Funding</dt>
-                <dd className="font-semibold">
-                  {currency.toUpperCase() === 'INR'
-                    ? `${formatRupees(Number(bankBalance) || 0)} (Loan: ${formatRupees(Number(loanAmount) || 0)})`
-                    : `${currency} ${bankBalance || '0'} (Loan: ${loanAmount || '0'})`}
-                </dd>
-              </div>
-            </dl>
-
-            <div className="grid gap-3 rounded-xl border border-slate-200 p-4 sm:grid-cols-2">
-              <div>
-                <label htmlFor="p7-case" className="block text-sm font-semibold">Aira Case ID</label>
-                <input
-                  id="p7-case"
-                  type="text"
-                  value={caseId}
-                  onChange={(e) => {
-                    setCaseId(e.target.value);
-                    setSubmitError(null);
-                  }}
-                  placeholder="case_..."
-                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-sm"
-                />
-                {latestApprovedCaseId && caseId !== latestApprovedCaseId && (
+                <div className="flex justify-end border-t border-gray-200 pt-4">
                   <button
                     type="button"
-                    onClick={() => {
-                      setCaseId(latestApprovedCaseId);
-                      setSubmitError(null);
-                    }}
-                    className="mt-1.5 text-left text-xs font-semibold text-indigo-700 underline hover:text-indigo-900"
+                    disabled={busy}
+                    onClick={() => void saveDraftAndAdvance(3)}
+                    className="inline-flex h-11 items-center gap-1.5 rounded-[8px] bg-[#1A73E8] px-5 text-[16px] font-semibold text-white hover:bg-[#1557B0]"
                   >
-                    Use latest approved case: {latestApprovedCaseId}
+                    <span>Save &amp; continue</span>
+                    <span className="material-symbols-outlined !text-[18px]" aria-hidden="true">
+                      arrow_forward
+                    </span>
                   </button>
-                )}
-                {latestApprovedCaseId && caseId === latestApprovedCaseId && (
-                  <p className="mt-1.5 text-xs text-slate-700">
-                    Matched latest approved case from Counselor step.
-                  </p>
-                )}
-              </div>
-              <div>
-                <label htmlFor="p7-tok" className="block text-sm font-semibold text-slate-900">
-                  Paste approval token
-                </label>
-                <input
-                  id="p7-tok"
-                  type="text"
-                  value={approvalToken}
-                  onChange={(e) => {
-                    setApprovalToken(e.target.value);
-                    setSubmitError(null);
-                  }}
-                  placeholder="Paste single-use counselor approval token here"
-                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-sm text-slate-900 focus:border-blue-600 focus:outline-none focus:ring-4 focus:ring-blue-200"
-                />
-              </div>
-            </div>
+                </div>
+              </section>
+            )}
 
-            {submitReceipt ? (
-              <div
-                role="status"
-                className="overflow-hidden rounded-3xl border-2 border-emerald-400 bg-white p-6 text-center shadow-md sm:p-8"
-              >
-                <div className="mx-auto max-w-sm overflow-hidden rounded-2xl">
-                  <img
-                    src="/img/submitted-success.webp"
-                    alt="Celebratory illustration of a paper plane landing at a university building under a green check mark"
-                    loading="lazy"
-                    width={600}
-                    height={400}
-                    className="h-auto w-full object-contain"
-                  />
+            {/* STEP 2 (page 3): ACADEMICS */}
+            {page === 3 && (
+              <section className="space-y-5">
+                <div className="border-b border-gray-200 pb-3">
+                  <h2 className="text-[24px] font-bold text-gray-900">Step 2: Academics</h2>
+                  <p className="text-[14px] text-gray-600">
+                    Undergraduate degree and chosen postgraduate course.
+                  </p>
                 </div>
-                <div className="mt-4 inline-flex h-14 w-14 items-center justify-center rounded-full bg-emerald-600 text-white shadow-md">
-                  <CheckCircle2 className="h-8 w-8" aria-hidden="true" />
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="relative sm:col-span-2">
+                    <span className="block text-[14px] font-medium text-gray-900">
+                      Target degree course
+                    </span>
+                    <button
+                      type="button"
+                      aria-haspopup="listbox"
+                      aria-expanded={dropdownOpen}
+                      onClick={() => setDropdownOpen((o) => !o)}
+                      className="mt-1 flex h-11 w-full items-center justify-between rounded-[8px] border border-gray-300 bg-white px-3 text-left text-[16px]"
+                    >
+                      <span>{selectedProgram || 'Select a course...'}</span>
+                      <span className="material-symbols-outlined !text-[18px]" aria-hidden="true">
+                        expand_more
+                      </span>
+                    </button>
+                    {dropdownOpen && (
+                      <ul
+                        role="listbox"
+                        className="absolute z-20 mt-1 w-full rounded-[8px] border border-gray-200 bg-white py-1 shadow-lg"
+                      >
+                        {PROGRAM_OPTIONS.map((opt) => (
+                          <li key={opt}>
+                            <button
+                              type="button"
+                              role="option"
+                              aria-selected={selectedProgram === opt}
+                              onClick={() => {
+                                setSelectedProgram(opt);
+                                setDropdownOpen(false);
+                              }}
+                              className="block w-full px-3 py-2 text-left text-[16px] hover:bg-gray-50"
+                            >
+                              {opt}
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+
+                  <div>
+                    <label htmlFor="p3-uni" className="block text-[14px] font-medium text-gray-900">
+                      Undergraduate university
+                    </label>
+                    <input
+                      id="p3-uni"
+                      type="text"
+                      value={university}
+                      onChange={(e) => setUniversity(e.target.value)}
+                      className="mt-1 h-11 w-full rounded-[8px] border border-gray-300 px-3 text-[16px]"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="p3-deg" className="block text-[14px] font-medium text-gray-900">
+                      Degree title
+                    </label>
+                    <input
+                      id="p3-deg"
+                      type="text"
+                      value={degree}
+                      onChange={(e) => setDegree(e.target.value)}
+                      className="mt-1 h-11 w-full rounded-[8px] border border-gray-300 px-3 text-[16px]"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="p3-cgpa" className="block text-[14px] font-medium text-gray-900">
+                      CGPA / score
+                    </label>
+                    <input
+                      id="p3-cgpa"
+                      type="text"
+                      value={cgpa}
+                      onChange={(e) => setCgpa(e.target.value)}
+                      className="mt-1 h-11 w-full rounded-[8px] border border-gray-300 px-3 text-[16px]"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="p3-scale" className="block text-[14px] font-medium text-gray-900">
+                      Grading scale
+                    </label>
+                    <input
+                      id="p3-scale"
+                      type="text"
+                      value={cgpaScale}
+                      onChange={(e) => setCgpaScale(e.target.value)}
+                      className="mt-1 h-11 w-full rounded-[8px] border border-gray-300 px-3 text-[16px]"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="p3-backlogs" className="block text-[14px] font-medium text-gray-900">
+                      Active backlogs
+                    </label>
+                    <input
+                      id="p3-backlogs"
+                      type="number"
+                      min="0"
+                      value={backlogs}
+                      onChange={(e) => setBacklogs(e.target.value)}
+                      className="mt-1 h-11 w-full rounded-[8px] border border-gray-300 px-3 text-[16px]"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="p3-grad" className="block text-[14px] font-medium text-gray-900">
+                      Graduation date
+                    </label>
+                    <input
+                      id="p3-grad"
+                      type="date"
+                      value={graduationDate}
+                      onChange={(e) => setGraduationDate(e.target.value)}
+                      className="mt-1 h-11 w-full rounded-[8px] border border-gray-300 px-3 text-[16px]"
+                    />
+                  </div>
                 </div>
-                <p className="mt-3 text-2xl font-extrabold text-emerald-950 sm:text-3xl">
-                  Application Submitted!
-                </p>
-                <p className="mt-2 font-mono text-lg text-slate-950">
-                  Receipt ID: <strong className="rounded-lg bg-emerald-50 px-3 py-1 text-emerald-900 ring-1 ring-emerald-300">{submitReceipt.submissionId}</strong>
-                </p>
-                <p className="mt-3 text-base font-bold text-indigo-950">
-                  Submitted only after counselor approval.
-                </p>
-                <p className="mt-1 text-sm text-slate-700">
-                  Approved by <strong>{submitReceipt.approvedBy}</strong> · Submitted at{' '}
-                  {new Date(submitReceipt.submittedAt).toLocaleString()}
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {submitError ? (
-                  <div
-                    role="alert"
-                    className="flex items-start gap-3 rounded-xl border-2 border-red-500 bg-red-50 px-4 py-3.5 text-sm font-semibold text-red-950 shadow-sm"
+
+                <div className="flex justify-end border-t border-gray-200 pt-4">
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => void saveDraftAndAdvance(4)}
+                    className="inline-flex h-11 items-center gap-1.5 rounded-[8px] bg-[#1A73E8] px-5 text-[16px] font-semibold text-white hover:bg-[#1557B0]"
                   >
-                    <ShieldAlert className="mt-0.5 h-5 w-5 shrink-0 text-red-700" aria-hidden="true" />
-                    <p>{submitError}</p>
+                    <span>Save &amp; continue</span>
+                    <span className="material-symbols-outlined !text-[18px]" aria-hidden="true">
+                      arrow_forward
+                    </span>
+                  </button>
+                </div>
+              </section>
+            )}
+
+            {/* STEP 3 (page 4): ENGLISH */}
+            {page === 4 && (
+              <section className="space-y-5">
+                <div className="border-b border-gray-200 pb-3">
+                  <h2 className="text-[24px] font-bold text-gray-900">
+                    Step 3: English Proficiency
+                  </h2>
+                  <p className="text-[14px] text-gray-600">
+                    English language qualification details.
+                  </p>
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <label htmlFor="p-eng-type" className="block text-[14px] font-medium text-gray-900">
+                      Test type
+                    </label>
+                    <input
+                      id="p-eng-type"
+                      type="text"
+                      value={englishTestType}
+                      onChange={(e) => setEnglishTestType(e.target.value)}
+                      className="mt-1 h-11 w-full rounded-[8px] border border-gray-300 px-3 text-[16px]"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="p-eng-overall" className="block text-[14px] font-medium text-gray-900">
+                      Overall band / score
+                    </label>
+                    <input
+                      id="p-eng-overall"
+                      type="text"
+                      value={englishOverallScore}
+                      onChange={(e) => setEnglishOverallScore(e.target.value)}
+                      className="mt-1 h-11 w-full rounded-[8px] border border-gray-300 px-3 text-[16px]"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="p-eng-writing" className="block text-[14px] font-medium text-gray-900">
+                      Writing score
+                    </label>
+                    <input
+                      id="p-eng-writing"
+                      type="text"
+                      value={englishWritingScore}
+                      onChange={(e) => setEnglishWritingScore(e.target.value)}
+                      className="mt-1 h-11 w-full rounded-[8px] border border-gray-300 px-3 text-[16px]"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="p-eng-date" className="block text-[14px] font-medium text-gray-900">
+                      Test date
+                    </label>
+                    <input
+                      id="p-eng-date"
+                      type="date"
+                      value={englishTestDate}
+                      onChange={(e) => setEnglishTestDate(e.target.value)}
+                      className="mt-1 h-11 w-full rounded-[8px] border border-gray-300 px-3 text-[16px]"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex justify-end border-t border-gray-200 pt-4">
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => void saveDraftAndAdvance(5)}
+                    className="inline-flex h-11 items-center gap-1.5 rounded-[8px] bg-[#1A73E8] px-5 text-[16px] font-semibold text-white hover:bg-[#1557B0]"
+                  >
+                    <span>Save &amp; continue</span>
+                    <span className="material-symbols-outlined !text-[18px]" aria-hidden="true">
+                      arrow_forward
+                    </span>
+                  </button>
+                </div>
+              </section>
+            )}
+
+            {/* STEP 4 (page 5): FUNDING */}
+            {page === 5 && (
+              <section className="space-y-5">
+                <div className="border-b border-gray-200 pb-3">
+                  <h2 className="text-[24px] font-bold text-gray-900">Step 4: Funding</h2>
+                  <p className="text-[14px] text-gray-600">
+                    Financial evidence for tuition and living costs.
+                  </p>
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <label htmlFor="p4-bal" className="block text-[14px] font-medium text-gray-900">
+                      Bank balance
+                    </label>
+                    <input
+                      id="p4-bal"
+                      type="text"
+                      value={bankBalance}
+                      onChange={(e) => setBankBalance(e.target.value)}
+                      className="mt-1 h-11 w-full rounded-[8px] border border-gray-300 px-3 text-[16px]"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="p4-curr" className="block text-[14px] font-medium text-gray-900">
+                      Currency
+                    </label>
+                    <input
+                      id="p4-curr"
+                      type="text"
+                      value={currency}
+                      onChange={(e) => setCurrency(e.target.value)}
+                      className="mt-1 h-11 w-full rounded-[8px] border border-gray-300 px-3 text-[16px]"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="p4-loan" className="block text-[14px] font-medium text-gray-900">
+                      Education loan amount
+                    </label>
+                    <input
+                      id="p4-loan"
+                      type="text"
+                      value={loanAmount}
+                      onChange={(e) => setLoanAmount(e.target.value)}
+                      className="mt-1 h-11 w-full rounded-[8px] border border-gray-300 px-3 text-[16px]"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="p4-spon" className="block text-[14px] font-medium text-gray-900">
+                      Funding source
+                    </label>
+                    <input
+                      id="p4-spon"
+                      type="text"
+                      value={sponsor}
+                      onChange={(e) => setSponsor(e.target.value)}
+                      className="mt-1 h-11 w-full rounded-[8px] border border-gray-300 px-3 text-[16px]"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex justify-end border-t border-gray-200 pt-4">
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => void saveDraftAndAdvance(6)}
+                    className="inline-flex h-11 items-center gap-1.5 rounded-[8px] bg-[#1A73E8] px-5 text-[16px] font-semibold text-white hover:bg-[#1557B0]"
+                  >
+                    <span>Save &amp; continue</span>
+                    <span className="material-symbols-outlined !text-[18px]" aria-hidden="true">
+                      arrow_forward
+                    </span>
+                  </button>
+                </div>
+              </section>
+            )}
+
+            {/* STEP 5 (page 6): DOCUMENTS */}
+            {page === 6 && (
+              <section className="space-y-5">
+                <div className="border-b border-gray-200 pb-3">
+                  <h2 className="text-[24px] font-bold text-gray-900">Step 5: Documents</h2>
+                  <p className="text-[14px] text-gray-600">
+                    Supporting academic and financial documents.
+                  </p>
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="sm:col-span-2">
+                    <label htmlFor="p5-file" className="block text-[14px] font-medium text-gray-900">
+                      Attached document packet
+                    </label>
+                    <input
+                      id="p5-file"
+                      type="file"
+                      onChange={(e) => setDocFileName(e.target.files?.[0]?.name || docFileName)}
+                      className="mt-1 block w-full rounded-[8px] border border-gray-300 bg-gray-50 p-2.5 text-[14px]"
+                    />
+                    {docFileName && (
+                      <p className="mt-1.5 text-[14px] text-[#188038]">
+                        Current file: {docFileName}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label htmlFor="p6-sig" className="block text-[14px] font-medium text-gray-900">
+                      Applicant declaration name
+                    </label>
+                    <input
+                      id="p6-sig"
+                      type="text"
+                      value={declarationName}
+                      onChange={(e) => setDeclarationName(e.target.value)}
+                      className="mt-1 h-11 w-full rounded-[8px] border border-gray-300 px-3 text-[16px]"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex justify-end border-t border-gray-200 pt-4">
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => void saveDraftAndAdvance(7)}
+                    className="inline-flex h-11 items-center gap-1.5 rounded-[8px] bg-[#1A73E8] px-5 text-[16px] font-semibold text-white hover:bg-[#1557B0]"
+                  >
+                    <span>Continue to Submit</span>
+                    <span className="material-symbols-outlined !text-[18px]" aria-hidden="true">
+                      arrow_forward
+                    </span>
+                  </button>
+                </div>
+              </section>
+            )}
+
+            {/* STEP 6 (page 7): SUBMIT */}
+            {page === 7 && (
+              <section className="space-y-5">
+                <div className="border-b border-gray-200 pb-3">
+                  <h2 className="text-[24px] font-bold text-gray-900">
+                    Step 6: Final Review &amp; Submit
+                  </h2>
+                  <p className="text-[14px] text-gray-600">
+                    Review your details and enter your counselor approval to submit.
+                  </p>
+                </div>
+
+                {/* Lock banner */}
+                <div className="flex items-center gap-3 rounded-[8px] border border-gray-200 bg-gray-50 px-4 py-3 text-[14px] font-medium text-gray-900">
+                  <span className="material-symbols-outlined text-[#1A73E8]" aria-hidden="true">
+                    lock
+                  </span>
+                  <span>Submit unlocks with a one-time counselor approval</span>
+                </div>
+
+                {/* 2-column summary */}
+                <dl className="grid gap-4 border-y border-gray-200 py-4 text-[14px] sm:grid-cols-2">
+                  <div>
+                    <dt className="text-gray-600">Applicant</dt>
+                    <dd className="mt-0.5 text-[16px] font-semibold text-gray-900">
+                      {fullName || '—'}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-gray-600">Email</dt>
+                    <dd className="mt-0.5 text-[16px] font-semibold text-gray-900">
+                      {email || '—'}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-gray-600">Course</dt>
+                    <dd className="mt-0.5 text-[16px] font-semibold text-gray-900">
+                      {selectedProgram || '—'}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-gray-600">Undergraduate / CGPA</dt>
+                    <dd className="mt-0.5 text-[16px] font-semibold text-gray-900">
+                      {university || '—'} ({cgpa || '—'}/{cgpaScale})
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-gray-600">English score</dt>
+                    <dd className="mt-0.5 text-[16px] font-semibold text-gray-900">
+                      {englishTestType} {englishOverallScore}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-gray-600">Funding</dt>
+                    <dd className="mt-0.5 text-[16px] font-semibold text-gray-900">
+                      {currency.toUpperCase() === 'INR'
+                        ? `${formatRupees(Number(bankBalance) || 0)} (Loan: ${formatRupees(Number(loanAmount) || 0)})`
+                        : `${currency} ${bankBalance || '0'} (Loan: ${loanAmount || '0'})`}
+                    </dd>
+                  </div>
+                </dl>
+
+                {/* Approval inputs */}
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <label
+                      htmlFor="p7-tok"
+                      className="block text-[14px] font-semibold text-gray-900"
+                    >
+                      Counselor approval code
+                    </label>
+                    <input
+                      id="p7-tok"
+                      type="text"
+                      value={approvalToken}
+                      onChange={(e) => {
+                        setApprovalToken(e.target.value);
+                        setSubmitError(null);
+                      }}
+                      placeholder="Paste one-time counselor approval code"
+                      className="mt-1 h-11 w-full rounded-[8px] border border-gray-300 px-3 font-mono text-[14px] text-gray-900 focus:border-[#1A73E8] focus:outline-none focus:ring-2 focus:ring-[#1A73E8]/30"
+                    />
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor="p7-case"
+                      className="block text-[14px] font-semibold text-gray-900"
+                    >
+                      Application reference
+                    </label>
+                    <input
+                      id="p7-case"
+                      type="text"
+                      value={caseId}
+                      onChange={(e) => {
+                        setCaseId(e.target.value);
+                        setSubmitError(null);
+                      }}
+                      placeholder="case_..."
+                      className="mt-1 h-11 w-full rounded-[8px] border border-gray-300 px-3 font-mono text-[14px] text-gray-900 focus:border-[#1A73E8] focus:outline-none focus:ring-2 focus:ring-[#1A73E8]/30"
+                    />
+                    {latestApprovedCaseId && caseId !== latestApprovedCaseId && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCaseId(latestApprovedCaseId);
+                          setSubmitError(null);
+                        }}
+                        className="mt-1 text-left text-[14px] font-semibold text-[#1A73E8] underline"
+                      >
+                        Use latest approved case
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {submitReceipt ? (
+                  <div
+                    role="status"
+                    className="rounded-[12px] border border-[#CEEAD6] bg-[#E6F4EA] p-6"
+                  >
+                    <div className="flex items-start gap-3">
+                      <span
+                        className="material-symbols-outlined !text-[28px] text-[#188038]"
+                        aria-hidden="true"
+                      >
+                        check_circle
+                      </span>
+                      <div className="space-y-1">
+                        <h3 className="text-[24px] font-bold text-gray-900">
+                          Application Submitted!
+                        </h3>
+                        <p className="text-[16px] text-gray-900">
+                          Receipt ID:{' '}
+                          <strong className="font-mono font-bold text-[#188038]">
+                            {submitReceipt.submissionId}
+                          </strong>
+                        </p>
+                        <p className="text-[14px] font-semibold text-gray-900">
+                          Submitted only after counselor approval.
+                        </p>
+                        <p className="text-[14px] text-gray-600">
+                          Approved by <strong>{submitReceipt.approvedBy}</strong> ·{' '}
+                          {new Date(submitReceipt.submittedAt).toLocaleString()}
+                        </p>
+                      </div>
+                    </div>
                   </div>
                 ) : (
-                  !approvalToken.trim() && (
-                    <p className="flex items-center gap-2 rounded-xl border border-amber-300 bg-amber-50 px-4 py-2.5 text-sm font-semibold text-amber-950">
-                      <ShieldAlert className="h-4 w-4 shrink-0 text-amber-700" aria-hidden="true" />
-                      No counselor token entered — Submit requires counselor approval first.
-                    </p>
-                  )
+                  <div className="space-y-4">
+                    {submitError && (
+                      <div
+                        role="alert"
+                        className="flex items-start gap-2.5 rounded-[12px] border border-[#F6AEA9] bg-[#FCE8E6] p-4 text-[14px] font-semibold text-[#D93025]"
+                      >
+                        <span className="material-symbols-outlined !text-[20px]" aria-hidden="true">
+                          error
+                        </span>
+                        <p>{submitError}</p>
+                      </div>
+                    )}
+
+                    <div className="flex justify-end">
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => void handleFinalSubmit()}
+                        className="inline-flex h-11 items-center gap-2 rounded-[8px] bg-[#1A73E8] px-6 text-[16px] font-semibold text-white hover:bg-[#1557B0] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1A73E8] disabled:opacity-50"
+                      >
+                        <span>{busy ? 'Submitting...' : 'Submit Application'}</span>
+                      </button>
+                    </div>
+                  </div>
                 )}
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => void handleFinalSubmit()}
-                  className="rounded-xl bg-blue-600 px-6 py-4 text-lg font-bold text-white shadow-md hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300 disabled:opacity-50"
-                >
-                  {busy ? 'Submitting...' : 'Submit Application'}
-                </button>
-              </div>
+              </section>
             )}
-          </section>
-        )}
+          </div>
+        </div>
       </main>
 
-      <footer className="mt-10 border-t border-slate-200 bg-white px-4 py-6 text-center text-sm font-semibold text-slate-700 sm:px-6 lg:px-8">
+      <footer className="mt-12 border-t border-gray-200 bg-white px-4 py-6 text-center text-[14px] font-medium text-gray-600 sm:px-6">
         AI for speed. Code for money. Humans for the final yes.
       </footer>
     </div>

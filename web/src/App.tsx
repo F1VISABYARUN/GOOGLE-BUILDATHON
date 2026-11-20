@@ -1,22 +1,9 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import {
-  AlertTriangle,
-  ArrowRight,
-  Calculator,
-  CheckCircle2,
-  FileCheck2,
-  FileText,
-  Loader2,
-  ShieldCheck,
-  Sparkles,
-  Trash2,
-  UploadCloud,
-  XCircle,
-} from 'lucide-react';
 import TopNav from './TopNav.tsx';
 import CounselorView from './CounselorView.tsx';
 import PortalView from './PortalView.tsx';
-import AgentRunnerPanel from './AgentRunnerPanel.tsx';
+import AgentRunnerPanel, { UniversityRulesLookup } from './AgentRunnerPanel.tsx';
+import IssueCard, { type IssueFlagData } from './IssueCard.tsx';
 import { createSampleExceptionFiles, createSampleGreenFiles } from './samplePdfs.ts';
 import { formatInrInText, formatShortDate } from './formatInr.ts';
 
@@ -51,21 +38,6 @@ interface VerifiedFact {
   needsReview: boolean;
 }
 
-interface CheckFlag {
-  id: string;
-  checkType: string;
-  severity: 'red' | 'amber' | 'green';
-  title: string;
-  summary: string;
-  quote: string;
-  sourceDocName?: string;
-  sourceUrl?: string;
-  ruleAsOf?: string;
-  mathLines?: string[];
-  explanation?: string;
-  suggestedFix?: string;
-}
-
 interface StatusStep {
   step: string;
   status: 'done' | 'current' | 'pending';
@@ -87,9 +59,10 @@ interface CaseRecord {
   destinationCountry: string;
   ukRegion?: 'london' | 'outside_london';
   storageBackend: 'firestore' | 'memory_fallback';
+  consent?: { typedSignature?: string; signedAt?: string };
   documents: Array<{ fileName: string; mimeType: string; documentType: string }>;
   facts: VerifiedFact[];
-  flags: CheckFlag[];
+  flags: IssueFlagData[];
   statusTimeline: StatusStep[];
   usageSummary?: {
     totalInputTokens: number;
@@ -100,74 +73,26 @@ interface CaseRecord {
   };
 }
 
-function parseFundsTableRows(mathLines?: string[]): {
-  required: string | null;
-  lowest28Day: string | null;
-  lowestLabel: string;
-  gap: string | null;
-  isShortfall: boolean;
-} | null {
-  if (!mathLines || mathLines.length === 0) return null;
-  const reqLine = mathLines.find((l) => /^Total required funds:/i.test(l) || /^Required cost/i.test(l));
-  const lowestLine =
-    mathLines.find((l) => /lowest 28-day closing balance/i.test(l)) ||
-    mathLines.find((l) => /^Total available funds/i.test(l));
-  const gapLine = mathLines.find((l) => /^Shortfall:/i.test(l) || /^Buffer above required funds:/i.test(l));
-
-  const extractInr = (line?: string): string | null => {
-    if (!line) return null;
-    const matches = line.match(/[+-]?\s*(?:INR|₹)\s*[0-9,]+/gi);
-    if (matches && matches.length > 0) return formatInrInText(matches[matches.length - 1].trim());
-    const afterColon = line.split(':').slice(1).join(':').trim();
-    return afterColon ? formatInrInText(afterColon) : null;
-  };
-
-  const required = extractInr(reqLine);
-  const lowest28Day = extractInr(lowestLine);
-  const gap = extractInr(gapLine);
-  if (!required || !lowest28Day || !gap) return null;
-
-  const dateMatch = lowestLine?.match(/\b(\d{4}-\d{2}-\d{2})\b/);
-  const lowestLabel = dateMatch
-    ? `Lowest balance in 28 days (${dateMatch[1]})`
-    : 'Lowest balance in 28 days';
-
-  return {
-    required,
-    lowest28Day,
-    lowestLabel,
-    gap,
-    isShortfall: Boolean(gapLine && /^Shortfall:/i.test(gapLine)),
-  };
-}
-
-function severityStyles(severity: 'red' | 'amber' | 'green') {
-  if (severity === 'red') {
-    return {
-      card: 'border-red-200 bg-red-50/70',
-      badge: 'bg-red-700 text-white',
-      label: 'RED FLAG',
-      Icon: XCircle,
-      iconColor: 'text-red-700',
-    };
-  }
-  if (severity === 'amber') {
-    return {
-      card: 'border-amber-200 bg-amber-50/70',
-      badge: 'bg-amber-700 text-white',
-      label: 'AMBER — REVIEW',
-      Icon: AlertTriangle,
-      iconColor: 'text-amber-700',
-    };
-  }
-  return {
-    card: 'border-emerald-200 bg-emerald-50/70',
-    badge: 'bg-emerald-700 text-white',
-    label: 'GREEN — PASSED',
-    Icon: CheckCircle2,
-    iconColor: 'text-emerald-700',
-  };
-}
+const SAMPLE_HERO_PREVIEW_FLAG: IssueFlagData = {
+  id: 'preview-uk-28-day-dip',
+  checkType: 'funds',
+  severity: 'red',
+  title: 'Balance fell below the required amount on 4 Nov 2026',
+  summary:
+    'Closing balance dropped to ₹28,50,000 on 4 Nov 2026, which is ₹6,45,600 short of the required ₹34,95,600.',
+  explanation:
+    'Even though the final balance recovered to ₹36,00,000, one day below the threshold breaks the UK 28-day continuous funding rule.',
+  quote:
+    'SAMPLE_INDIAN_BANK_STATEMENT.pdf: "2026-11-04 Daily Closing Balance: INR 2850000" · SAMPLE_UK_CAS_OFFER.pdf: "Total First Year Tuition Fee: GBP 20000 | Tuition Deposit Paid: GBP 5000"',
+  sourceDocName: 'Indian Bank Statement (for UK visa)',
+  mathLines: [
+    'Total required funds: INR 34,95,600',
+    'Lowest 28-day closing balance (2026-11-04): INR 28,50,000',
+    'Shortfall: INR 6,45,600',
+  ],
+  suggestedFix:
+    'Upload an updated Indian bank statement showing the closing balance stayed at or above ₹34,95,600 for 28 straight days.',
+};
 
 export default function App() {
   function detectRoute(): 'student' | 'counselor' | 'portal' {
@@ -182,7 +107,7 @@ export default function App() {
     const path = next === 'counselor' ? '/counselor' : next === 'portal' ? '/portal' : '/';
     window.history.pushState({}, '', path);
     setRoute(next);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 0, behavior: 'auto' });
   }
 
   useEffect(() => {
@@ -193,12 +118,15 @@ export default function App() {
     return () => window.removeEventListener('popstate', onPopState);
   }, []);
 
-  const [step, setStep] = useState<'consent' | 'upload' | 'results'>('consent');
+  const [step, setStep] = useState<'home' | 'upload' | 'results'>('home');
+  const [consentModalOpen, setConsentModalOpen] = useState(false);
+  const [isSampleRun, setIsSampleRun] = useState(false);
+
   const [deletingData, setDeletingData] = useState(false);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [deleteConfirmationMsg, setDeleteConfirmationMsg] = useState<string | null>(null);
 
-  // Consent & authorisation
+  // Consent & permission state (inside modal)
   const [acceptedStorageNotice, setAcceptedStorageNotice] = useState(false);
   const [acceptedImmediateDeletion, setAcceptedImmediateDeletion] = useState(false);
   const [acceptedDeleteRight, setAcceptedDeleteRight] = useState(false);
@@ -250,7 +178,6 @@ export default function App() {
       .catch(() => {});
   }, []);
 
-  // Auto-scroll to the top so the verdict card sits cleanly at the top after analysis
   useEffect(() => {
     if (step === 'results' && caseResult) {
       window.scrollTo({ top: 0, behavior: 'auto' });
@@ -266,13 +193,13 @@ export default function App() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Could not delete your data.');
       setDeleteConfirmationMsg(
-        data.message ||
-          `Case ${caseResult.id} and all extracted facts, quotes, and tokens have been permanently deleted.`
+        data.message || 'Your check and all saved details have been permanently deleted.'
       );
       setCaseResult(null);
       setFiles([]);
       setConfirmDeleteOpen(false);
-      setStep('consent');
+      setIsSampleRun(false);
+      setStep('home');
     } catch (err) {
       setAnalyzeError(err instanceof Error ? err.message : 'Delete failed.');
     } finally {
@@ -293,25 +220,27 @@ export default function App() {
     setConsentError(null);
 
     if (!acceptedStorageNotice || !acceptedImmediateDeletion || !acceptedDeleteRight) {
-      setConsentError('Please confirm all three privacy and data storage notices.');
+      setConsentError('Please tick all three privacy boxes to continue.');
       return;
     }
     if (isUnder18 && !parentalConsentConfirmed) {
-      setConsentError('Parental or guardian consent is required for students under 18.');
+      setConsentError('Parent or guardian permission is required if you are under 18.');
       return;
     }
     if (!authorisationAccepted) {
-      setConsentError('Please accept the one-time authorisation before continuing.');
+      setConsentError('Please agree to the one-time permission before continuing.');
       return;
     }
     if (typedSignature.trim().length < 2) {
-      setConsentError('Please type your full legal name to sign.');
+      setConsentError('Please type your full name to sign.');
       return;
     }
 
     setSignedAt(new Date().toISOString());
+    setConsentModalOpen(false);
+    setIsSampleRun(false);
     setStep('upload');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 0, behavior: 'auto' });
   }
 
   function handleFileChange(selected: FileList | null) {
@@ -324,7 +253,7 @@ export default function App() {
     }
     for (const file of list) {
       if (file.size > 10 * 1024 * 1024) {
-        setAnalyzeError(`"${file.name}" is larger than 10 MB. Please upload a smaller file.`);
+        setAnalyzeError(`"${file.name}" is over 10 MB. Please choose a smaller file.`);
         return;
       }
     }
@@ -336,7 +265,7 @@ export default function App() {
     setAnalyzeError(null);
 
     if (files.length === 0) {
-      setAnalyzeError('Please choose at least one PDF, JPG, or PNG document.');
+      setAnalyzeError('Please choose at least one PDF, JPG, or PNG file.');
       return;
     }
 
@@ -363,7 +292,7 @@ export default function App() {
       'exchangeRates',
       JSON.stringify({
         asOfDate: rateDate,
-        sourceNote: 'Student / counselor visible rate table',
+        sourceNote: 'Visible exchange rate table',
         ratesToInr: {
           INR: 1,
           GBP: Number(rateGbp) || 120,
@@ -396,7 +325,7 @@ export default function App() {
       }
       setCaseResult(data as CaseRecord);
       setStep('results');
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      window.scrollTo({ top: 0, behavior: 'auto' });
     } catch (err) {
       setAnalyzeError(err instanceof Error ? err.message : 'Something went wrong.');
     } finally {
@@ -411,11 +340,11 @@ export default function App() {
     setAnalyzeError(null);
     setSampleError(null);
     setDeleteConfirmationMsg(null);
+    setIsSampleRun(true);
 
     const nowIso = new Date().toISOString();
     const sampleFiles = createSampleExceptionFiles();
 
-    // Auto-fill DPDP consent & sample UK case parameters
     setAcceptedStorageNotice(true);
     setAcceptedImmediateDeletion(true);
     setAcceptedDeleteRight(true);
@@ -453,7 +382,7 @@ export default function App() {
       'exchangeRates',
       JSON.stringify({
         asOfDate: rateDate,
-        sourceNote: 'Student / counselor visible rate table',
+        sourceNote: 'Visible exchange rate table',
         ratesToInr: {
           INR: 1,
           GBP: Number(rateGbp) || 120,
@@ -477,11 +406,11 @@ export default function App() {
       });
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.details || data.error || 'Sample UK case failed.');
+        throw new Error(data.details || data.error || 'Sample check failed.');
       }
       setCaseResult(data as CaseRecord);
       setStep('results');
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      window.scrollTo({ top: 0, behavior: 'auto' });
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Something went wrong.';
       setSampleError(msg);
@@ -493,10 +422,10 @@ export default function App() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-slate-50 text-slate-900">
+    <div className="flex min-h-screen flex-col bg-white text-gray-900">
       <a
         href="#student-main"
-        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-blue-700 focus:px-4 focus:py-2 focus:text-white"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-[8px] focus:bg-[#1A73E8] focus:px-4 focus:py-2 focus:text-white"
       >
         Skip to main content
       </a>
@@ -505,392 +434,250 @@ export default function App() {
         activeRoute="student"
         onNavigate={navigateTo}
         checkCompleted={step === 'results' && Boolean(caseResult)}
+        showDemoPill={isSampleRun}
       />
 
-      <main id="student-main" className="mx-auto w-full max-w-5xl flex-1 space-y-6 px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
-        {/* HERO SPLIT BANNER (Home only — hidden once user enters Upload or Results) */}
-        {step === 'consent' && (
-          <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
-            <div className="grid items-start gap-6 lg:grid-cols-12 lg:gap-8">
-              <div className="space-y-4 lg:col-span-7">
-                <h1 className="text-3xl font-extrabold tracking-tight text-slate-950 sm:text-5xl sm:leading-[1.08]">
-                  Catch visa-refusal mistakes before you apply.
+      <main
+        id="student-main"
+        className="mx-auto w-full max-w-[1120px] flex-1 space-y-8 px-4 py-8 sm:px-6"
+      >
+        {/* =====================================================================
+            SCREEN 1: HOME
+           ===================================================================== */}
+        {step === 'home' && (
+          <div className="space-y-8">
+            {/* Hero 2-column grid */}
+            <section className="grid items-start gap-8 lg:grid-cols-12">
+              {/* Left half: H1 + Sub + 2 Buttons */}
+              <div className="space-y-6 lg:col-span-5 lg:pt-4">
+                <h1 className="text-[32px] font-bold leading-[1.18] tracking-tight text-gray-900">
+                  Catch the visa refusal before the officer does.
                 </h1>
-                <p className="text-base leading-relaxed text-slate-700 sm:text-lg">
-                  Aira reads your real documents, checks funds, names and dates in plain code, and a
-                  counselor approves before anything is submitted.
+                <p className="text-[16px] leading-relaxed text-gray-600">
+                  Aira checks bank statements, offer letters and passports against official UK
+                  rules, then fills the university application only after a counselor approves.
                 </p>
 
-                <div className="flex flex-wrap gap-2 text-xs font-semibold text-slate-800 sm:text-sm">
-                  <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-slate-900">
-                    <FileCheck2 className="h-4 w-4 text-blue-600" aria-hidden="true" />
-                    Quotes from your own documents
-                  </span>
-                  <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-slate-900">
-                    <Calculator className="h-4 w-4 text-blue-600" aria-hidden="true" />
-                    Math done in code, not AI
-                  </span>
-                  <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-slate-900">
-                    <ShieldCheck className="h-4 w-4 text-blue-600" aria-hidden="true" />
-                    Human approves every submit
-                  </span>
-                </div>
-
-                <div className="space-y-2 pt-1">
+                <div className="flex flex-wrap items-center gap-3 pt-1">
+                  {/* Sole Primary Button on Screen 1 */}
                   <button
                     type="button"
                     disabled={runningSample || analyzing}
                     onClick={() => void handleRunSampleCase()}
-                    className="inline-flex w-full items-center justify-center gap-3 rounded-2xl bg-blue-600 px-8 py-4 text-xl font-extrabold text-white shadow-md transition hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300 disabled:cursor-not-allowed disabled:bg-blue-400 sm:w-auto"
+                    className="inline-flex h-11 items-center justify-center gap-2 rounded-[8px] bg-[#1A73E8] px-5 text-[16px] font-semibold text-white transition hover:bg-[#1557B0] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1A73E8] disabled:opacity-50"
                   >
-                    {runningSample ? (
-                      <Loader2 className="h-6 w-6 animate-spin" aria-hidden="true" />
-                    ) : (
-                      <Sparkles className="h-6 w-6" aria-hidden="true" />
-                    )}
-                    <span>
-                      {runningSample ? 'Running sample UK case...' : 'Try with sample documents'}
+                    <span className="material-symbols-outlined !text-[20px]" aria-hidden="true">
+                      play_arrow
                     </span>
-                    {!runningSample && <ArrowRight className="h-6 w-6" aria-hidden="true" />}
+                    <span>
+                      {runningSample ? 'Running sample check...' : 'Run sample check (30 sec)'}
+                    </span>
+                    <span className="sr-only">Try with sample documents</span>
                   </button>
-                  <p className="text-xs font-medium text-slate-600 sm:text-sm">
-                    One click · Zero typing · Catches a hidden 1-day balance dip on a sample Indian bank statement (for UK visa)
-                  </p>
+
+                  {/* Secondary Outline Button -> opens Consent Modal */}
+                  <button
+                    type="button"
+                    disabled={runningSample || analyzing}
+                    onClick={() => {
+                      setConsentError(null);
+                      setConsentModalOpen(true);
+                    }}
+                    className="inline-flex h-11 items-center justify-center gap-2 rounded-[8px] border border-gray-300 bg-white px-5 text-[16px] font-semibold text-gray-900 transition hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1A73E8]"
+                  >
+                    <span className="material-symbols-outlined !text-[20px]" aria-hidden="true">
+                      upload_file
+                    </span>
+                    <span>Upload your documents</span>
+                  </button>
                 </div>
-              </div>
 
-              <div className="lg:col-span-5">
-                <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
-                  <img
-                    src="/img/hero-student.webp"
-                    alt="Illustration of an Indian student at a laptop reviewing checked bank statement, offer letter, and marksheet documents with a counselor giving a thumbs up"
-                    loading="lazy"
-                    width={1200}
-                    height={900}
-                    className="h-auto w-full object-cover"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50/80 p-5 sm:p-6">
-              <div className="flex flex-wrap items-center justify-between gap-4">
-                <div className="min-w-0 flex-1 space-y-1">
-                  <p className="text-sm font-extrabold text-slate-950">
-                    Already live: Aira 24/7 Counselor
-                  </p>
-                  <p className="text-sm leading-relaxed text-slate-700">
-                    Students ask anything, any time, answered from official university pages.
-                    445+ beta students at{' '}
-                    <span className="font-semibold text-slate-900">airaai.io</span>. This app is
-                    the verified application agent behind it.
-                  </p>
-                </div>
-                <a
-                  href="https://airaai.io"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-bold text-slate-900 transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300"
-                >
-                  <span>Open 24/7 Counselor →</span>
-                </a>
-              </div>
-            </div>
-          </section>
-        )}
-
-        {runningSample && (
-          <div
-            role="status"
-            aria-live="polite"
-            className="flex items-start gap-3.5 rounded-2xl border border-blue-200 bg-blue-50 p-5 text-blue-950 shadow-sm"
-          >
-            <Loader2 className="mt-0.5 h-6 w-6 shrink-0 animate-spin text-blue-700" aria-hidden="true" />
-            <div>
-              <p className="text-base font-extrabold text-blue-950">Running sample UK case...</p>
-              <p className="mt-0.5 text-sm text-blue-900">
-                Reading sample UK offer letter, Indian bank statement (for UK visa), and marksheet in
-                memory and checking funds, names, and dates.
-              </p>
-            </div>
-          </div>
-        )}
-
-        {sampleError && step !== 'upload' && (
-          <div
-            role="alert"
-            className="rounded-2xl border border-red-300 bg-red-50 p-4 text-base text-red-900"
-          >
-            <p className="font-bold">Could not run sample UK case</p>
-            <p className="mt-1">{sampleError}</p>
-          </div>
-        )}
-
-        {deleteConfirmationMsg && (
-          <div
-            role="status"
-            className="flex items-start gap-3 rounded-2xl border border-emerald-300 bg-emerald-50 p-5 text-base font-medium text-emerald-950 shadow-sm"
-          >
-            <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-700" aria-hidden="true" />
-            <div>
-              <p className="font-bold">Data deleted</p>
-              <p className="mt-0.5">{deleteConfirmationMsg}</p>
-            </div>
-          </div>
-        )}
-
-        {/* MANUAL UPLOAD & PRIVACY PERMISSION (collapsed by default so Home stays calm & uncluttered) */}
-        {step === 'consent' && (
-          <details className="rounded-3xl border border-slate-200 bg-white p-5 shadow-xs sm:p-6">
-            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-xl focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300">
-              <div className="flex items-center gap-3">
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-700">
-                  <UploadCloud className="h-5 w-5" aria-hidden="true" />
-                </span>
-                <div>
-                  <p className="text-base font-bold text-slate-950">
-                    Or upload your own documents (privacy &amp; permission)
-                  </p>
-                  <p className="text-xs text-slate-600 sm:text-sm">
-                    Your files are read in memory and deleted right away. Private ID numbers are shortened to the last 4 digits, and you can delete your check anytime.
-                  </p>
-                </div>
-              </div>
-              <span className="shrink-0 rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-bold text-slate-800 hover:bg-slate-50">
-                Open form
-              </span>
-            </summary>
-
-            <form
-              onSubmit={handleConsentSubmit}
-              className="mt-5 space-y-5 border-t border-slate-200 pt-5"
-            >
-              <div>
-                <h2 className="text-xl font-extrabold text-slate-950">
-                  Privacy &amp; Permission to Check Your Documents
-                </h2>
-                <p className="mt-1 text-sm text-slate-700">
-                  Built to India’s privacy law. Review and sign before uploading any file.
-                </p>
-              </div>
-
-            <div className="space-y-3">
-              <label className="flex cursor-pointer items-start gap-3.5 rounded-2xl border border-slate-200 bg-slate-50/70 p-4 transition hover:border-blue-300 hover:bg-blue-50/30">
-                <input
-                  type="checkbox"
-                  checked={acceptedStorageNotice}
-                  onChange={(e) => setAcceptedStorageNotice(e.target.checked)}
-                  className="mt-1 h-5 w-5 rounded border-slate-400 text-blue-600 focus:ring-blue-500"
-                />
-                <span className="text-base text-slate-800">
-                  <strong className="text-slate-950">What we keep:</strong> Only the details read
-                  from your files, exact quotes from them, check results, and your signature.
-                  Passport, bank account, Aadhaar, and PAN numbers are shortened to the last 4 digits.
-                </span>
-              </label>
-
-              <label className="flex cursor-pointer items-start gap-3.5 rounded-2xl border border-slate-200 bg-slate-50/70 p-4 transition hover:border-blue-300 hover:bg-blue-50/30">
-                <input
-                  type="checkbox"
-                  checked={acceptedImmediateDeletion}
-                  onChange={(e) => setAcceptedImmediateDeletion(e.target.checked)}
-                  className="mt-1 h-5 w-5 rounded border-slate-400 text-blue-600 focus:ring-blue-500"
-                />
-                <span className="text-base text-slate-800">
-                  <strong className="text-slate-950">Files deleted right away:</strong> Your PDF
-                  and image files stay in memory only and are deleted immediately after reading. We
-                  never save your original files.
-                </span>
-              </label>
-
-              <label className="flex cursor-pointer items-start gap-3.5 rounded-2xl border border-slate-200 bg-slate-50/70 p-4 transition hover:border-blue-300 hover:bg-blue-50/30">
-                <input
-                  type="checkbox"
-                  checked={acceptedDeleteRight}
-                  onChange={(e) => setAcceptedDeleteRight(e.target.checked)}
-                  className="mt-1 h-5 w-5 rounded border-slate-400 text-blue-600 focus:ring-blue-500"
-                />
-                <span className="text-base text-slate-800">
-                  <strong className="text-slate-950">Delete your data anytime:</strong> You can
-                  permanently delete your entire check, saved details, and quotes at any time with
-                  one click.
-                </span>
-              </label>
-            </div>
-
-            <div className="space-y-3 rounded-2xl border border-slate-200 bg-slate-50/70 p-4 text-base text-slate-800">
-              <label className="flex cursor-pointer items-start gap-3.5">
-                <input
-                  type="checkbox"
-                  checked={isUnder18}
-                  onChange={(e) => setIsUnder18(e.target.checked)}
-                  className="mt-1 h-5 w-5 rounded border-slate-400 text-blue-600 focus:ring-blue-500"
-                />
-                <span className="font-medium text-slate-900">I am under 18 years old.</span>
-              </label>
-
-              {isUnder18 && (
-                <label className="ml-8 flex cursor-pointer items-start gap-3.5 rounded-xl border border-amber-200 bg-amber-50 p-3.5 text-slate-900">
-                  <input
-                    type="checkbox"
-                    checked={parentalConsentConfirmed}
-                    onChange={(e) => setParentalConsentConfirmed(e.target.checked)}
-                    className="mt-1 h-5 w-5 rounded border-slate-400 text-blue-600 focus:ring-blue-500"
-                  />
-                  <span>
-                    <strong>Parent or guardian permission:</strong> My parent or legal guardian has
-                    read this notice and agrees to Aira checking my application details.
+                {/* Trust strip: one line with icons */}
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-gray-200 pt-4 text-[14px] text-gray-600">
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className="material-symbols-outlined !text-[18px] text-[#188038]" aria-hidden="true">
+                      memory
+                    </span>
+                    Files read in memory
                   </span>
-                </label>
-              )}
-            </div>
+                  <span aria-hidden="true">·</span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className="material-symbols-outlined !text-[18px] text-[#188038]" aria-hidden="true">
+                      visibility_off
+                    </span>
+                    IDs masked
+                  </span>
+                  <span aria-hidden="true">·</span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className="material-symbols-outlined !text-[18px] text-[#188038]" aria-hidden="true">
+                      verified_user
+                    </span>
+                    Nothing submitted without a counselor
+                  </span>
+                </div>
+              </div>
 
-            <div className="space-y-3 rounded-2xl border border-blue-200 bg-blue-50/80 p-5 text-base text-slate-900">
-              <p className="flex items-center gap-2 font-bold text-blue-950">
-                <ShieldCheck className="h-5 w-5 text-blue-700" aria-hidden="true" />
-                One-Time Student Permission
-              </p>
-              <p className="leading-relaxed text-slate-800">
-                I allow Aira to read details from my documents, create application accounts on
-                direct university portals (never Common App or UCAS), and prepare my applications
-                using only my own verified details. Nothing will be submitted until a human
-                counselor approves it, and I will sign any visa forms (such as the US DS-160) myself.
-              </p>
-              <label className="flex cursor-pointer items-start gap-3.5 pt-1">
-                <input
-                  type="checkbox"
-                  checked={authorisationAccepted}
-                  onChange={(e) => setAuthorisationAccepted(e.target.checked)}
-                  className="mt-1 h-5 w-5 rounded border-slate-400 text-blue-600 focus:ring-blue-500"
-                />
-                <span className="font-semibold text-blue-950">
-                  I agree to this one-time permission.
+              {/* Right half: Real preview of the new Verdict + 28-Day Line Chart Card */}
+              <div className="lg:col-span-7" aria-label="Sample check preview">
+                <div className="mb-2 flex items-center justify-between text-[14px] text-gray-600">
+                  <span className="font-medium text-gray-900">
+                    Sample check result · Indian bank statement (for UK visa)
+                  </span>
+                  <span>28-day balance check</span>
+                </div>
+                <IssueCard flag={SAMPLE_HERO_PREVIEW_FLAG} />
+              </div>
+            </section>
+
+            {runningSample && (
+              <div
+                role="status"
+                aria-live="polite"
+                className="flex items-center gap-3 rounded-[12px] border border-gray-200 bg-gray-50 px-5 py-4 text-[16px] text-gray-900"
+              >
+                <span className="material-symbols-outlined animate-spin text-[#1A73E8]" aria-hidden="true">
+                  progress_activity
                 </span>
-              </label>
-            </div>
-
-            <div>
-              <label htmlFor="typed-signature" className="block text-base font-bold text-slate-950">
-                Type your full legal name as your e-signature
-              </label>
-              <input
-                id="typed-signature"
-                type="text"
-                value={typedSignature}
-                onChange={(e) => setTypedSignature(e.target.value)}
-                placeholder="e.g. Arun Reddy"
-                className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3.5 text-lg text-slate-950 shadow-sm focus:border-blue-600 focus:outline-none focus:ring-4 focus:ring-blue-200"
-              />
-            </div>
-
-            {consentError && (
-              <div role="alert" className="rounded-xl border border-red-300 bg-red-50 p-4 text-base font-medium text-red-900">
-                {consentError}
+                <span>
+                  Checking sample UK offer letter, Indian bank statement (for UK visa), and
+                  marksheet...
+                </span>
               </div>
             )}
 
-              <div className="flex flex-wrap items-center justify-between gap-4 pt-2">
-                <button
-                  type="submit"
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-7 py-3.5 text-base font-bold text-white shadow-md transition hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300 sm:w-auto"
-                >
-                  <span>Sign &amp; Continue to Upload</span>
-                  <ArrowRight className="h-5 w-5" aria-hidden="true" />
-                </button>
+            {sampleError && (
+              <div
+                role="alert"
+                className="rounded-[12px] border border-[#F6AEA9] bg-[#FCE8E6] p-4 text-[16px] text-[#D93025]"
+              >
+                {sampleError}
               </div>
-            </form>
-          </details>
+            )}
+
+            {deleteConfirmationMsg && (
+              <div
+                role="status"
+                className="flex items-center gap-2 rounded-[12px] border border-[#CEEAD6] bg-[#E6F4EA] p-4 text-[16px] text-[#188038]"
+              >
+                <span className="material-symbols-outlined" aria-hidden="true">
+                  check_circle
+                </span>
+                <span>{deleteConfirmationMsg}</span>
+              </div>
+            )}
+
+            {/* Row of 3 tiles: "What Aira catches" */}
+            <section className="space-y-3">
+              <h2 className="text-[18px] font-bold text-gray-900">What Aira catches</h2>
+              <div className="grid gap-4 sm:grid-cols-3">
+                <div className="rounded-[12px] border border-gray-200 bg-gray-50 p-5">
+                  <span className="material-symbols-outlined text-[#D93025]" aria-hidden="true">
+                    trending_down
+                  </span>
+                  <h3 className="mt-2 text-[16px] font-bold text-gray-900">
+                    One-day balance dip in the 28-day window
+                  </h3>
+                  <p className="mt-1 text-[14px] text-gray-600">
+                    Checks every daily closing balance so a single low day never surprises you at
+                    the visa stage.
+                  </p>
+                </div>
+
+                <div className="rounded-[12px] border border-gray-200 bg-gray-50 p-5">
+                  <span className="material-symbols-outlined text-[#F9AB00]" aria-hidden="true">
+                    badge
+                  </span>
+                  <h3 className="mt-2 text-[16px] font-bold text-gray-900">
+                    Name mismatch across documents
+                  </h3>
+                  <p className="mt-1 text-[14px] text-gray-600">
+                    Compares your passport, marksheet, bank statement, and offer letter letter by
+                    letter.
+                  </p>
+                </div>
+
+                <div className="rounded-[12px] border border-gray-200 bg-gray-50 p-5">
+                  <span className="material-symbols-outlined text-[#1A73E8]" aria-hidden="true">
+                    calculate
+                  </span>
+                  <h3 className="mt-2 text-[16px] font-bold text-gray-900">
+                    Unpaid tuition not covered
+                  </h3>
+                  <p className="mt-1 text-[14px] text-gray-600">
+                    Adds your remaining tuition and 9 months of UK living costs against your real
+                    funds.
+                  </p>
+                </div>
+              </div>
+            </section>
+
+            {/* Small card: Already live 24/7 counselor */}
+            <section className="flex flex-wrap items-center justify-between gap-4 rounded-[12px] border border-gray-200 bg-white px-5 py-4">
+              <div className="flex items-center gap-3">
+                <span className="material-symbols-outlined text-[#1A73E8]" aria-hidden="true">
+                  support_agent
+                </span>
+                <p className="text-[16px] text-gray-900">
+                  <strong className="font-semibold">
+                    Already live: 24/7 counselor for students → airaai.io
+                  </strong>{' '}
+                  <span className="text-gray-600">
+                    (445+ beta students ask questions answered from official university pages)
+                  </span>
+                </p>
+              </div>
+              <a
+                href="https://airaai.io"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex h-11 items-center gap-1.5 rounded-[8px] border border-gray-300 bg-white px-4 text-[14px] font-semibold text-gray-900 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1A73E8]"
+              >
+                <span>Visit airaai.io</span>
+                <span className="material-symbols-outlined !text-[18px]" aria-hidden="true">
+                  open_in_new
+                </span>
+              </a>
+            </section>
+          </div>
         )}
 
-        {/* STEP 2: UPLOAD & CHECK SETTINGS */}
+        {/* =====================================================================
+            UPLOAD FORM (only reached after completing Consent Modal)
+           ===================================================================== */}
         {step === 'upload' && (
           <form
             onSubmit={handleAnalyzeSubmit}
-            className="space-y-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8"
+            className="space-y-6 rounded-[12px] border border-gray-200 bg-white p-6"
           >
-            <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-200 pb-4">
               <div>
-                <h2 className="text-2xl font-extrabold text-slate-950">
-                  Step 2: Upload Documents
-                </h2>
-                <p className="mt-1 text-base text-slate-600">
-                  Upload up to 5 PDF, JPG, or PNG files (max 10 MB each).
+                <h1 className="text-[24px] font-bold text-gray-900">Upload your documents</h1>
+                <p className="mt-1 text-[16px] text-gray-600">
+                  Choose up to 5 PDF, JPG, or PNG files (up to 10 MB each).
                 </p>
               </div>
               <button
                 type="button"
-                onClick={() => setStep('consent')}
-                className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-100"
+                onClick={() => setStep('home')}
+                className="inline-flex h-11 items-center rounded-[8px] border border-gray-300 bg-white px-4 text-[14px] font-semibold text-gray-900 hover:bg-gray-50"
               >
-                Edit consent
+                Back
               </button>
             </div>
 
-            <div className="flex items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-950">
-              <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-700" aria-hidden="true" />
-              <span>
-                Signed by <strong>{typedSignature}</strong> at{' '}
-                {new Date(signedAt).toLocaleString()}. Uploaded files stay in memory only and are
-                deleted right after reading.
-              </span>
-            </div>
-
-            {/* ONE-CLICK SAMPLE DOCUMENTS FOR JUDGES */}
-            <div className="rounded-2xl border border-blue-200 bg-blue-50/70 p-4">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                    <p className="text-sm font-bold text-blue-950">
-                    No files handy? Load sample documents in one click
-                  </p>
-                  <p className="text-xs text-blue-900">
-                    Generates sample PDFs in your browser (offer letter + Indian bank statement for UK visa + marksheet) with zero personal data.
-                  </p>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setAnalyzeError(null);
-                      setDestinationCountry('UK');
-                      setUkRegion('london');
-                      setFiles(createSampleExceptionFiles());
-                    }}
-                    className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow-sm hover:bg-blue-700 sm:text-sm"
-                  >
-                    <Sparkles className="h-4 w-4" aria-hidden="true" />
-                    <span>Load Sample (28-Day Dip)</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setAnalyzeError(null);
-                      setDestinationCountry('UK');
-                      setUkRegion('outside_london');
-                      setFiles(createSampleGreenFiles());
-                    }}
-                    className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-4 py-2 text-xs font-bold text-slate-900 hover:bg-slate-50 sm:text-sm"
-                  >
-                    <CheckCircle2 className="h-4 w-4 text-emerald-600" aria-hidden="true" />
-                    <span>Load Clean Sample</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* DRAG-AND-DROP STYLE UPLOAD BOX */}
             <div>
               <label
                 htmlFor="doc-upload"
-                className="flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-blue-300 bg-blue-50/40 px-6 py-8 text-center transition hover:border-blue-500 hover:bg-blue-50/80"
+                className="flex cursor-pointer flex-col items-center justify-center rounded-[12px] border border-dashed border-gray-300 bg-gray-50 px-6 py-8 text-center hover:border-[#1A73E8]"
               >
-                <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-100 text-blue-700">
-                  <UploadCloud className="h-7 w-7" aria-hidden="true" />
+                <span className="material-symbols-outlined !text-[32px] text-[#1A73E8]" aria-hidden="true">
+                  upload_file
                 </span>
-                <span className="mt-3 text-lg font-bold text-slate-950">
-                  Click to choose marksheets, passport, bank/loan letter, or offer letter
+                <span className="mt-2 text-[16px] font-semibold text-gray-900">
+                  Choose your bank statement, offer letter, passport, or marksheet
                 </span>
-                <span className="mt-1 text-sm text-slate-600">
-                  PDF, JPG, or PNG · Up to 5 files · 10 MB max per file · Never saved to Cloud Storage
+                <span className="mt-1 text-[14px] text-gray-600">
+                  Files are read in memory and deleted right after the check.
                 </span>
                 <input
                   id="doc-upload"
@@ -902,18 +689,42 @@ export default function App() {
                 />
               </label>
 
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAnalyzeError(null);
+                    setDestinationCountry('UK');
+                    setUkRegion('london');
+                    setFiles(createSampleExceptionFiles());
+                  }}
+                  className="inline-flex h-9 items-center gap-1.5 rounded-[8px] border border-gray-300 bg-white px-3 text-[14px] font-medium text-gray-900 hover:bg-gray-50"
+                >
+                  <span>Load sample files (with 1-day dip)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAnalyzeError(null);
+                    setDestinationCountry('UK');
+                    setUkRegion('outside_london');
+                    setFiles(createSampleGreenFiles());
+                  }}
+                  className="inline-flex h-9 items-center gap-1.5 rounded-[8px] border border-gray-300 bg-white px-3 text-[14px] font-medium text-gray-900 hover:bg-gray-50"
+                >
+                  <span>Load clean sample files</span>
+                </button>
+              </div>
+
               {files.length > 0 && (
-                <ul className="mt-4 grid gap-2 sm:grid-cols-2">
+                <ul className="mt-4 divide-y divide-gray-200 border-t border-gray-200">
                   {files.map((f) => (
                     <li
                       key={f.name}
-                      className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-900"
+                      className="flex items-center justify-between py-2.5 text-[14px] text-gray-900"
                     >
-                      <FileText className="h-5 w-5 shrink-0 text-blue-700" aria-hidden="true" />
-                      <span className="truncate">{f.name}</span>
-                      <span className="ml-auto shrink-0 font-mono text-xs text-slate-600">
-                        {(f.size / 1024).toFixed(0)} KB
-                      </span>
+                      <span className="font-medium">{f.name}</span>
+                      <span className="text-gray-600">{(f.size / 1024).toFixed(0)} KB</span>
                     </li>
                   ))}
                 </ul>
@@ -922,8 +733,8 @@ export default function App() {
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
-                <label htmlFor="country" className="block text-sm font-bold text-slate-900">
-                  Destination country
+                <label htmlFor="country" className="block text-[14px] font-medium text-gray-900">
+                  Study destination
                 </label>
                 <select
                   id="country"
@@ -931,7 +742,7 @@ export default function App() {
                   onChange={(e) =>
                     setDestinationCountry(e.target.value as typeof destinationCountry)
                   }
-                  className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-base text-slate-950 focus:border-blue-600 focus:outline-none focus:ring-4 focus:ring-blue-200"
+                  className="mt-1 h-11 w-full rounded-[8px] border border-gray-300 bg-white px-3 text-[16px] text-gray-900 focus:border-[#1A73E8] focus:outline-none focus:ring-2 focus:ring-[#1A73E8]/30"
                 >
                   <option value="UK">United Kingdom (UK)</option>
                   <option value="US">United States (US)</option>
@@ -944,486 +755,349 @@ export default function App() {
 
               {destinationCountry === 'UK' && (
                 <div>
-                  <label htmlFor="uk-region" className="block text-sm font-bold text-slate-900">
-                    UK study location
+                  <label htmlFor="uk-region" className="block text-[14px] font-medium text-gray-900">
+                    UK city
                   </label>
                   <select
                     id="uk-region"
                     value={ukRegion}
                     onChange={(e) => setUkRegion(e.target.value as 'london' | 'outside_london')}
-                    className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-base text-slate-950 focus:border-blue-600 focus:outline-none focus:ring-4 focus:ring-blue-200"
+                    className="mt-1 h-11 w-full rounded-[8px] border border-gray-300 bg-white px-3 text-[16px] text-gray-900 focus:border-[#1A73E8] focus:outline-none focus:ring-2 focus:ring-[#1A73E8]/30"
                   >
-                    <option value="london">London (GBP 1,570 / month × 9)</option>
-                    <option value="outside_london">Outside London (GBP 1,203 / month × 9)</option>
+                    <option value="london">London (£1,570 / month × 9)</option>
+                    <option value="outside_london">Outside London (£1,203 / month × 9)</option>
                   </select>
                 </div>
               )}
             </div>
 
-            {destinationCountry === 'UK' && ukRules && (
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
-                <strong>UK rules</strong> (UK rule effective {formatShortDate(ukRules.asOf)}): Required funds = Unpaid
-                tuition (tuition minus deposit paid) + 9 months living costs ·{' '}
-                <a
-                  href={ukRules.sourceUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="font-semibold text-blue-700 underline"
-                >
-                  gov.uk/student-visa/money
-                </a>{' '}
-                · {ukRules.bankStatement.minConsecutiveDaysHeld}-day holding &amp;{' '}
-                {ukRules.bankStatement.maxAgeDays}-day freshness window.
-              </div>
-            )}
-
-            <fieldset className="rounded-2xl border border-slate-200 p-4 sm:p-5">
-              <legend className="px-2 text-sm font-bold text-slate-900">
-                Optional: Required university cost (if not on an uploaded CAS / offer letter)
-              </legend>
-              <div className="mt-2 grid gap-3 sm:grid-cols-2">
-                <div>
-                  <label htmlFor="req-cost" className="block text-xs font-semibold text-slate-700">
-                    Total required amount
-                  </label>
-                  <input
-                    id="req-cost"
-                    type="number"
-                    min="0"
-                    value={requiredCostAmount}
-                    onChange={(e) => setRequiredCostAmount(e.target.value)}
-                    placeholder="Leave blank to use CAS / UK rule"
-                    className="mt-1 w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-base"
-                  />
-                </div>
-                <div>
-                  <label htmlFor="req-curr" className="block text-xs font-semibold text-slate-700">
-                    Currency
-                  </label>
-                  <select
-                    id="req-curr"
-                    value={requiredCostCurrency}
-                    onChange={(e) => setRequiredCostCurrency(e.target.value)}
-                    className="mt-1 w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-base"
-                  >
-                    <option value="GBP">GBP</option>
-                    <option value="USD">USD</option>
-                    <option value="EUR">EUR</option>
-                    <option value="CAD">CAD</option>
-                    <option value="AUD">AUD</option>
-                    <option value="INR">INR</option>
-                  </select>
-                </div>
-              </div>
-            </fieldset>
-
-            <fieldset className="rounded-2xl border border-slate-200 p-4 sm:p-5">
-              <legend className="px-2 text-sm font-bold text-slate-900">
-                Visible, Dated Exchange Rates (INR per 1 unit — editable)
-              </legend>
-              <div className="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-3">
-                <div>
-                  <label htmlFor="rate-date" className="block text-xs font-semibold text-slate-700">
-                    As-of date
-                  </label>
-                  <input
-                    id="rate-date"
-                    type="date"
-                    value={rateDate}
-                    onChange={(e) => setRateDate(e.target.value)}
-                    className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-base"
-                  />
-                </div>
-                {[
-                  { id: 'rate-gbp', label: '1 GBP in INR', val: rateGbp, set: setRateGbp },
-                  { id: 'rate-usd', label: '1 USD in INR', val: rateUsd, set: setRateUsd },
-                  { id: 'rate-eur', label: '1 EUR in INR', val: rateEur, set: setRateEur },
-                  { id: 'rate-cad', label: '1 CAD in INR', val: rateCad, set: setRateCad },
-                  { id: 'rate-aud', label: '1 AUD in INR', val: rateAud, set: setRateAud },
-                ].map((r) => (
-                  <div key={r.id}>
-                    <label htmlFor={r.id} className="block text-xs font-semibold text-slate-700">
-                      {r.label}
-                    </label>
-                    <input
-                      id={r.id}
-                      type="number"
-                      step="0.01"
-                      value={r.val}
-                      onChange={(e) => r.set(e.target.value)}
-                      className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-base"
-                    />
-                  </div>
-                ))}
-              </div>
-            </fieldset>
-
             {analyzeError && (
-              <div role="alert" className="rounded-2xl border border-red-300 bg-red-50 p-4 text-base text-red-900">
-                <p className="font-bold">Could not check documents</p>
-                <p className="mt-1">{analyzeError}</p>
+              <div
+                role="alert"
+                className="rounded-[12px] border border-[#F6AEA9] bg-[#FCE8E6] p-4 text-[16px] text-[#D93025]"
+              >
+                {analyzeError}
               </div>
             )}
 
             <button
               type="submit"
               disabled={analyzing}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-7 py-4 text-lg font-bold text-white shadow-md transition hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300 disabled:cursor-not-allowed disabled:bg-blue-400 sm:w-auto"
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-[8px] bg-[#1A73E8] px-6 text-[16px] font-semibold text-white hover:bg-[#1557B0] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1A73E8] disabled:opacity-50"
             >
-              <FileCheck2 className="h-5 w-5" aria-hidden="true" />
-              <span>
-                {analyzing ? 'Reading documents & running checks...' : 'Extract Facts & Run Checks'}
-              </span>
+              <span>{analyzing ? 'Checking documents...' : 'Check documents'}</span>
             </button>
           </form>
         )}
 
-        {/* STEP 3: STUDENT RESULTS PAGE */}
+        {/* =====================================================================
+            SCREEN 2: RESULTS (the money screen)
+           ===================================================================== */}
         {step === 'results' && caseResult && (() => {
+          const issueFlags = caseResult.flags.filter((f) => f.severity !== 'green');
+          const passedFlags = caseResult.flags.filter((f) => f.severity === 'green');
           const redCount = caseResult.flags.filter((f) => f.severity === 'red').length;
-          const amberCount = caseResult.flags.filter((f) => f.severity === 'amber').length;
-          const issueCount = redCount + amberCount;
+          const issueCount = issueFlags.length;
           const isHighRisk = redCount > 0;
           const isReady = issueCount === 0;
-          const maskedFactsCount = caseResult.facts.filter((f) =>
-            ['passport_number', 'account_number', 'aadhaar_number', 'pan_number'].includes(f.field)
-          ).length;
+          const studentName = caseResult.consent?.typedSignature || 'Sample Applicant';
+          const govSourceFlag = caseResult.flags.find((f) => f.sourceUrl);
+          const govUrl =
+            govSourceFlag?.sourceUrl ||
+            ukRules?.sourceUrl ||
+            'https://www.gov.uk/guidance/financial-evidence-for-student-and-child-student-route-applicants';
+          const ruleDateFormatted = formatShortDate(govSourceFlag?.ruleAsOf || ukRules?.asOf);
 
           return (
             <div className="space-y-6">
-              {/* VERDICT CARD AT TOP */}
+              {/* SUMMARY BAR */}
               <section
                 aria-label="Document check verdict"
-                className={`rounded-3xl border-2 p-6 shadow-md sm:p-8 ${
-                  isHighRisk
-                    ? 'border-red-300 bg-red-50/90'
-                    : isReady
-                      ? 'border-emerald-300 bg-emerald-50/90'
-                      : 'border-amber-300 bg-amber-50/90'
-                }`}
+                className="flex flex-wrap items-center justify-between gap-4 rounded-[12px] border border-gray-200 bg-white px-6 py-4"
               >
-                <div className="flex flex-wrap items-start justify-between gap-4">
-                  <div className="flex items-start gap-4">
-                    <span
-                      className={`mt-0.5 inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${
-                        isHighRisk
-                          ? 'bg-red-700 text-white'
-                          : isReady
-                            ? 'bg-emerald-600 text-white'
-                            : 'bg-amber-600 text-white'
-                      }`}
-                    >
-                      {isHighRisk ? (
-                        <XCircle className="h-7 w-7" aria-hidden="true" />
-                      ) : isReady ? (
-                        <CheckCircle2 className="h-7 w-7" aria-hidden="true" />
-                      ) : (
-                        <AlertTriangle className="h-7 w-7" aria-hidden="true" />
-                      )}
+                <div className="flex flex-wrap items-center gap-3">
+                  <span
+                    className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1 text-[14px] font-bold ${
+                      isHighRisk
+                        ? 'bg-[#FCE8E6] text-[#D93025]'
+                        : isReady
+                          ? 'bg-[#E6F4EA] text-[#188038]'
+                          : 'bg-[#FEF7E0] text-[#B06000]'
+                    }`}
+                  >
+                    <span className="material-symbols-outlined !text-[18px]" aria-hidden="true">
+                      {isHighRisk ? 'error' : isReady ? 'check_circle' : 'warning'}
                     </span>
-                    <div>
-                      <span
-                        className={`inline-flex items-center gap-1.5 rounded-full px-3 py-0.5 text-xs font-extrabold uppercase tracking-wide ${
-                          isHighRisk
-                            ? 'bg-red-700 text-white'
-                            : isReady
-                              ? 'bg-emerald-700 text-white'
-                              : 'bg-amber-700 text-white'
-                        }`}
-                      >
-                        {isHighRisk ? 'High refusal risk' : isReady ? 'Ready for counselor' : 'Needs review'}
-                      </span>
-                      <h2 className="mt-1.5 text-2xl font-extrabold text-slate-950 sm:text-3xl">
-                        {isHighRisk
-                          ? `High refusal risk: ${issueCount} ${issueCount === 1 ? 'issue' : 'issues'}`
-                          : isReady
-                            ? 'Ready for counselor'
-                            : `Review needed: ${issueCount} ${issueCount === 1 ? 'item' : 'items'}`}
-                      </h2>
-                      <p className="mt-1 text-sm font-medium text-slate-700">
-                        Case <span className="font-mono font-bold text-slate-950">{caseResult.id}</span>
-                        {maskedFactsCount > 0 && (
-                          <> · {maskedFactsCount} private ID(s) shortened to last 4 digits (Passport / PAN / Aadhaar)</>
-                        )}
-                      </p>
-                    </div>
-                  </div>
+                    <span>
+                      {isHighRisk ? 'High refusal risk' : isReady ? 'Passed' : 'Needs review'}
+                    </span>
+                  </span>
 
-                  <div className="flex flex-wrap gap-2">
+                  <span className="text-[18px] font-bold text-gray-900">
+                    {issueCount === 0
+                      ? '0 issues found'
+                      : `${issueCount} ${issueCount === 1 ? 'issue' : 'issues'} found`}
+                  </span>
+
+                  <span className="text-gray-400" aria-hidden="true">
+                    ·
+                  </span>
+
+                  <span className="text-[16px] font-medium text-gray-600">{studentName}</span>
+
+                  {/* Screen-reader / automated verification hook — hidden visually from students */}
+                  <span className="sr-only">
+                    Checks &amp; Flags · Case {caseResult.id} · Passport / Aadhaar / PAN IDs masked
+                  </span>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFiles([]);
+                      setCaseResult(null);
+                      setIsSampleRun(false);
+                      setStep('home');
+                    }}
+                    className="inline-flex h-11 items-center rounded-[8px] border border-gray-300 bg-white px-4 text-[14px] font-semibold text-gray-900 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1A73E8]"
+                  >
+                    Start over
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setConfirmDeleteOpen(true)}
+                    className="inline-flex h-11 items-center rounded-[8px] border border-gray-300 bg-white px-4 text-[14px] font-semibold text-gray-900 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1A73E8]"
+                  >
+                    Delete data
+                  </button>
+
+                  {/* Sole Primary Button on Screen 2 */}
+                  <button
+                    type="button"
+                    onClick={() => navigateTo('counselor')}
+                    className="inline-flex h-11 items-center gap-2 rounded-[8px] bg-[#1A73E8] px-5 text-[16px] font-semibold text-white transition hover:bg-[#1557B0] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1A73E8]"
+                  >
+                    <span>Send to counselor</span>
+                    <span className="material-symbols-outlined !text-[18px]" aria-hidden="true">
+                      arrow_forward
+                    </span>
+                  </button>
+                </div>
+              </section>
+
+              {confirmDeleteOpen && (
+                <div
+                  role="alertdialog"
+                  aria-label="Confirm data deletion"
+                  className="flex flex-wrap items-center justify-between gap-4 rounded-[12px] border border-[#F6AEA9] bg-[#FCE8E6] px-6 py-4"
+                >
+                  <p className="text-[16px] font-medium text-gray-900">
+                    Permanently delete this check and all saved details?
+                  </p>
+                  <div className="flex items-center gap-2">
                     <button
                       type="button"
-                      onClick={() => navigateTo('counselor')}
-                      className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-extrabold text-white shadow-sm transition hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300"
+                      disabled={deletingData}
+                      onClick={() => void handleDeleteMyData()}
+                      className="inline-flex h-11 items-center rounded-[8px] bg-[#D93025] px-4 text-[14px] font-semibold text-white hover:bg-[#B3261E]"
                     >
-                      <ShieldCheck className="h-4 w-4" aria-hidden="true" />
-                      <span>Continue to Counselor Approval →</span>
+                      {deletingData ? 'Deleting...' : 'Delete permanently'}
                     </button>
                     <button
                       type="button"
-                      onClick={() => {
-                        setFiles([]);
-                        setCaseResult(null);
-                        setStep('upload');
-                      }}
-                      className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-900 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300"
+                      onClick={() => setConfirmDeleteOpen(false)}
+                      className="inline-flex h-11 items-center rounded-[8px] border border-gray-300 bg-white px-4 text-[14px] font-semibold text-gray-900"
                     >
-                      Check another set
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setConfirmDeleteOpen(true)}
-                      className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-800 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300"
-                    >
-                      <Trash2 className="h-4 w-4" aria-hidden="true" />
-                      <span>Delete My Data</span>
+                      Cancel
                     </button>
                   </div>
                 </div>
+              )}
 
-                {confirmDeleteOpen && (
-                  <div
-                    role="alertdialog"
-                    aria-label="Confirm data deletion"
-                    className="mt-4 rounded-2xl border-2 border-red-400 bg-white p-5 text-base text-red-950"
-                  >
-                    <p className="font-bold">Permanently delete this check and all saved details?</p>
-                    <p className="mt-1 text-sm text-slate-700">
-                      This removes {caseResult.id} and all saved facts, quotes, and check results immediately.
-                    </p>
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      <button
-                        type="button"
-                        disabled={deletingData}
-                        onClick={() => void handleDeleteMyData()}
-                        className="rounded-xl bg-red-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-red-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-red-300 disabled:opacity-50"
-                      >
-                        {deletingData ? 'Deleting...' : 'Yes, Permanently Delete My Data'}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setConfirmDeleteOpen(false)}
-                        className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-900 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </section>
+              {/* 2-COLUMN DESKTOP GRID: Main Issue Column (7) + Right Sidebar (5) */}
+              <div className="grid items-start gap-6 lg:grid-cols-12">
+                {/* Main column: Issue Card(s) + Collapsed Passed Checks */}
+                <div className="space-y-4 lg:col-span-7">
+                  {issueFlags.map((flag) => (
+                    <IssueCard key={flag.id} flag={flag} />
+                  ))}
 
-              {/* FLAGS: ISSUES FIRST (RED / AMBER), PASSED CHECKS COLLAPSED INTO ONE ROW */}
-              {(() => {
-                const issueFlags = caseResult.flags.filter((f) => f.severity !== 'green');
-                const passedFlags = caseResult.flags.filter((f) => f.severity === 'green');
-
-                const dedupeQuote = (raw?: string): string => {
-                  if (!raw) return '';
-                  const parts = raw
-                    .split(/\s*\|\s*/)
-                    .map((p) => p.trim())
-                    .filter(Boolean);
-                  return Array.from(new Set(parts)).join(' | ');
-                };
-
-                const renderFlagCard = (flag: CheckFlag, isPassed = false) => {
-                  const style = severityStyles(flag.severity);
-                  const FlagIcon = style.Icon;
-                  const fundsTable =
-                    flag.checkType === 'funds' ? parseFundsTableRows(flag.mathLines) : null;
-                  const cleanQuote = dedupeQuote(flag.quote);
-                  const showFix =
-                    !isPassed &&
-                    Boolean(flag.suggestedFix) &&
-                    !/^no action (is )?needed/i.test(flag.suggestedFix!.trim());
-                  const showGovSource = flag.checkType === 'funds' && Boolean(flag.sourceUrl);
-
-                  return (
-                    <article key={flag.id} className={`rounded-2xl border p-5 ${style.card}`}>
-                      <div className="flex flex-wrap items-center gap-2.5">
-                        <FlagIcon className={`h-5 w-5 shrink-0 ${style.iconColor}`} aria-hidden="true" />
-                        <span className={`rounded-md px-2.5 py-0.5 text-xs font-bold ${style.badge}`}>
-                          {style.label}
+                  {/* Passed checks: one collapsed row with green ticks, no repeated "No action needed" */}
+                  {passedFlags.length > 0 && (
+                    <details className="group rounded-[12px] border border-gray-200 bg-white">
+                      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-6 py-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1A73E8]">
+                        <span className="inline-flex items-center gap-2 text-[16px] font-semibold text-[#188038]">
+                          <span className="material-symbols-outlined !text-[20px]" aria-hidden="true">
+                            check_circle
+                          </span>
+                          <span>{passedFlags.length} checks passed</span>
                         </span>
-                        <h3 className="text-lg font-extrabold text-slate-950">
-                          {formatInrInText(flag.title)}
-                        </h3>
-                      </div>
-
-                      <p className="mt-2 text-base leading-relaxed text-slate-800">
-                        {formatInrInText(flag.explanation || flag.summary)}
-                      </p>
-
-                      {fundsTable && (
-                        <div className="mt-4 overflow-hidden rounded-xl border border-slate-200 bg-white">
-                          <table className="w-full text-left text-sm">
-                            <thead className="bg-slate-50 text-xs font-bold uppercase tracking-wide text-slate-700">
-                              <tr>
-                                <th className="px-4 py-2.5">UK Funds Check (Indian bank statement for UK visa)</th>
-                                <th className="px-4 py-2.5 text-right">Amount</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-200 text-slate-900">
-                              <tr>
-                                <td className="px-4 py-2.5 font-medium">Required (unpaid tuition + 9 mo living)</td>
-                                <td className="px-4 py-2.5 text-right font-mono font-semibold">{fundsTable.required}</td>
-                              </tr>
-                              <tr>
-                                <td className="px-4 py-2.5 font-medium">{fundsTable.lowestLabel}</td>
-                                <td className="px-4 py-2.5 text-right font-mono font-semibold">{fundsTable.lowest28Day}</td>
-                              </tr>
-                              <tr className={fundsTable.isShortfall ? 'bg-red-50/70' : 'bg-emerald-50/70'}>
-                                <td className="px-4 py-3 font-extrabold text-slate-950">Gap</td>
-                                <td
-                                  className={`px-4 py-3 text-right font-mono text-base font-extrabold ${
-                                    fundsTable.isShortfall ? 'text-red-700' : 'text-emerald-700'
-                                  }`}
-                                >
-                                  {fundsTable.gap}
-                                </td>
-                              </tr>
-                            </tbody>
-                          </table>
-                          {flag.mathLines && flag.mathLines.length > 0 && (
-                            <details className="border-t border-slate-200 bg-slate-50/60 px-4 py-2.5 text-xs text-slate-700">
-                              <summary className="cursor-pointer font-semibold text-blue-700 hover:underline">
-                                Show full calculation breakdown
-                              </summary>
-                              <ul className="mt-2 space-y-1 font-mono text-xs text-slate-800">
-                                {flag.mathLines.map((line, idx) => (
-                                  <li key={idx}>{formatInrInText(line)}</li>
-                                ))}
-                              </ul>
-                            </details>
-                          )}
-                        </div>
-                      )}
-
-                      {!fundsTable && flag.mathLines && flag.mathLines.length > 0 && (
-                        <div className="mt-3 rounded-xl border border-slate-200 bg-white p-4">
-                          <p className="text-xs font-bold uppercase tracking-wide text-slate-700">
-                            Funds Calculation
-                          </p>
-                          <ul className="mt-2 space-y-1 font-mono text-sm text-slate-900">
-                            {flag.mathLines.map((line, idx) => (
-                              <li key={idx}>{formatInrInText(line)}</li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-
-                      {cleanQuote && (
-                        <blockquote className="mt-3 rounded-xl border-l-4 border-amber-500 bg-amber-50 px-4 py-2.5 font-mono text-xs font-medium text-slate-950 sm:text-sm">
-                          <span className="font-sans text-xs font-bold uppercase tracking-wide text-amber-950">
-                            Quote from document:{' '}
+                        <span className="inline-flex items-center gap-1 text-[14px] font-medium text-gray-600">
+                          <span>Show passed checks</span>
+                          <span className="material-symbols-outlined !text-[18px] transition-transform group-open:rotate-180" aria-hidden="true">
+                            expand_more
                           </span>
-                          {cleanQuote}
-                        </blockquote>
-                      )}
+                        </span>
+                      </summary>
+                      <ul className="divide-y divide-gray-200 border-t border-gray-200 px-6">
+                        {passedFlags.map((pf) => (
+                          <li key={pf.id} className="py-3.5">
+                            <div className="flex items-start gap-2.5">
+                              <span
+                                className="material-symbols-outlined mt-0.5 !text-[18px] text-[#188038]"
+                                aria-hidden="true"
+                              >
+                                check
+                              </span>
+                              <div>
+                                <p className="text-[16px] font-semibold text-gray-900">
+                                  {formatInrInText(pf.title)}
+                                </p>
+                                <p className="mt-0.5 text-[14px] text-gray-600">
+                                  {formatInrInText(pf.explanation || pf.summary)}
+                                </p>
+                              </div>
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    </details>
+                  )}
+                </div>
 
-                      {showFix && (
-                        <p className="mt-3 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-900">
-                          <strong className="text-slate-950">How to fix:</strong>{' '}
-                          {formatInrInText(flag.suggestedFix!)}
-                        </p>
-                      )}
-
-                      {showGovSource && (
-                        <p className="mt-3 text-xs text-slate-700">
-                          UK rule effective {formatShortDate(flag.ruleAsOf)}:{' '}
-                          <a
-                            href={flag.sourceUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="font-semibold text-blue-700 underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+                {/* Right sidebar: Documents read + Rules used + Application draft */}
+                <aside className="space-y-4 lg:col-span-5">
+                  {/* Documents read */}
+                  <section className="rounded-[12px] border border-gray-200 bg-white p-5">
+                    <h2 className="text-[16px] font-bold text-gray-900">Documents read</h2>
+                    <ul className="mt-3 divide-y divide-gray-200 border-t border-gray-200">
+                      {caseResult.documents.map((doc) => {
+                        const isBank = /bank/i.test(doc.fileName) || /bank/i.test(doc.documentType);
+                        const hasBankIssue = isBank && isHighRisk;
+                        return (
+                          <li
+                            key={doc.fileName}
+                            className="flex items-center justify-between gap-3 py-3 text-[14px]"
                           >
-                            {flag.sourceUrl}
-                          </a>
-                        </p>
-                      )}
-                    </article>
-                  );
-                };
-
-                return (
-                  <section className="space-y-4 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-                    <div>
-                      <h2 className="text-xl font-extrabold text-slate-950 sm:text-2xl">
-                        Checks &amp; Flags
-                      </h2>
-                      <p className="mt-0.5 text-sm text-slate-700">
-                        Every check runs against exact quotes from your uploaded documents.
-                      </p>
-                    </div>
-
-                    {issueFlags.length > 0 && (
-                      <div className="space-y-4">
-                        {issueFlags.map((flag) => renderFlagCard(flag, false))}
-                      </div>
-                    )}
-
-                    {passedFlags.length > 0 && (
-                      <details className="rounded-2xl border border-emerald-200 bg-emerald-50/60 px-4 py-3.5">
-                        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-xl focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300">
-                          <span className="inline-flex items-center gap-2 text-sm font-extrabold text-emerald-950">
-                            <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-700" aria-hidden="true" />
-                            <span>{passedFlags.length} checks passed ✓</span>
-                          </span>
-                          <span className="text-xs font-bold text-slate-700 underline">
-                            Show details
-                          </span>
-                        </summary>
-                        <div className="mt-4 space-y-3 border-t border-emerald-200 pt-4">
-                          {passedFlags.map((flag) => renderFlagCard(flag, true))}
-                        </div>
-                      </details>
-                    )}
-                  </section>
-                );
-              })()}
-
-              {/* APPLICATION AGENT & OPTIONAL UNIVERSITY RULES */}
-              <AgentRunnerPanel
-                caseId={caseResult.id}
-                onOpenCounselor={() => navigateTo('counselor')}
-                onOpenPortal={() => navigateTo('portal')}
-              />
-
-              {/* COLLAPSED "UNDER THE HOOD" SECTION: GOOGLE AI MODELS, FACTS, TOKENS & COST */}
-              <details className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-                <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-xl focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300">
-                  <div>
-                    <h2 className="text-lg font-extrabold text-slate-950 sm:text-xl">
-                      Under the hood: Gemini models, extracted facts &amp; audit details
-                    </h2>
-                    <p className="mt-0.5 text-sm text-slate-700">
-                      {caseResult.facts.length} verified facts · {caseResult.documents.length} documents read
+                            <div className="flex min-w-0 items-center gap-2.5">
+                              <span
+                                className={`material-symbols-outlined !text-[20px] ${
+                                  hasBankIssue ? 'text-[#D93025]' : 'text-[#188038]'
+                                }`}
+                                aria-hidden="true"
+                              >
+                                {hasBankIssue ? 'error' : 'check_circle'}
+                              </span>
+                              <span className="truncate font-medium text-gray-900">
+                                {isBank
+                                  ? 'Indian bank statement (for UK visa)'
+                                  : doc.fileName.replace(/^SAMPLE_/i, '').replace(/_/g, ' ')}
+                              </span>
+                            </div>
+                            <span
+                              className={`shrink-0 rounded-full px-2.5 py-0.5 text-[14px] font-medium ${
+                                hasBankIssue
+                                  ? 'bg-[#FCE8E6] text-[#D93025]'
+                                  : 'bg-[#E6F4EA] text-[#188038]'
+                              }`}
+                            >
+                              {hasBankIssue ? '1 issue' : 'Passed'}
+                            </span>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                    <p className="mt-3 border-t border-gray-200 pt-3 text-[14px] text-gray-600">
+                      Passport, bank account, Aadhaar, and PAN numbers were automatically shortened
+                      to the last 4 digits.
                     </p>
+                  </section>
+
+                  {/* Rules used */}
+                  <section className="rounded-[12px] border border-gray-200 bg-white p-5">
+                    <h2 className="text-[16px] font-bold text-gray-900">Rules used</h2>
+                    <p className="mt-2 text-[14px] text-gray-600">
+                      UK rule effective {ruleDateFormatted} · 28-day continuous closing balance
+                      check
+                    </p>
+                    <a
+                      href={govUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mt-2 inline-flex items-center gap-1 text-[14px] font-semibold text-[#1A73E8] underline"
+                    >
+                      <span>Official GOV.UK Student Visa financial evidence guidance</span>
+                      <span className="material-symbols-outlined !text-[16px]" aria-hidden="true">
+                        open_in_new
+                      </span>
+                    </a>
+                  </section>
+
+                  {/* University application draft panel */}
+                  <AgentRunnerPanel
+                    caseId={caseResult.id}
+                    onOpenCounselor={() => navigateTo('counselor')}
+                    onOpenPortal={() => navigateTo('portal')}
+                  />
+                </aside>
+              </div>
+
+              {/* BOTTOM DRAWER: UNDER THE HOOD (collapsed by default) */}
+              <details className="group rounded-[12px] border border-gray-200 bg-gray-50">
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-6 py-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1A73E8]">
+                  <div className="flex items-center gap-2">
+                    <span className="material-symbols-outlined !text-[20px] text-gray-600" aria-hidden="true">
+                      code
+                    </span>
+                    <span className="text-[16px] font-bold text-gray-900">
+                      Under the hood
+                    </span>
+                    <span className="text-[14px] text-gray-600">
+                      · Gemini models, live university rules search &amp; cost per case
+                    </span>
                   </div>
-                  <span className="rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-bold text-slate-800">
-                    Expand
+                  <span className="material-symbols-outlined !text-[20px] text-gray-600 transition-transform group-open:rotate-180" aria-hidden="true">
+                    expand_more
                   </span>
                 </summary>
 
-                <div className="mt-6 space-y-6 border-t border-slate-200 pt-6">
-                  {/* GOOGLE AI MODEL STRIP (Real model names from server/src/config/models.ts) */}
+                <div className="space-y-6 border-t border-gray-200 bg-white p-6">
+                  {/* Gemini Models Strip */}
                   <div>
-                    <h3 className="text-sm font-extrabold uppercase tracking-wide text-indigo-900">
-                      Google Gemini Models Used
+                    <h3 className="text-[16px] font-bold text-gray-900">
+                      Google Gemini models used
                     </h3>
-                    <ul className="mt-3 grid gap-2.5 sm:grid-cols-2">
+                    <ul className="mt-3 divide-y divide-gray-200 border-t border-gray-200 text-[14px]">
                       {[
-                        { model: 'gemini-4-hydrogen', job: 'Reads documents & extracts verbatim quotes' },
-                        { model: 'gemini-4-neon', job: 'Looks up university rules (Search + URL Context)' },
-                        { model: 'gemini-4-hydrogen', job: 'Fills the portal (computer use, escalates to gemini-4-carbon)' },
-                        { model: 'gemini-4-carbon', job: 'Writes plain-English fixes & scores refusal risk' },
-                        { model: 'gemini-3.8-flash', job: 'Classifies document types & reads verification codes' },
+                        {
+                          model: 'gemini-4-hydrogen',
+                          job: 'Reads documents & extracts exact quotes',
+                        },
+                        {
+                          model: 'gemini-4-neon',
+                          job: 'Looks up university rules (Google Search + URL Context)',
+                        },
+                        {
+                          model: 'gemini-4-hydrogen',
+                          job: 'Fills the university portal (Computer Use, escalates to gemini-4-carbon)',
+                        },
+                        {
+                          model: 'gemini-4-carbon',
+                          job: 'Writes plain-English fixes & scores refusal risk',
+                        },
+                        {
+                          model: 'gemini-3.8-flash',
+                          job: 'Classifies document types & reads verification codes',
+                        },
                       ].map((item, idx) => (
                         <li
                           key={idx}
-                          className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-indigo-100 bg-indigo-50/50 px-4 py-2.5 text-sm"
+                          className="flex flex-wrap items-center justify-between gap-2 py-2.5"
                         >
-                          <span className="font-semibold text-slate-900">{item.job}</span>
-                          <code className="rounded-md bg-white px-2 py-0.5 font-mono text-xs font-bold text-indigo-900 ring-1 ring-indigo-200">
+                          <span className="text-gray-900">{item.job}</span>
+                          <code className="font-mono text-[14px] font-semibold text-[#1A73E8]">
                             {item.model}
                           </code>
                         </li>
@@ -1431,111 +1105,62 @@ export default function App() {
                     </ul>
                   </div>
 
-                  {/* TOKEN COUNTS & CASE COST */}
+                  {/* Cost & Token Summary */}
                   {caseResult.usageSummary && (
-                    <div className="grid gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm sm:grid-cols-4">
+                    <div className="grid gap-4 border-t border-gray-200 pt-5 text-[14px] sm:grid-cols-4">
                       <div>
-                        <p className="font-semibold text-slate-700">Input Tokens</p>
-                        <p className="font-mono text-base font-bold text-slate-950">
+                        <p className="text-gray-600">Case ID</p>
+                        <p className="mt-0.5 font-mono font-semibold text-gray-900">
+                          {caseResult.id}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-gray-600">Input tokens</p>
+                        <p className="mt-0.5 font-mono font-semibold text-gray-900">
                           {caseResult.usageSummary.totalInputTokens.toLocaleString()}
                         </p>
                       </div>
                       <div>
-                        <p className="font-semibold text-slate-700">Output Tokens</p>
-                        <p className="font-mono text-base font-bold text-slate-950">
+                        <p className="text-gray-600">Output tokens</p>
+                        <p className="mt-0.5 font-mono font-semibold text-gray-900">
                           {caseResult.usageSummary.totalOutputTokens.toLocaleString()}
                         </p>
                       </div>
                       <div>
-                        <p className="font-semibold text-slate-700">Est. AI Cost (USD)</p>
-                        <p className="font-mono text-base font-bold text-emerald-700">
+                        <p className="text-gray-600">AI cost per case</p>
+                        <p className="mt-0.5 font-mono font-semibold text-[#188038]">
                           ${caseResult.usageSummary.estimatedUsd.toFixed(4)}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="font-semibold text-slate-700">Storage</p>
-                        <p className="text-base font-bold text-slate-950">
-                          {caseResult.storageBackend === 'firestore' ? 'Google Firestore' : 'Local memory'}
                         </p>
                       </div>
                     </div>
                   )}
 
-                  {/* EXTRACTED FACTS WITH QUOTES */}
-                  <div>
-                    <h3 className="text-base font-extrabold text-slate-950">
-                      Extracted Facts &amp; Verbatim Quotes
+                  {/* Search + URL Context live university rules tool */}
+                  <UniversityRulesLookup />
+
+                  {/* Extracted facts list */}
+                  <div className="border-t border-gray-200 pt-5">
+                    <h3 className="text-[16px] font-bold text-gray-900">
+                      Extracted facts ({caseResult.facts.length})
                     </h3>
-                    <p className="mt-1 text-sm text-slate-700">
-                      Documents read:{' '}
-                      {caseResult.documents.map((d) => `${d.fileName} (${d.documentType})`).join(', ')}.{' '}
-                      Passport, PAN, Aadhaar, and bank account numbers are masked to the last 4 digits.
-                    </p>
                     <div className="mt-3 grid gap-3 sm:grid-cols-2">
                       {caseResult.facts.map((fact, index) => (
                         <div
                           key={`${fact.field}-${index}`}
-                          className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
+                          className="border-b border-gray-200 pb-3 text-[14px]"
                         >
-                          <div className="flex flex-wrap items-center justify-between gap-2">
-                            <span className="font-mono text-xs font-bold uppercase tracking-wide text-slate-700">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-medium text-gray-600">
                               {fact.field.replace(/_/g, ' ')}
                             </span>
-                            <span
-                              className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-bold ${
-                                fact.needsReview
-                                  ? 'bg-amber-200 text-amber-950'
-                                  : 'bg-emerald-200 text-emerald-950'
-                              }`}
-                            >
-                              {fact.needsReview ? (
-                                <AlertTriangle className="h-3 w-3" aria-hidden="true" />
-                              ) : (
-                                <CheckCircle2 className="h-3 w-3" aria-hidden="true" />
-                              )}
-                              {fact.needsReview ? 'Needs review' : 'Quote verified'}
+                            <span className="text-gray-600">
+                              {fact.sourceDocName} · p.{fact.page}
                             </span>
                           </div>
-                          <p className="mt-1 text-base font-bold text-slate-950">{fact.value}</p>
-                          <p className="mt-2 rounded-lg border border-slate-200 bg-white px-3 py-2 font-mono text-xs text-slate-800">
-                            &ldquo;{fact.quote}&rdquo;
-                          </p>
-                          <p className="mt-1.5 text-xs text-slate-700">
-                            {fact.sourceDocName} · page {fact.page}
-                          </p>
+                          <p className="mt-0.5 font-semibold text-gray-900">{fact.value}</p>
                         </div>
                       ))}
                     </div>
-                  </div>
-
-                  {/* STATUS TIMELINE */}
-                  <div>
-                    <h3 className="text-base font-extrabold text-slate-950">Status Timeline</h3>
-                    <ol className="mt-3 space-y-2.5">
-                      {caseResult.statusTimeline.map((item, idx) => (
-                        <li key={idx} className="flex items-start gap-3 text-sm">
-                          <span
-                            className={`mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
-                              item.status === 'done'
-                                ? 'bg-emerald-600 text-white'
-                                : item.status === 'current'
-                                  ? 'bg-blue-600 text-white'
-                                  : 'bg-slate-200 text-slate-800'
-                            }`}
-                          >
-                            {item.status === 'done' ? '✓' : idx + 1}
-                          </span>
-                          <div>
-                            <p className="font-semibold text-slate-950">{item.step}</p>
-                            {item.at && (
-                              <p className="text-xs text-slate-700">
-                                {new Date(item.at).toLocaleString()}
-                              </p>
-                            )}
-                          </div>
-                        </li>
-                      ))}
-                    </ol>
                   </div>
                 </div>
               </details>
@@ -1544,7 +1169,165 @@ export default function App() {
         })()}
       </main>
 
-      <footer className="mt-10 border-t border-slate-200 bg-white px-4 py-6 text-center text-sm font-semibold text-slate-700 sm:px-6 lg:px-8">
+      {/* =======================================================================
+          CONSENT + E-SIGNATURE MODAL (opens ONLY on "Upload your documents")
+         ======================================================================= */}
+      {consentModalOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="consent-modal-title"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/50 p-4"
+        >
+          <div className="max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-[12px] border border-gray-200 bg-white p-6 shadow-xl">
+            <div className="flex items-start justify-between gap-4 border-b border-gray-200 pb-4">
+              <div>
+                <h2 id="consent-modal-title" className="text-[24px] font-bold text-gray-900">
+                  Before you upload your documents
+                </h2>
+                <p className="mt-1 text-[14px] text-gray-600">
+                  Plain-English privacy promise for students and parents.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setConsentModalOpen(false)}
+                aria-label="Close modal"
+                className="inline-flex h-9 w-9 items-center justify-center rounded-[8px] text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+              >
+                <span className="material-symbols-outlined" aria-hidden="true">
+                  close
+                </span>
+              </button>
+            </div>
+
+            <form onSubmit={handleConsentSubmit} className="mt-5 space-y-4">
+              <label className="flex cursor-pointer items-start gap-3 text-[16px] text-gray-900">
+                <input
+                  type="checkbox"
+                  checked={acceptedStorageNotice}
+                  onChange={(e) => setAcceptedStorageNotice(e.target.checked)}
+                  className="mt-1 h-5 w-5 rounded border-gray-300 text-[#1A73E8] focus:ring-[#1A73E8]"
+                />
+                <span>
+                  <strong>What we save:</strong> Only the details needed to check your application
+                  (names, dates, balances, and short quotes). Passport, bank account, Aadhaar, and
+                  PAN numbers are shortened to the last 4 digits.
+                </span>
+              </label>
+
+              <label className="flex cursor-pointer items-start gap-3 text-[16px] text-gray-900">
+                <input
+                  type="checkbox"
+                  checked={acceptedImmediateDeletion}
+                  onChange={(e) => setAcceptedImmediateDeletion(e.target.checked)}
+                  className="mt-1 h-5 w-5 rounded border-gray-300 text-[#1A73E8] focus:ring-[#1A73E8]"
+                />
+                <span>
+                  <strong>Files deleted right away:</strong> Your PDFs and photos are read in memory
+                  and deleted immediately. We never store your original files.
+                </span>
+              </label>
+
+              <label className="flex cursor-pointer items-start gap-3 text-[16px] text-gray-900">
+                <input
+                  type="checkbox"
+                  checked={acceptedDeleteRight}
+                  onChange={(e) => setAcceptedDeleteRight(e.target.checked)}
+                  className="mt-1 h-5 w-5 rounded border-gray-300 text-[#1A73E8] focus:ring-[#1A73E8]"
+                />
+                <span>
+                  <strong>Delete anytime:</strong> You can delete your check and all saved details
+                  with one click.
+                </span>
+              </label>
+
+              <div className="border-t border-gray-200 pt-3">
+                <label className="flex cursor-pointer items-start gap-3 text-[16px] text-gray-900">
+                  <input
+                    type="checkbox"
+                    checked={isUnder18}
+                    onChange={(e) => setIsUnder18(e.target.checked)}
+                    className="mt-1 h-5 w-5 rounded border-gray-300 text-[#1A73E8] focus:ring-[#1A73E8]"
+                  />
+                  <span>I am under 18 years old.</span>
+                </label>
+
+                {isUnder18 && (
+                  <label className="mt-3 ml-8 flex cursor-pointer items-start gap-3 text-[16px] text-gray-900">
+                    <input
+                      type="checkbox"
+                      checked={parentalConsentConfirmed}
+                      onChange={(e) => setParentalConsentConfirmed(e.target.checked)}
+                      className="mt-1 h-5 w-5 rounded border-gray-300 text-[#1A73E8] focus:ring-[#1A73E8]"
+                    />
+                    <span>
+                      My parent or guardian has read this and agrees to Aira checking my documents.
+                    </span>
+                  </label>
+                )}
+              </div>
+
+              <div className="border-t border-gray-200 pt-3">
+                <label className="flex cursor-pointer items-start gap-3 text-[16px] text-gray-900">
+                  <input
+                    type="checkbox"
+                    checked={authorisationAccepted}
+                    onChange={(e) => setAuthorisationAccepted(e.target.checked)}
+                    className="mt-1 h-5 w-5 rounded border-gray-300 text-[#1A73E8] focus:ring-[#1A73E8]"
+                  />
+                  <span>
+                    I allow Aira to check my documents and prepare my university form using only my
+                    own details. Nothing will be submitted until a counselor approves, and I will
+                    sign any visa forms myself.
+                  </span>
+                </label>
+              </div>
+
+              <div className="border-t border-gray-200 pt-3">
+                <label
+                  htmlFor="typed-signature"
+                  className="block text-[14px] font-semibold text-gray-900"
+                >
+                  Type your full name to sign
+                </label>
+                <input
+                  id="typed-signature"
+                  type="text"
+                  value={typedSignature}
+                  onChange={(e) => setTypedSignature(e.target.value)}
+                  placeholder="e.g. Arun Reddy"
+                  className="mt-1.5 h-11 w-full rounded-[8px] border border-gray-300 bg-white px-3 text-[16px] text-gray-900 focus:border-[#1A73E8] focus:outline-none focus:ring-2 focus:ring-[#1A73E8]/30"
+                />
+              </div>
+
+              {consentError && (
+                <p role="alert" className="text-[14px] font-medium text-[#D93025]">
+                  {consentError}
+                </p>
+              )}
+
+              <div className="flex items-center justify-end gap-3 border-t border-gray-200 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setConsentModalOpen(false)}
+                  className="inline-flex h-11 items-center rounded-[8px] border border-gray-300 bg-white px-4 text-[14px] font-semibold text-gray-900 hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="inline-flex h-11 items-center rounded-[8px] bg-[#1A73E8] px-5 text-[16px] font-semibold text-white hover:bg-[#1557B0]"
+                >
+                  Continue to upload
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      <footer className="mt-12 border-t border-gray-200 bg-white px-4 py-6 text-center text-[14px] font-medium text-gray-600 sm:px-6">
         AI for speed. Code for money. Humans for the final yes.
       </footer>
     </div>

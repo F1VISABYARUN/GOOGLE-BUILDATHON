@@ -1,5 +1,4 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { Bot, ExternalLink, Globe, Play, RefreshCw, ShieldCheck } from 'lucide-react';
 
 interface GroundedSource {
   title: string;
@@ -46,26 +45,13 @@ interface AgentRunnerPanelProps {
   onOpenPortal: () => void;
 }
 
-export default function AgentRunnerPanel({
-  caseId,
-  onOpenCounselor,
-  onOpenPortal,
-}: AgentRunnerPanelProps) {
-  // University rules grounding (gemini-4-neon + Search + URL context)
+export function UniversityRulesLookup() {
   const [uniName, setUniName] = useState('University of Manchester');
   const [programName, setProgramName] = useState('MSc Data Science');
   const [uniUrl, setUniUrl] = useState('');
   const [rulesLoading, setRulesLoading] = useState(false);
   const [rulesError, setRulesError] = useState<string | null>(null);
   const [rulesResult, setRulesResult] = useState<UniversityRulesResult | null>(null);
-
-  // Computer-use agent launcher
-  const [studentEmail, setStudentEmail] = useState('arun.applicant@example.com');
-  const [studentPhone, setStudentPhone] = useState('+91-9876543210');
-  const portalUrl = '/portal';
-  const [launchLoading, setLaunchLoading] = useState(false);
-  const [launchError, setLaunchError] = useState<string | null>(null);
-  const [activeRun, setActiveRun] = useState<AgentRunRecord | null>(null);
 
   async function handleLookupRules(e: FormEvent) {
     e.preventDefault();
@@ -91,6 +77,122 @@ export default function AgentRunnerPanel({
     }
   }
 
+  return (
+    <div className="space-y-4 border-t border-gray-200 pt-5">
+      <div>
+        <h3 className="text-[16px] font-semibold text-gray-900">
+          Look up official university entry rules (Google Search + URL Context)
+        </h3>
+        <p className="mt-0.5 text-[14px] text-gray-600">
+          Reads official university pages live with citations.
+        </p>
+      </div>
+
+      <form onSubmit={handleLookupRules} className="grid gap-3 sm:grid-cols-3">
+        <div>
+          <label htmlFor="ur-name" className="block text-[14px] font-medium text-gray-900">
+            University
+          </label>
+          <input
+            id="ur-name"
+            type="text"
+            value={uniName}
+            onChange={(e) => setUniName(e.target.value)}
+            className="mt-1 h-11 w-full rounded-[8px] border border-gray-300 bg-white px-3 text-[16px] text-gray-900 focus:border-[#1A73E8] focus:outline-none focus:ring-2 focus:ring-[#1A73E8]/30"
+          />
+        </div>
+        <div>
+          <label htmlFor="ur-prog" className="block text-[14px] font-medium text-gray-900">
+            Course
+          </label>
+          <input
+            id="ur-prog"
+            type="text"
+            value={programName}
+            onChange={(e) => setProgramName(e.target.value)}
+            className="mt-1 h-11 w-full rounded-[8px] border border-gray-300 bg-white px-3 text-[16px] text-gray-900 focus:border-[#1A73E8] focus:outline-none focus:ring-2 focus:ring-[#1A73E8]/30"
+          />
+        </div>
+        <div>
+          <label htmlFor="ur-url" className="block text-[14px] font-medium text-gray-900">
+            Course page URL (optional)
+          </label>
+          <input
+            id="ur-url"
+            type="url"
+            value={uniUrl}
+            onChange={(e) => setUniUrl(e.target.value)}
+            placeholder="https://www.manchester.ac.uk/..."
+            className="mt-1 h-11 w-full rounded-[8px] border border-gray-300 bg-white px-3 text-[16px] text-gray-900 focus:border-[#1A73E8] focus:outline-none focus:ring-2 focus:ring-[#1A73E8]/30"
+          />
+        </div>
+        <div className="sm:col-span-3">
+          <button
+            type="submit"
+            disabled={rulesLoading}
+            className="inline-flex h-11 items-center gap-2 rounded-[8px] border border-gray-300 bg-white px-4 text-[14px] font-semibold text-gray-900 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1A73E8] disabled:opacity-50"
+          >
+            <span className="material-symbols-outlined !text-[18px]" aria-hidden="true">
+              travel_explore
+            </span>
+            <span>{rulesLoading ? 'Checking official pages...' : 'Check official rules'}</span>
+          </button>
+        </div>
+      </form>
+
+      {rulesError && (
+        <p role="alert" className="text-[14px] font-medium text-[#D93025]">
+          {rulesError}
+        </p>
+      )}
+
+      {rulesResult && (
+        <div className="space-y-3 border-t border-gray-200 pt-4 text-[14px]">
+          <p className="font-mono text-[14px] text-gray-600">
+            Model: {rulesResult.modelUsed}
+          </p>
+          {rulesResult.portalWarning && (
+            <p className="text-[14px] font-medium text-[#B06000]">
+              {rulesResult.portalWarning}
+            </p>
+          )}
+          <div className="whitespace-pre-wrap leading-relaxed text-gray-900">
+            {rulesResult.summaryMarkdown}
+          </div>
+          {rulesResult.sources.length > 0 && (
+            <ul className="space-y-1 border-t border-gray-200 pt-2 text-[14px]">
+              {rulesResult.sources.map((src, i) => (
+                <li key={i}>
+                  <a
+                    href={src.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="break-all text-[#1A73E8] underline"
+                  >
+                    {src.title || src.url}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default function AgentRunnerPanel({
+  caseId,
+  onOpenCounselor,
+  onOpenPortal,
+}: AgentRunnerPanelProps) {
+  const [studentEmail, setStudentEmail] = useState('arun.applicant@example.com');
+  const [studentPhone, setStudentPhone] = useState('+91-9876543210');
+  const portalUrl = '/portal';
+  const [launchLoading, setLaunchLoading] = useState(false);
+  const [launchError, setLaunchError] = useState<string | null>(null);
+  const [activeRun, setActiveRun] = useState<AgentRunRecord | null>(null);
+
   async function handleLaunchAgent(e: FormEvent) {
     e.preventDefault();
     setLaunchLoading(true);
@@ -103,7 +205,7 @@ export default function AgentRunnerPanel({
           caseId,
           studentEmail: studentEmail.trim(),
           studentPhone: studentPhone.trim(),
-          portalUrl: portalUrl.trim() || '/portal',
+          portalUrl,
         }),
       });
       const data = await res.json();
@@ -129,7 +231,7 @@ export default function AgentRunnerPanel({
       const data = await res.json();
       if (!res.ok) throw new Error(data.details || data.error || 'Resume failed.');
       setActiveRun((prev) =>
-        prev ? { ...prev, status: 'queued', statusMessage: 'Resuming via Cloud Tasks...' } : prev
+        prev ? { ...prev, status: 'queued', statusMessage: 'Resuming application draft...' } : prev
       );
     } catch (err) {
       setLaunchError(err instanceof Error ? err.message : 'Resume failed.');
@@ -138,7 +240,6 @@ export default function AgentRunnerPanel({
     }
   }
 
-  // Live poll Firestore-backed run record every 2.5 seconds while active
   useEffect(() => {
     if (!activeRun) return;
     if (!['queued', 'running'].includes(activeRun.status)) return;
@@ -159,37 +260,33 @@ export default function AgentRunnerPanel({
   }, [activeRun?.id, activeRun?.status]);
 
   return (
-    <div className="space-y-4">
-      {/* APPLICATION AGENT LAUNCHER & LIVE STEP FEED */}
-      <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="flex items-start gap-3">
-            <span className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-blue-700">
-              <Bot className="h-5 w-5" aria-hidden="true" />
-            </span>
-            <div>
-              <h2 className="text-lg font-extrabold text-slate-950 sm:text-xl">
-                Application Agent: Gemini fills the portal, stops before Submit until a counselor approves
-              </h2>
-              <p className="mt-0.5 text-sm text-slate-700">
-                Uses your verified details only. Never automates Common App or UCAS.
-              </p>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={onOpenPortal}
-            className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-sm font-semibold text-slate-900 transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300"
-          >
-            <ExternalLink className="h-4 w-4" aria-hidden="true" />
-            <span>Open University portal</span>
-          </button>
+    <section className="rounded-[12px] border border-gray-200 bg-white p-5">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h3 className="text-[16px] font-bold text-gray-900">
+            University application draft
+          </h3>
+          <p className="mt-1 text-[14px] text-gray-600">
+            Fills the portal with your checked details and stops before Submit until a counselor approves.
+          </p>
         </div>
+        <button
+          type="button"
+          onClick={onOpenPortal}
+          className="inline-flex h-9 shrink-0 items-center gap-1 rounded-[8px] px-2.5 text-[14px] font-semibold text-[#1A73E8] hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1A73E8]"
+        >
+          <span>Open portal</span>
+          <span className="material-symbols-outlined !text-[18px]" aria-hidden="true">
+            open_in_new
+          </span>
+        </button>
+      </div>
 
-        <form onSubmit={handleLaunchAgent} className="mt-4 flex flex-wrap items-end gap-3">
-          <div className="min-w-[200px] flex-1">
-            <label htmlFor="ag-email" className="block text-xs font-bold uppercase tracking-wide text-slate-700">
-              Student email
+      <form onSubmit={handleLaunchAgent} className="mt-4 space-y-3">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div>
+            <label htmlFor="ag-email" className="block text-[14px] font-medium text-gray-900">
+              Applicant email
             </label>
             <input
               id="ag-email"
@@ -197,12 +294,12 @@ export default function AgentRunnerPanel({
               required
               value={studentEmail}
               onChange={(e) => setStudentEmail(e.target.value)}
-              className="mt-1 w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm text-slate-900 focus:border-blue-600 focus:outline-none focus:ring-4 focus:ring-blue-200"
+              className="mt-1 h-11 w-full rounded-[8px] border border-gray-300 bg-white px-3 text-[16px] text-gray-900 focus:border-[#1A73E8] focus:outline-none focus:ring-2 focus:ring-[#1A73E8]/30"
             />
           </div>
-          <div className="min-w-[180px] flex-1">
-            <label htmlFor="ag-phone" className="block text-xs font-bold uppercase tracking-wide text-slate-700">
-              Student phone
+          <div>
+            <label htmlFor="ag-phone" className="block text-[14px] font-medium text-gray-900">
+              Applicant phone
             </label>
             <input
               id="ag-phone"
@@ -210,218 +307,92 @@ export default function AgentRunnerPanel({
               required
               value={studentPhone}
               onChange={(e) => setStudentPhone(e.target.value)}
-              className="mt-1 w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm text-slate-900 focus:border-blue-600 focus:outline-none focus:ring-4 focus:ring-blue-200"
+              className="mt-1 h-11 w-full rounded-[8px] border border-gray-300 bg-white px-3 text-[16px] text-gray-900 focus:border-[#1A73E8] focus:outline-none focus:ring-2 focus:ring-[#1A73E8]/30"
             />
           </div>
-          <button
-            type="submit"
-            disabled={launchLoading}
-            className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-6 py-2.5 text-base font-bold text-white shadow-sm transition hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300 disabled:opacity-50"
-          >
-            <Play className="h-4 w-4" aria-hidden="true" />
-            <span>{launchLoading ? 'Starting Agent...' : 'Start Application Agent'}</span>
-          </button>
-        </form>
+        </div>
 
-        {launchError && (
-          <div role="alert" className="mt-4 rounded-xl border border-red-300 bg-red-50 p-4 text-sm font-medium text-red-900">
-            {launchError}
+        {/* Secondary outline button so Results has strictly ONE primary button ("Send to counselor") */}
+        <button
+          type="submit"
+          disabled={launchLoading}
+          className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-[8px] border border-gray-300 bg-white px-4 text-[16px] font-semibold text-gray-900 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1A73E8] disabled:opacity-50"
+        >
+          <span className="material-symbols-outlined !text-[20px]" aria-hidden="true">
+            smart_toy
+          </span>
+          <span>
+            {launchLoading ? 'Preparing draft...' : 'Pre-fill university form'}
+          </span>
+          <span className="sr-only">Start Application Agent</span>
+        </button>
+      </form>
+
+      {launchError && (
+        <p role="alert" className="mt-3 text-[14px] font-medium text-[#D93025]">
+          {launchError}
+        </p>
+      )}
+
+      {activeRun && (
+        <div className="mt-4 space-y-3 border-t border-gray-200 pt-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-[16px] font-semibold text-gray-900">{activeRun.statusMessage}</p>
+            <span
+              className={`rounded-full px-2.5 py-0.5 text-[14px] font-semibold ${
+                activeRun.status === 'submitted'
+                  ? 'bg-[#E6F4EA] text-[#188038]'
+                  : activeRun.status === 'failed'
+                    ? 'bg-[#FCE8E6] text-[#D93025]'
+                    : 'bg-[#FEF7E0] text-[#B06000]'
+              }`}
+            >
+              {activeRun.status.replace(/_/g, ' ')}
+            </span>
           </div>
-        )}
 
-        {activeRun && (
-          <div className="mt-5 space-y-4 border-t border-slate-200 pt-5">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div>
-                <p className="font-mono text-xs text-slate-600">
-                  Run {activeRun.id} · Model: {activeRun.currentModel} · Steps: {activeRun.stepCount}
-                </p>
-                <p className="mt-1 text-lg font-bold text-slate-950">{activeRun.statusMessage}</p>
-              </div>
-              <span
-                className={`rounded-full px-3 py-1 text-xs font-bold uppercase ${
-                  activeRun.status === 'submitted'
-                    ? 'bg-emerald-700 text-white'
-                    : activeRun.status.startsWith('paused') || activeRun.status === 'escalated_to_counselor'
-                      ? 'bg-amber-700 text-white'
-                      : activeRun.status === 'failed'
-                        ? 'bg-red-700 text-white'
-                        : 'bg-blue-700 text-white'
-                }`}
+          {activeRun.submissionReference && (
+            <p className="text-[14px] font-semibold text-[#188038]">
+              Submitted — Reference: {activeRun.submissionReference}
+            </p>
+          )}
+
+          {(activeRun.status === 'paused_needs_approval' ||
+            activeRun.status === 'paused_safety_confirmation' ||
+            activeRun.status === 'paused_captcha_or_otp') && (
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={onOpenCounselor}
+                className="inline-flex h-11 items-center gap-1.5 rounded-[8px] border border-gray-300 bg-white px-4 text-[14px] font-semibold text-gray-900 hover:bg-gray-50"
               >
-                {activeRun.status.replace(/_/g, ' ')}
-              </span>
+                <span>Open counselor view</span>
+              </button>
+              <button
+                type="button"
+                disabled={launchLoading}
+                onClick={() =>
+                  void handleResumeRun(activeRun.status === 'paused_safety_confirmation')
+                }
+                className="inline-flex h-11 items-center gap-1.5 rounded-[8px] border border-gray-300 bg-white px-4 text-[14px] font-semibold text-gray-900 hover:bg-gray-50"
+              >
+                <span>Resume after approval</span>
+              </button>
             </div>
+          )}
 
-            {activeRun.submissionReference && (
-              <p className="rounded-lg border border-emerald-300 bg-emerald-50 p-3 font-mono text-base font-bold text-emerald-950">
-                Submitted cleanly — Reference: {activeRun.submissionReference}
-              </p>
-            )}
-
-            {(activeRun.status === 'paused_needs_approval' ||
-              activeRun.status === 'paused_safety_confirmation' ||
-              activeRun.status === 'paused_captcha_or_otp') && (
-              <div className="flex flex-wrap gap-3">
-                <button
-                  type="button"
-                  onClick={onOpenCounselor}
-                  className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-bold text-slate-900 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300"
-                >
-                  <ShieldCheck className="h-4 w-4" aria-hidden="true" />
-                  <span>Open Counselor Queue to Approve</span>
-                </button>
-                <button
-                  type="button"
-                  disabled={launchLoading}
-                  onClick={() =>
-                    void handleResumeRun(activeRun.status === 'paused_safety_confirmation')
-                  }
-                  className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300"
-                >
-                  <RefreshCw className="h-4 w-4" aria-hidden="true" />
-                  <span>Resume Agent After Approval</span>
-                </button>
-              </div>
-            )}
-
-            {/* LIVE STEP FEED WITH THUMBNAILS */}
-            {activeRun.steps.length > 0 && (
-              <ol className="space-y-3">
-                {activeRun.steps.map((s) => (
-                  <li
-                    key={s.stepNumber}
-                    className="grid gap-3 rounded-xl border border-slate-200 bg-white p-3.5 sm:grid-cols-3"
-                  >
-                    {s.thumbnailDataUrl && (
-                      <img
-                        src={s.thumbnailDataUrl}
-                        alt={`Step ${s.stepNumber}: ${s.action}`}
-                        className="w-full rounded-lg border border-slate-200 object-cover"
-                      />
-                    )}
-                    <div className={s.thumbnailDataUrl ? 'sm:col-span-2' : 'sm:col-span-3'}>
-                      <div className="flex flex-wrap items-center gap-2 text-xs font-bold">
-                        <span className="rounded bg-slate-200 px-2 py-0.5 text-slate-900">
-                          Step {s.stepNumber}
-                        </span>
-                        <span className="rounded bg-blue-100 px-2 py-0.5 font-mono text-blue-900">
-                          {s.action}
-                        </span>
-                        <span className="rounded bg-slate-100 px-2 py-0.5 font-mono text-slate-700">
-                          {s.modelUsed}
-                        </span>
-                        <span
-                          className={`rounded px-2 py-0.5 uppercase ${
-                            s.status === 'blocked' || s.status === 'error'
-                              ? 'bg-red-100 text-red-900'
-                              : s.status === 'escalated'
-                                ? 'bg-amber-100 text-amber-900'
-                                : 'bg-emerald-100 text-emerald-900'
-                          }`}
-                        >
-                          {s.status}
-                        </span>
-                      </div>
-                      <p className="mt-1.5 text-base font-medium text-slate-950">{s.intent}</p>
-                      {s.note && <p className="mt-1 text-sm text-slate-700">{s.note}</p>}
-                      <p className="mt-1 truncate font-mono text-xs text-slate-500">{s.url}</p>
-                    </div>
-                  </li>
-                ))}
-              </ol>
-            )}
-          </div>
-        )}
-      </section>
-
-      {/* COLLAPSIBLE UNIVERSITY RULES GROUNDING (gemini-4-neon + Search + URL Context) */}
-      <details className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
-        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-xl focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300">
-          <span className="inline-flex items-center gap-2.5 text-sm font-bold text-slate-900 sm:text-base">
-            <Globe className="h-4 w-4 text-blue-600" aria-hidden="true" />
-            <span>Check live university entry rules (Gemini Search + URL Context)</span>
-          </span>
-          <span className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-700">
-            Expand
-          </span>
-        </summary>
-
-        <form onSubmit={handleLookupRules} className="mt-4 space-y-3 border-t border-slate-200 pt-4">
-          <div className="grid gap-3 sm:grid-cols-3">
-            <div>
-              <label htmlFor="ur-name" className="block text-xs font-bold text-slate-700">University</label>
-              <input
-                id="ur-name"
-                type="text"
-                value={uniName}
-                onChange={(e) => setUniName(e.target.value)}
-                className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900"
-              />
-            </div>
-            <div>
-              <label htmlFor="ur-prog" className="block text-xs font-bold text-slate-700">Programme</label>
-              <input
-                id="ur-prog"
-                type="text"
-                value={programName}
-                onChange={(e) => setProgramName(e.target.value)}
-                className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900"
-              />
-            </div>
-            <div>
-              <label htmlFor="ur-url" className="block text-xs font-bold text-slate-700">Official page URL (optional)</label>
-              <input
-                id="ur-url"
-                type="url"
-                value={uniUrl}
-                onChange={(e) => setUniUrl(e.target.value)}
-                placeholder="https://www.manchester.ac.uk/..."
-                className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900"
-              />
-            </div>
-          </div>
-          <button
-            type="submit"
-            disabled={rulesLoading}
-            className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300 disabled:opacity-50"
-          >
-            <Globe className="h-4 w-4" aria-hidden="true" />
-            <span>{rulesLoading ? 'Checking official pages...' : 'Check Official Rules'}</span>
-          </button>
-        </form>
-
-        {rulesError && (
-          <div role="alert" className="mt-3 rounded-xl border border-red-300 bg-red-50 p-3 text-sm text-red-900">
-            {rulesError}
-          </div>
-        )}
-
-        {rulesResult && (
-          <div className="mt-4 space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm">
-            <p className="text-xs font-bold uppercase text-slate-600">Grounded by {rulesResult.modelUsed}</p>
-            {rulesResult.portalWarning && (
-              <p className="rounded-lg border border-amber-300 bg-amber-50 p-2.5 text-xs font-semibold text-amber-950">
-                {rulesResult.portalWarning}
-              </p>
-            )}
-            <div className="whitespace-pre-wrap leading-relaxed text-slate-900">
-              {rulesResult.summaryMarkdown}
-            </div>
-            {rulesResult.sources.length > 0 && (
-              <ul className="border-t border-slate-200 pt-2 text-xs">
-                {rulesResult.sources.map((src, i) => (
-                  <li key={i}>
-                    <a href={src.url} target="_blank" rel="noreferrer" className="text-blue-700 underline break-all">
-                      {src.title || src.url}
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        )}
-      </details>
-    </div>
+          {activeRun.steps.length > 0 && (
+            <ol className="space-y-2 border-t border-gray-200 pt-3">
+              {activeRun.steps.map((s) => (
+                <li key={s.stepNumber} className="text-[14px] text-gray-600">
+                  <strong className="text-gray-900">{s.intent}</strong>
+                  {s.note ? ` — ${s.note}` : ''}
+                </li>
+              ))}
+            </ol>
+          )}
+        </div>
+      )}
+    </section>
   );
 }
