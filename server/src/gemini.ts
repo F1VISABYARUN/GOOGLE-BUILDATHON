@@ -13,6 +13,15 @@ export interface GeminiClientLike {
 
 let cachedClient: GoogleGenAI | null = null;
 
+export function sanitizeApiKey(raw: string | undefined): string {
+  if (!raw) return '';
+  const firstLine = raw
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .find((line) => line.length > 0);
+  return firstLine ?? '';
+}
+
 export function createGeminiClient(): GoogleGenAI {
   const useVertex = process.env.USE_VERTEX === 'true';
 
@@ -26,7 +35,7 @@ export function createGeminiClient(): GoogleGenAI {
     });
   }
 
-  const apiKey = process.env.GEMINI_API_KEY?.trim();
+  const apiKey = sanitizeApiKey(process.env.GEMINI_API_KEY);
   if (!apiKey) {
     throw new Error(
       'GEMINI_API_KEY is not set. Copy .env.example to .env and add your key locally, or configure Secret Manager in Cloud Run.'

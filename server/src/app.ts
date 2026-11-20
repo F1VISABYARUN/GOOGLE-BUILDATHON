@@ -24,11 +24,14 @@ export function createApp() {
       const models = await listAllowedModels();
       res.json({ models });
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to list Gemini models.';
-      console.error('[api/models] error:', message);
+      const rawMessage = error instanceof Error ? error.message : 'Failed to list Gemini models.';
+      const safeMessage = rawMessage.includes('Headers.append')
+        ? 'API key format is invalid (check for extra spaces or newlines in Secret Manager).'
+        : rawMessage;
+      console.error('[api/models] error:', safeMessage);
       res.status(502).json({
         error: 'Could not load Gemini models from Google AI.',
-        details: message,
+        details: safeMessage,
       });
     }
   });
@@ -48,11 +51,14 @@ export function createApp() {
         latencyMs: result.latencyMs,
       });
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Gemini request failed.';
-      console.error('[api/hello] error:', message);
+      const rawMessage = error instanceof Error ? error.message : 'Gemini request failed.';
+      const safeMessage = rawMessage.includes('Headers.append')
+        ? 'API key format is invalid (check for extra spaces or newlines in Secret Manager).'
+        : rawMessage;
+      console.error('[api/hello] error:', safeMessage);
       res.status(502).json({
         error: 'Could not reach Gemini right now. Please check your API key and billing.',
-        details: message,
+        details: safeMessage,
       });
     }
   });

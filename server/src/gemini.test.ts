@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   filterAllowedModelNames,
   generateWithFallback,
+  sanitizeApiKey,
   type GeminiClientLike,
 } from './gemini.js';
 import { MODELS } from './config/models.js';
@@ -129,5 +130,13 @@ describe('filterAllowedModelNames', () => {
       'gemini-4-carbon',
       'gemini-4-hydrogen',
     ]);
+  });
+});
+
+describe('sanitizeApiKey', () => {
+  it('returns only the first non-empty trimmed line', () => {
+    expect(sanitizeApiKey('  test-key-1\n test-key-2 \r\n')).toBe('test-key-1');
+    expect(sanitizeApiKey('\n\n  test-key-only  ')).toBe('test-key-only');
+    expect(sanitizeApiKey(undefined)).toBe('');
   });
 });
