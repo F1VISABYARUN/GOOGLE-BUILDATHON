@@ -448,15 +448,47 @@ export default function App() {
           <div className="space-y-8">
             {/* Hero 2-column grid */}
             <section className="grid items-start gap-8 lg:grid-cols-12">
-              {/* Left half: H1 + Sub + 2 Buttons */}
-              <div className="space-y-6 lg:col-span-5 lg:pt-4">
+              {/* Left half: H1 + Sub + Country selector + 2 Buttons */}
+              <div className="space-y-5 lg:col-span-5 lg:pt-2">
                 <h1 className="text-[32px] font-bold leading-[1.18] tracking-tight text-gray-900">
-                  Catch the visa refusal before the officer does.
+                  Your 24/7 study abroad counselor, with a human on the final yes.
                 </h1>
                 <p className="text-[16px] leading-relaxed text-gray-600">
-                  Aira checks bank statements, offer letters and passports against official UK
-                  rules, then fills the university application only after a counselor approves.
+                  Aira checks your documents against official rules, fills university applications
+                  for you, and a real counselor approves before anything is submitted.
                 </p>
+
+                {/* Country selector (UI only): United Kingdom (Live) selected; USA, Canada, Germany, Ireland greyed out as "Next" */}
+                <div className="space-y-2 pt-1" role="group" aria-label="Country rule pack">
+                  <p className="text-[14px] font-semibold text-gray-900">Country</p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span
+                      aria-current="true"
+                      className="inline-flex h-9 items-center gap-1.5 rounded-[8px] border border-[#1A73E8] bg-[#E8F0FE] px-3 text-[14px] font-semibold text-[#1A73E8]"
+                    >
+                      <span className="material-symbols-outlined !text-[16px]" aria-hidden="true">
+                        check_circle
+                      </span>
+                      <span>United Kingdom</span>
+                      <span className="rounded-full bg-[#1A73E8] px-2 py-0.5 text-[12px] font-bold text-white">
+                        Live
+                      </span>
+                    </span>
+
+                    {['USA', 'Canada', 'Germany', 'Ireland'].map((country) => (
+                      <span
+                        key={country}
+                        aria-disabled="true"
+                        className="inline-flex h-9 cursor-not-allowed select-none items-center gap-1.5 rounded-[8px] border border-gray-200 bg-gray-50 px-3 text-[14px] font-medium text-gray-400"
+                      >
+                        <span>{country}</span>
+                        <span className="rounded-full bg-gray-200/80 px-1.5 py-0.5 text-[11px] font-semibold text-gray-500">
+                          Next
+                        </span>
+                      </span>
+                    ))}
+                  </div>
+                </div>
 
                 <div className="flex flex-wrap items-center gap-3 pt-1">
                   {/* Sole Primary Button on Screen 1 */}
@@ -521,7 +553,7 @@ export default function App() {
               <div className="lg:col-span-7" aria-label="Sample check preview">
                 <div className="mb-2 flex items-center justify-between text-[14px] text-gray-600">
                   <span className="font-medium text-gray-900">
-                    Sample check result · Indian bank statement (for UK visa)
+                    UK funds check · Sample Indian bank statement
                   </span>
                   <span>28-day balance check</span>
                 </div>
@@ -566,46 +598,86 @@ export default function App() {
               </div>
             )}
 
-            {/* Row of 3 tiles: "What Aira catches" */}
+            {/* Row of 4 tiles: "What Aira does" */}
             <section className="space-y-3">
-              <h2 className="text-[18px] font-bold text-gray-900">What Aira catches</h2>
-              <div className="grid gap-4 sm:grid-cols-3">
+              <h2 className="text-[18px] font-bold text-gray-900">What Aira does</h2>
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 <div className="rounded-[12px] border border-gray-200 bg-gray-50 p-5">
-                  <span className="material-symbols-outlined text-[#D93025]" aria-hidden="true">
-                    trending_down
-                  </span>
-                  <h3 className="mt-2 text-[16px] font-bold text-gray-900">
-                    One-day balance dip in the 28-day window
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="material-symbols-outlined text-[#1A73E8]" aria-hidden="true">
+                      fact_check
+                    </span>
+                    <span className="rounded-full bg-[#E6F4EA] px-2.5 py-0.5 text-[12px] font-semibold text-[#188038]">
+                      Live
+                    </span>
+                  </div>
+                  <h3 className="mt-2.5 text-[16px] font-bold text-gray-900">
+                    Checks documents (live)
                   </h3>
                   <p className="mt-1 text-[14px] text-gray-600">
-                    Checks every daily closing balance so a single low day never surprises you at
-                    the visa stage.
+                    Checks bank statements, offer letters, passports, and marksheets in code against
+                    official rules.
                   </p>
                 </div>
 
                 <div className="rounded-[12px] border border-gray-200 bg-gray-50 p-5">
-                  <span className="material-symbols-outlined text-[#F9AB00]" aria-hidden="true">
-                    badge
-                  </span>
-                  <h3 className="mt-2 text-[16px] font-bold text-gray-900">
-                    Name mismatch across documents
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="material-symbols-outlined text-[#1A73E8]" aria-hidden="true">
+                      web
+                    </span>
+                    <span className="rounded-full bg-[#E6F4EA] px-2.5 py-0.5 text-[12px] font-semibold text-[#188038]">
+                      Live
+                    </span>
+                  </div>
+                  <h3 className="mt-2.5 text-[16px] font-bold text-gray-900">
+                    Fills university portals (live)
                   </h3>
                   <p className="mt-1 text-[14px] text-gray-600">
-                    Compares your passport, marksheet, bank statement, and offer letter letter by
-                    letter.
+                    Browser agent pre-fills university application forms from your checked facts and
+                    stops in draft mode.
                   </p>
                 </div>
 
                 <div className="rounded-[12px] border border-gray-200 bg-gray-50 p-5">
-                  <span className="material-symbols-outlined text-[#1A73E8]" aria-hidden="true">
-                    calculate
-                  </span>
-                  <h3 className="mt-2 text-[16px] font-bold text-gray-900">
-                    Unpaid tuition not covered
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="material-symbols-outlined text-[#188038]" aria-hidden="true">
+                      verified_user
+                    </span>
+                    <span className="rounded-full bg-[#E6F4EA] px-2.5 py-0.5 text-[12px] font-semibold text-[#188038]">
+                      Live
+                    </span>
+                  </div>
+                  <h3 className="mt-2.5 text-[16px] font-bold text-gray-900">
+                    Counselor approval (live)
                   </h3>
                   <p className="mt-1 text-[14px] text-gray-600">
-                    Adds your remaining tuition and 9 months of UK living costs against your real
-                    funds.
+                    A real counselor reviews flagged issues and issues a single-use token before any
+                    final Submit.
+                  </p>
+                </div>
+
+                <div className="rounded-[12px] border border-gray-200 bg-gray-50 p-5">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="material-symbols-outlined text-[#1A73E8]" aria-hidden="true">
+                      support_agent
+                    </span>
+                    <span className="rounded-full bg-[#E6F4EA] px-2.5 py-0.5 text-[12px] font-semibold text-[#188038]">
+                      Live
+                    </span>
+                  </div>
+                  <h3 className="mt-2.5 text-[16px] font-bold text-gray-900">
+                    24/7 Q&amp;A and SOP help
+                  </h3>
+                  <p className="mt-1 text-[14px] text-gray-600">
+                    Instant study-abroad Q&amp;A and SOP guidance for Indian students —{' '}
+                    <a
+                      href="https://airaai.io"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-semibold text-[#1A73E8] underline"
+                    >
+                      live at airaai.io →
+                    </a>
                   </p>
                 </div>
               </div>
@@ -848,6 +920,17 @@ export default function App() {
 
           return (
             <div className="space-y-6">
+              {/* RESULTS PAGE TITLE: "UK funds check" (not "visa check") */}
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <h1 className="text-[24px] font-bold text-gray-900">UK funds check</h1>
+                  <p className="text-[14px] text-gray-600">
+                    United Kingdom rule pack (Live) · 28-day continuous closing balance &amp;
+                    document check
+                  </p>
+                </div>
+              </div>
+
               {/* SUMMARY BAR */}
               <section
                 aria-label="Document check verdict"
@@ -1366,7 +1449,7 @@ export default function App() {
       )}
 
       <footer className="mt-12 border-t border-gray-200 bg-white px-4 py-6 text-center text-[14px] font-medium text-gray-600 sm:px-6">
-        AI for speed. Code for money. Humans for the final yes.
+        Built for Indian students going abroad. UK rules live today; more countries next.
       </footer>
     </div>
   );

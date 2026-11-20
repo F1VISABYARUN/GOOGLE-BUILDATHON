@@ -1021,7 +1021,7 @@ export default function CounselorView({ onNavigate }: CounselorViewProps) {
       )}
 
       <footer className="mt-12 border-t border-gray-200 bg-white px-4 py-6 text-center text-[14px] font-medium text-gray-600 sm:px-6">
-        AI for speed. Code for money. Humans for the final yes.
+        Built for Indian students going abroad. UK rules live today; more countries next.
       </footer>
     </div>
   );
