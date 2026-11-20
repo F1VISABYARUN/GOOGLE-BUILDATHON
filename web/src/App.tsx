@@ -8,6 +8,7 @@ import {
   ChevronUp,
   FileCheck2,
   FileText,
+  Loader2,
   Lock,
   ShieldCheck,
   Sparkles,
@@ -187,6 +188,8 @@ export default function App() {
   const [ukRules, setUkRules] = useState<UkRules | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
   const [analyzeError, setAnalyzeError] = useState<string | null>(null);
+  const [runningSample, setRunningSample] = useState(false);
+  const [sampleError, setSampleError] = useState<string | null>(null);
   const [caseResult, setCaseResult] = useState<CaseRecord | null>(null);
 
   // Gemini system status drawer
@@ -368,6 +371,94 @@ export default function App() {
     }
   }
 
+  async function handleRunSampleCase() {
+    if (runningSample || analyzing) return;
+
+    setConsentError(null);
+    setAnalyzeError(null);
+    setSampleError(null);
+    setDeleteConfirmationMsg(null);
+
+    const nowIso = new Date().toISOString();
+    const sampleFiles = createSampleExceptionFiles();
+
+    // Auto-fill DPDP consent & sample UK case parameters
+    setAcceptedStorageNotice(true);
+    setAcceptedImmediateDeletion(true);
+    setAcceptedDeleteRight(true);
+    setIsUnder18(false);
+    setParentalConsentConfirmed(false);
+    setAuthorisationAccepted(true);
+    setTypedSignature('Sample Applicant');
+    setSignedAt(nowIso);
+    setDestinationCountry('UK');
+    setUkRegion('london');
+    setRequiredCostAmount('');
+    setRequiredCostCurrency('GBP');
+    setFiles(sampleFiles);
+
+    const formData = new FormData();
+    for (const file of sampleFiles) {
+      formData.append('documents', file);
+    }
+
+    formData.append(
+      'consent',
+      JSON.stringify({
+        acceptedStorageNotice: true,
+        acceptedImmediateDeletion: true,
+        acceptedDeleteRight: true,
+        isUnder18: false,
+        parentalConsentConfirmed: false,
+        authorisationAccepted: true,
+        typedSignature: 'Sample Applicant',
+        signedAt: nowIso,
+      })
+    );
+
+    formData.append(
+      'exchangeRates',
+      JSON.stringify({
+        asOfDate: rateDate,
+        sourceNote: 'Student / counselor visible rate table',
+        ratesToInr: {
+          INR: 1,
+          GBP: Number(rateGbp) || 120,
+          USD: Number(rateUsd) || 96,
+          EUR: Number(rateEur) || 102,
+          CAD: Number(rateCad) || 68,
+          AUD: Number(rateAud) || 62,
+        },
+      })
+    );
+
+    formData.append('destinationCountry', 'UK');
+    formData.append('ukRegion', 'london');
+
+    setRunningSample(true);
+    setAnalyzing(true);
+    try {
+      const res = await fetch('/api/cases/analyze', {
+        method: 'POST',
+        body: formData,
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.details || data.error || 'Sample UK case failed.');
+      }
+      setCaseResult(data as CaseRecord);
+      setStep('results');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Something went wrong.';
+      setSampleError(msg);
+      setAnalyzeError(msg);
+    } finally {
+      setRunningSample(false);
+      setAnalyzing(false);
+    }
+  }
+
   async function handleSayHello() {
     setHelloLoading(true);
     setHelloError(null);
@@ -417,6 +508,28 @@ export default function App() {
                 extracted fact carries an exact verbatim quote, every money and date rule runs in
                 plain code, and a human counselor approves before Submit.
               </p>
+
+              <div className="flex flex-wrap items-center gap-3 pt-1">
+                <button
+                  type="button"
+                  disabled={runningSample || analyzing}
+                  onClick={() => void handleRunSampleCase()}
+                  className="inline-flex w-full items-center justify-center gap-2.5 rounded-2xl bg-blue-700 px-7 py-4 text-lg font-extrabold text-white shadow-lg shadow-blue-700/20 transition hover:bg-blue-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300 disabled:cursor-not-allowed disabled:bg-blue-400 sm:w-auto"
+                >
+                  {runningSample ? (
+                    <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" />
+                  ) : (
+                    <Sparkles className="h-5 w-5" aria-hidden="true" />
+                  )}
+                  <span>
+                    {runningSample ? 'Running sample UK case...' : 'Try with sample documents'}
+                  </span>
+                  {!runningSample && <ArrowRight className="h-5 w-5" aria-hidden="true" />}
+                </button>
+                <span className="text-xs font-medium text-slate-600 sm:text-sm">
+                  One click · Zero typing · Runs fake UK CAS + Bank + Marksheet end-to-end
+                </span>
+              </div>
 
               <div className="flex flex-wrap gap-2.5 pt-1 text-xs font-semibold text-slate-800 sm:text-sm">
                 <span className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5">
@@ -488,6 +601,34 @@ export default function App() {
           </div>
         </section>
 
+        {runningSample && (
+          <div
+            role="status"
+            aria-live="polite"
+            className="flex items-start gap-3.5 rounded-2xl border-2 border-blue-300 bg-blue-50 p-5 text-blue-950 shadow-sm"
+          >
+            <Loader2 className="mt-0.5 h-6 w-6 shrink-0 animate-spin text-blue-700" aria-hidden="true" />
+            <div>
+              <p className="text-base font-extrabold text-blue-950">Running sample UK case...</p>
+              <p className="mt-0.5 text-sm text-blue-900">
+                Auto-filled DPDP consent for Sample Applicant, generated fake UK London CAS + Indian
+                Bank Statement + Marksheet PDFs, and running Gemini fact extraction + plain-code UK
+                funds &amp; ID-masking checks.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {sampleError && step !== 'upload' && (
+          <div
+            role="alert"
+            className="rounded-2xl border border-red-300 bg-red-50 p-4 text-base text-red-900"
+          >
+            <p className="font-bold">Could not run sample UK case</p>
+            <p className="mt-1">{sampleError}</p>
+          </div>
+        )}
+
         {deleteConfirmationMsg && (
           <div
             role="status"
@@ -499,6 +640,47 @@ export default function App() {
               <p className="mt-0.5">{deleteConfirmationMsg}</p>
             </div>
           </div>
+        )}
+
+        {/* ONE-CLICK SAMPLE CTA RIGHT ABOVE STEP 1 CONSENT */}
+        {step === 'consent' && (
+          <section
+            aria-label="Try with sample documents"
+            className="rounded-3xl border-2 border-blue-200 bg-gradient-to-r from-blue-50 via-white to-indigo-50 p-5 shadow-sm sm:p-6"
+          >
+            <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
+              <div className="space-y-1">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-100 px-3 py-0.5 text-xs font-bold uppercase tracking-wide text-blue-900">
+                  <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+                  Instant Demo · Zero Typing
+                </span>
+                <h2 className="text-xl font-extrabold text-slate-950">
+                  Skip manual entry — run the full UK sample case in one click
+                </h2>
+                <p className="text-sm text-slate-700">
+                  Auto-fills DPDP consent, uploads fake UK London CAS + Bank Statement + Marksheet
+                  PDFs, and lands directly on Flags, Verbatim Quotes, Masked IDs, and the Application
+                  Agent.
+                </p>
+              </div>
+              <button
+                type="button"
+                disabled={runningSample || analyzing}
+                onClick={() => void handleRunSampleCase()}
+                className="inline-flex w-full shrink-0 items-center justify-center gap-2.5 rounded-2xl bg-blue-700 px-7 py-4 text-lg font-extrabold text-white shadow-lg shadow-blue-700/20 transition hover:bg-blue-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300 disabled:cursor-not-allowed disabled:bg-blue-400 sm:w-auto"
+              >
+                {runningSample ? (
+                  <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" />
+                ) : (
+                  <Sparkles className="h-5 w-5" aria-hidden="true" />
+                )}
+                <span>
+                  {runningSample ? 'Running sample UK case...' : 'Try with sample documents'}
+                </span>
+                {!runningSample && <ArrowRight className="h-5 w-5" aria-hidden="true" />}
+              </button>
+            </div>
+          </section>
         )}
 
         {/* STEP 1: CONSENT & AUTHORISATION */}
@@ -948,6 +1130,14 @@ export default function App() {
                 <div className="flex flex-wrap gap-2">
                   <button
                     type="button"
+                    onClick={() => navigateTo('counselor')}
+                    className="inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-5 py-2.5 text-sm font-extrabold text-white shadow-md transition hover:bg-emerald-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-emerald-300"
+                  >
+                    <ShieldCheck className="h-4 w-4" aria-hidden="true" />
+                    <span>Open Counselor Queue to Approve →</span>
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => {
                       setFiles([]);
                       setCaseResult(null);
@@ -1103,7 +1293,9 @@ export default function App() {
               </h2>
               <p className="mt-1 text-sm text-slate-600">
                 Documents read:{' '}
-                {caseResult.documents.map((d) => `${d.fileName} (${d.documentType})`).join(', ')}.
+                {caseResult.documents.map((d) => `${d.fileName} (${d.documentType})`).join(', ')}.{' '}
+                Passport, PAN, Aadhaar, and bank account IDs are automatically masked to the last 4
+                digits.
               </p>
 
               <div className="mt-5 grid gap-3 sm:grid-cols-2">
@@ -1138,12 +1330,45 @@ export default function App() {
               </div>
             </section>
 
-            {/* PHASE 4: UNIVERSITY RULES GROUNDING & COMPUTER-USE AGENT */}
-            <AgentRunnerPanel
-              caseId={caseResult.id}
-              onOpenCounselor={() => navigateTo('counselor')}
-              onOpenPortal={() => navigateTo('portal')}
-            />
+            {/* PHASE 4: START APPLICATION AGENT & UNIVERSITY RULES GROUNDING */}
+            <section
+              id="start-application-agent"
+              aria-labelledby="start-application-agent-heading"
+              className="space-y-4 rounded-3xl border-2 border-blue-200 bg-gradient-to-b from-blue-50/70 to-slate-50 p-4 shadow-sm sm:p-6"
+            >
+              <div className="flex flex-wrap items-center justify-between gap-3 px-2 pt-1">
+                <div>
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-100 px-3 py-0.5 text-xs font-bold uppercase tracking-wide text-blue-900">
+                    <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+                    Next Step · Portal Automation &amp; Human Approval Gate
+                  </span>
+                  <h2
+                    id="start-application-agent-heading"
+                    className="mt-1.5 text-2xl font-extrabold text-slate-950"
+                  >
+                    Start Application Agent
+                  </h2>
+                  <p className="mt-0.5 text-sm text-slate-700">
+                    Fill the direct university portal with verified facts, or jump straight to the
+                    Counselor Queue to approve and unlock final submission.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => navigateTo('counselor')}
+                  className="inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-5 py-3 text-sm font-extrabold text-white shadow-md transition hover:bg-emerald-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-emerald-300"
+                >
+                  <ShieldCheck className="h-4 w-4" aria-hidden="true" />
+                  <span>Open Counselor Queue to Approve →</span>
+                </button>
+              </div>
+
+              <AgentRunnerPanel
+                caseId={caseResult.id}
+                onOpenCounselor={() => navigateTo('counselor')}
+                onOpenPortal={() => navigateTo('portal')}
+              />
+            </section>
           </div>
         )}
 

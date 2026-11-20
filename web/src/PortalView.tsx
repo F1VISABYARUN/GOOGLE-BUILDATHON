@@ -16,55 +16,62 @@ const PROGRAM_OPTIONS = [
 
 export default function PortalView({ onNavigate }: PortalViewProps) {
   const params = new URLSearchParams(window.location.search);
+  const accountMode = params.get('mode') === 'account';
   const initialCaseId = params.get('caseId') || '';
   const initialApprovalToken = params.get('approvalToken') || '';
   const initialStep =
-    params.get('step') === '7' || (initialCaseId && initialApprovalToken) ? 7 : 1;
+    params.get('step') === '7' || (initialCaseId && initialApprovalToken)
+      ? 7
+      : accountMode
+        ? 1
+        : 2;
 
   const [page, setPage] = useState<number>(initialStep);
   const [caseId, setCaseId] = useState(initialCaseId);
   const [approvalToken, setApprovalToken] = useState(initialApprovalToken);
+  const [latestApprovedCaseId, setLatestApprovedCaseId] = useState('');
 
-  // Page 1: Account Creation + Email Verification
-  const [fullName, setFullName] = useState('');
-  const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
+  // Page 1: Account Creation + Email Verification (only reachable via ?mode=account)
+  const [fullName, setFullName] = useState('Sample Applicant');
+  const [email, setEmail] = useState('sample.applicant@aira-demo.example');
+  const [phone, setPhone] = useState('+91 9876543210');
   const [password, setPassword] = useState('');
   const [accountCreated, setAccountCreated] = useState(false);
   const [verificationCode, setVerificationCode] = useState('');
-  const [sessionId, setSessionId] = useState('');
+  const [sessionId, setSessionId] = useState('sess_demo');
 
   // Page 2: Personal Details
-  const [dob, setDob] = useState('');
+  const [dob, setDob] = useState('2002-04-15');
   const [nationality, setNationality] = useState('India');
-  const [passportLast4, setPassportLast4] = useState('');
+  const [passportLast4, setPassportLast4] = useState('****9103');
 
   // Page 3: Academics (includes custom dropdown + date picker)
-  const [university, setUniversity] = useState('');
-  const [degree, setDegree] = useState('');
-  const [cgpa, setCgpa] = useState('');
+  const [university, setUniversity] = useState('Jawaharlal Nehru Technological University');
+  const [degree, setDegree] = useState('B.Tech Computer Science');
+  const [cgpa, setCgpa] = useState('8.4');
   const [cgpaScale, setCgpaScale] = useState('10');
   const [backlogs, setBacklogs] = useState('0');
-  const [graduationDate, setGraduationDate] = useState('');
-  const [selectedProgram, setSelectedProgram] = useState('');
+  const [graduationDate, setGraduationDate] = useState('2025-05-20');
+  const [selectedProgram, setSelectedProgram] = useState('MSc Computer Science');
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
   // Page 4: Funding
-  const [bankBalance, setBankBalance] = useState('');
+  const [bankBalance, setBankBalance] = useState('2200000');
   const [currency, setCurrency] = useState('INR');
-  const [loanAmount, setLoanAmount] = useState('');
-  const [sponsor, setSponsor] = useState('');
+  const [loanAmount, setLoanAmount] = useState('1200000');
+  const [sponsor, setSponsor] = useState('Self + Education Loan');
 
   // Page 5: Document Upload
-  const [docFileName, setDocFileName] = useState('');
+  const [docFileName, setDocFileName] = useState('SAMPLE_UK_CAS_OFFER.pdf');
 
   // Page 6: Declaration
-  const [declarationAccepted, setDeclarationAccepted] = useState(false);
-  const [declarationName, setDeclarationName] = useState('');
+  const [declarationAccepted, setDeclarationAccepted] = useState(true);
+  const [declarationName, setDeclarationName] = useState('Sample Applicant');
 
   // Feedback & Submit
   const [busy, setBusy] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [infoMsg, setInfoMsg] = useState<string | null>(null);
   const [submitReceipt, setSubmitReceipt] = useState<{
     submissionId: string;
@@ -78,15 +85,72 @@ export default function PortalView({ onNavigate }: PortalViewProps) {
       .then((r) => (r.ok ? r.json() : null))
       .then((c) => {
         if (!c) return;
-        if (c.studentName && !fullName) setFullName(String(c.studentName));
-        if (c.studentEmail && !email) setEmail(String(c.studentEmail));
-        if (c.targetUniversity && !university) setUniversity(String(c.targetUniversity));
-        if (c.targetProgram && !selectedProgram) setSelectedProgram(String(c.targetProgram));
+        if (c.studentName) {
+          const name = String(c.studentName);
+          setFullName(name);
+          setDeclarationName(name);
+        }
+        if (c.studentEmail) setEmail(String(c.studentEmail));
+        if (c.targetUniversity) setUniversity(String(c.targetUniversity));
+        if (c.targetProgram) setSelectedProgram(String(c.targetProgram));
       })
       .catch(() => {
         // ignore prefill lookup errors
       });
   }, [initialCaseId]);
+
+  useEffect(() => {
+    if (page !== 7) return;
+    let cancelled = false;
+    fetch('/api/counselor/queue')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (cancelled || !data || !Array.isArray(data.resolved)) return;
+        const approved = (
+          data.resolved as Array<{
+            id?: string;
+            status?: string;
+            approvedAt?: string;
+            createdAt?: string;
+          }>
+        )
+          .filter((c) => c && c.status === 'approved' && typeof c.id === 'string' && c.id.length > 0)
+          .sort((a, b) => {
+            const ta = Date.parse(a.approvedAt || a.createdAt || '') || 0;
+            const tb = Date.parse(b.approvedAt || b.createdAt || '') || 0;
+            return tb - ta;
+          });
+        const latestId = approved[0]?.id || '';
+        if (!latestId) return;
+        setLatestApprovedCaseId(latestId);
+        setCaseId((prev) => (prev.trim() ? prev : latestId));
+      })
+      .catch(() => {
+        // ignore queue lookup errors
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [page]);
+
+  const progressSteps = accountMode
+    ? [
+        { pageNum: 1, label: '1. Account' },
+        { pageNum: 2, label: '2. Personal' },
+        { pageNum: 3, label: '3. Academics' },
+        { pageNum: 4, label: '4. Funding' },
+        { pageNum: 5, label: '5. Documents' },
+        { pageNum: 6, label: '6. Declaration' },
+        { pageNum: 7, label: '7. Submit' },
+      ]
+    : [
+        { pageNum: 2, label: '1. Personal' },
+        { pageNum: 3, label: '2. Academics' },
+        { pageNum: 4, label: '3. Funding' },
+        { pageNum: 5, label: '4. Documents' },
+        { pageNum: 6, label: '5. Declaration' },
+        { pageNum: 7, label: '6. Submit' },
+      ];
 
   async function handleRegister(e: FormEvent) {
     e.preventDefault();
@@ -134,9 +198,10 @@ export default function PortalView({ onNavigate }: PortalViewProps) {
 
   async function saveDraftAndAdvance(nextPage: number) {
     setErrorMsg(null);
+    setSubmitError(null);
     setBusy(true);
     try {
-      const activeSession = sessionId || 'sess_draft_preview';
+      const activeSession = sessionId || 'sess_demo';
       await fetch(`/api/portal/applications/${activeSession}/save`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -169,24 +234,34 @@ export default function PortalView({ onNavigate }: PortalViewProps) {
 
   async function handleFinalSubmit() {
     setErrorMsg(null);
+    setSubmitError(null);
     setBusy(true);
+    const trimmedToken = approvalToken.trim();
+    const trimmedCaseId = caseId.trim();
     try {
-      const activeSession = sessionId || 'sess_direct';
+      const activeSession = sessionId || 'sess_demo';
       const res = await fetch(`/api/portal/applications/${activeSession}/submit`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(approvalToken ? { 'X-Approval-Token': approvalToken } : {}),
+          ...(trimmedToken ? { 'X-Approval-Token': trimmedToken } : {}),
         },
         body: JSON.stringify({
-          caseId,
+          caseId: trimmedCaseId,
           portalUrl: '/portal',
-          approvalToken,
+          approvalToken: trimmedToken,
         }),
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        throw new Error(data.error || `Submit blocked (HTTP ${res.status}).`);
+        if (res.status === 403 || !trimmedToken) {
+          const detail = data?.error ? ` ${String(data.error)}` : '';
+          setSubmitError(
+            `403 — Counselor approval required. Approve this case in /counselor, copy the full single-use token, and paste it into the 'Paste approval token' box above.${detail}`
+          );
+          return;
+        }
+        throw new Error(data?.error || `Submit blocked (HTTP ${res.status}).`);
       }
       setSubmitReceipt({
         submissionId: data.submissionId,
@@ -194,7 +269,13 @@ export default function PortalView({ onNavigate }: PortalViewProps) {
         submittedAt: data.submittedAt,
       });
     } catch (err) {
-      setErrorMsg(err instanceof Error ? err.message : 'Submission blocked.');
+      if (!trimmedToken) {
+        setSubmitError(
+          "403 — Counselor approval required. Approve this case in /counselor, copy the full single-use token, and paste it into the 'Paste approval token' box above."
+        );
+      } else {
+        setSubmitError(err instanceof Error ? err.message : 'Submission blocked.');
+      }
     } finally {
       setBusy(false);
     }
@@ -234,26 +315,26 @@ export default function PortalView({ onNavigate }: PortalViewProps) {
           </div>
 
           <ol className="mt-5 flex flex-wrap gap-2 text-xs font-semibold">
-            {[
-              '1. Account',
-              '2. Personal',
-              '3. Academics',
-              '4. Funding',
-              '5. Documents',
-              '6. Declaration',
-              '7. Submit',
-            ].map((label, idx) => (
-              <li
-                key={label}
-                className={`rounded-full px-3.5 py-1.5 ${
-                  page === idx + 1
-                    ? 'bg-white text-indigo-950 shadow-sm'
-                    : page > idx + 1
-                      ? 'bg-emerald-600 text-white'
-                      : 'bg-indigo-900/80 text-indigo-200'
-                }`}
-              >
-                {label}
+            {progressSteps.map((step) => (
+              <li key={step.pageNum}>
+                <button
+                  type="button"
+                  aria-current={page === step.pageNum ? 'step' : undefined}
+                  onClick={() => {
+                    setErrorMsg(null);
+                    setSubmitError(null);
+                    setPage(step.pageNum);
+                  }}
+                  className={`cursor-pointer rounded-full px-3.5 py-1.5 transition focus:outline-none focus:ring-2 focus:ring-amber-300 ${
+                    page === step.pageNum
+                      ? 'bg-white text-indigo-950 shadow-sm'
+                      : page > step.pageNum
+                        ? 'bg-emerald-600 text-white hover:bg-emerald-500'
+                        : 'bg-indigo-900/80 text-indigo-200 hover:bg-indigo-800 hover:text-white'
+                  }`}
+                >
+                  {step.label}
+                </button>
               </li>
             ))}
           </ol>
@@ -271,8 +352,8 @@ export default function PortalView({ onNavigate }: PortalViewProps) {
           </div>
         )}
 
-        {/* PAGE 1: ACCOUNT CREATION + EMAIL VERIFICATION */}
-        {page === 1 && (
+        {/* PAGE 1: ACCOUNT CREATION + EMAIL VERIFICATION (only reachable via ?mode=account) */}
+        {accountMode && page === 1 && (
           <section className="space-y-5 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
             <h2 className="text-2xl font-bold text-slate-950">Page 1: Create Applicant Account</h2>
             {!accountCreated ? (
@@ -368,7 +449,9 @@ export default function PortalView({ onNavigate }: PortalViewProps) {
         {/* PAGE 2: PERSONAL DETAILS */}
         {page === 2 && (
           <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="text-2xl font-bold text-slate-950">Page 2: Personal Details</h2>
+            <h2 className="text-2xl font-bold text-slate-950">
+              Step {accountMode ? 2 : 1}: Personal Details
+            </h2>
             <div>
               <label htmlFor="p2-name" className="block text-sm font-semibold">Full Legal Name</label>
               <input
@@ -426,7 +509,9 @@ export default function PortalView({ onNavigate }: PortalViewProps) {
         {/* PAGE 3: ACADEMICS (WITH CUSTOM DROPDOWN & DATE PICKER) */}
         {page === 3 && (
           <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="text-2xl font-bold text-slate-950">Page 3: Academic History</h2>
+            <h2 className="text-2xl font-bold text-slate-950">
+              Step {accountMode ? 3 : 2}: Academic History
+            </h2>
 
             {/* Custom ARIA Dropdown (non-native select to test computer-use agent clicks) */}
             <div className="relative">
@@ -548,7 +633,9 @@ export default function PortalView({ onNavigate }: PortalViewProps) {
         {/* PAGE 4: FUNDING */}
         {page === 4 && (
           <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="text-2xl font-bold text-slate-950">Page 4: Funding &amp; Financial Proof</h2>
+            <h2 className="text-2xl font-bold text-slate-950">
+              Step {accountMode ? 4 : 3}: Funding &amp; Financial Proof
+            </h2>
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
                 <label htmlFor="p4-bal" className="block text-sm font-semibold">Bank Balance</label>
@@ -607,7 +694,9 @@ export default function PortalView({ onNavigate }: PortalViewProps) {
         {/* PAGE 5: DOCUMENT UPLOAD */}
         {page === 5 && (
           <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="text-2xl font-bold text-slate-950">Page 5: Supporting Documents</h2>
+            <h2 className="text-2xl font-bold text-slate-950">
+              Step {accountMode ? 5 : 4}: Supporting Documents
+            </h2>
             <div>
               <label htmlFor="p5-file" className="block text-sm font-semibold">
                 Upload verified transcript / financial packet (optional for draft test)
@@ -636,7 +725,9 @@ export default function PortalView({ onNavigate }: PortalViewProps) {
         {/* PAGE 6: DECLARATION */}
         {page === 6 && (
           <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="text-2xl font-bold text-slate-950">Page 6: Applicant Declaration</h2>
+            <h2 className="text-2xl font-bold text-slate-950">
+              Step {accountMode ? 6 : 5}: Applicant Declaration
+            </h2>
             <p className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-base text-amber-950">
               High-stakes gate: Confirming a legal declaration and submitting an application requires
               a valid single-use counselor approval token.
@@ -678,7 +769,9 @@ export default function PortalView({ onNavigate }: PortalViewProps) {
         {/* PAGE 7: REVIEW & SUBMIT GATE */}
         {page === 7 && (
           <section className="space-y-5 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="text-2xl font-bold text-slate-950">Page 7: Final Review &amp; Submit</h2>
+            <h2 className="text-2xl font-bold text-slate-950">
+              Step {accountMode ? 7 : 6}: Final Review &amp; Submit
+            </h2>
 
             <dl className="grid gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 text-base sm:grid-cols-2">
               <div><dt className="text-xs uppercase text-slate-500">Applicant</dt><dd className="font-semibold">{fullName || '—'}</dd></div>
@@ -696,21 +789,44 @@ export default function PortalView({ onNavigate }: PortalViewProps) {
                   id="p7-case"
                   type="text"
                   value={caseId}
-                  onChange={(e) => setCaseId(e.target.value)}
+                  onChange={(e) => {
+                    setCaseId(e.target.value);
+                    setSubmitError(null);
+                  }}
                   placeholder="case_..."
                   className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-sm"
                 />
+                {latestApprovedCaseId && caseId !== latestApprovedCaseId && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCaseId(latestApprovedCaseId);
+                      setSubmitError(null);
+                    }}
+                    className="mt-1.5 text-left text-xs font-semibold text-indigo-700 underline hover:text-indigo-900"
+                  >
+                    Use latest approved case: {latestApprovedCaseId}
+                  </button>
+                )}
+                {latestApprovedCaseId && caseId === latestApprovedCaseId && (
+                  <p className="mt-1.5 text-xs text-slate-500">
+                    Matched latest approved case from /counselor.
+                  </p>
+                )}
               </div>
               <div>
                 <label htmlFor="p7-tok" className="block text-sm font-semibold">
-                  Counselor Single-Use Approval Token
+                  Paste approval token
                 </label>
                 <input
                   id="p7-tok"
                   type="text"
                   value={approvalToken}
-                  onChange={(e) => setApprovalToken(e.target.value)}
-                  placeholder="Empty -> Submit returns HTTP 403"
+                  onChange={(e) => {
+                    setApprovalToken(e.target.value);
+                    setSubmitError(null);
+                  }}
+                  placeholder="Paste single-use counselor approval token here"
                   className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-sm"
                 />
               </div>
@@ -735,11 +851,21 @@ export default function PortalView({ onNavigate }: PortalViewProps) {
               </div>
             ) : (
               <div className="space-y-3">
-                {!approvalToken && (
-                  <p className="flex items-center gap-2 rounded-xl border border-amber-300 bg-amber-50 px-4 py-2.5 text-sm font-semibold text-amber-950">
-                    <ShieldAlert className="h-4 w-4 shrink-0 text-amber-700" aria-hidden="true" />
-                    No counselor token entered — clicking Submit will return HTTP 403 Blocked.
-                  </p>
+                {submitError ? (
+                  <div
+                    role="alert"
+                    className="flex items-start gap-3 rounded-xl border-2 border-red-500 bg-red-50 px-4 py-3.5 text-sm font-semibold text-red-950 shadow-sm"
+                  >
+                    <ShieldAlert className="mt-0.5 h-5 w-5 shrink-0 text-red-700" aria-hidden="true" />
+                    <p>{submitError}</p>
+                  </div>
+                ) : (
+                  !approvalToken.trim() && (
+                    <p className="flex items-center gap-2 rounded-xl border border-amber-300 bg-amber-50 px-4 py-2.5 text-sm font-semibold text-amber-950">
+                      <ShieldAlert className="h-4 w-4 shrink-0 text-amber-700" aria-hidden="true" />
+                      No counselor token entered — clicking Submit will return HTTP 403 Blocked.
+                    </p>
+                  )
                 )}
                 <button
                   type="button"

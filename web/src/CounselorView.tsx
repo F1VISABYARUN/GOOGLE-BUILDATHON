@@ -1,9 +1,11 @@
-import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import {
+  Check,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
   ClipboardList,
+  Copy,
   DollarSign,
   Edit3,
   Layers,
@@ -16,6 +18,20 @@ import {
   XCircle,
 } from 'lucide-react';
 import TopNav from './TopNav.tsx';
+
+function isTypingElement(el: EventTarget | null): boolean {
+  if (!(el instanceof Element)) return false;
+  const tag = el.tagName.toUpperCase();
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') {
+    return true;
+  }
+  if (el instanceof HTMLElement && el.isContentEditable) {
+    return true;
+  }
+  return (
+    el.closest('input, textarea, select, [contenteditable="true"], [role="textbox"]') !== null
+  );
+}
 
 interface VerifiedFact {
   field: string;
@@ -131,10 +147,12 @@ export default function CounselorView({ onNavigate }: CounselorViewProps) {
 
   const [queue, setQueue] = useState<QueueResponse | null>(null);
   const [loadingQueue, setLoadingQueue] = useState(true);
+  const [refreshingQueue, setRefreshingQueue] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
 
   const [portalUrlInput, setPortalUrlInput] = useState('/portal');
   const [actionBusy, setActionBusy] = useState(false);
+  const [approvingCase, setApprovingCase] = useState(false);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [lastIssuedToken, setLastIssuedToken] = useState<{
@@ -143,6 +161,8 @@ export default function CounselorView({ onNavigate }: CounselorViewProps) {
     portalUrl: string;
     approvedBy: string;
   } | null>(null);
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const copyTimerRef = useRef<number | null>(null);
 
   const [mode, setMode] = useState<'view' | 'edit' | 'reject'>('view');
   const [rejectReason, setRejectReason] = useState('');
@@ -155,9 +175,34 @@ export default function CounselorView({ onNavigate }: CounselorViewProps) {
   const [settingsDraft, setSettingsDraft] = useState<CounselorSettings | null>(null);
   const [savingSettings, setSavingSettings] = useState(false);
 
-  const loadQueue = useCallback(async () => {
-    setLoadingQueue(true);
-    setActionError(null);
+  useEffect(() => {
+    return () => {
+      if (copyTimerRef.current !== null) {
+        window.clearTimeout(copyTimerRef.current);
+      }
+    };
+  }, []);
+
+  const handleCopy = useCallback(async (text: string, key: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedKey(key);
+      if (copyTimerRef.current !== null) {
+        window.clearTimeout(copyTimerRef.current);
+      }
+      copyTimerRef.current = window.setTimeout(() => {
+        setCopiedKey((curr) => (curr === key ? null : curr));
+      }, 2500);
+    } catch {
+      setActionError('Could not copy to clipboard.');
+    }
+  }, []);
+
+  const loadQueue = useCallback(async (silent = false) => {
+    if (!silent) {
+      setRefreshingQueue(true);
+      setActionError(null);
+    }
     try {
       const res = await fetch('/api/counselor/queue');
       const data = await res.json();
@@ -174,12 +219,15 @@ export default function CounselorView({ onNavigate }: CounselorViewProps) {
       setActionError(err instanceof Error ? err.message : 'Failed to load queue.');
     } finally {
       setLoadingQueue(false);
+      if (!silent) {
+        setRefreshingQueue(false);
+      }
     }
   }, []);
 
   // Opens directly on load (no passcode gate)
   useEffect(() => {
-    void loadQueue();
+    void loadQueue(true);
   }, [loadQueue]);
 
   const currentCase = queue?.exceptions[selectedIndex] ?? null;
@@ -203,6 +251,7 @@ export default function CounselorView({ onNavigate }: CounselorViewProps) {
       return;
     }
     setActionBusy(true);
+    setApprovingCase(true);
     setActionError(null);
     setActionMessage(null);
     try {
@@ -225,10 +274,11 @@ export default function CounselorView({ onNavigate }: CounselorViewProps) {
       setActionMessage(
         `Approved ${currentCase.id} for ${data.approvalToken.portalUrl}. Single-use token issued by ${data.approvalToken.approvedBy}.`
       );
-      await loadQueue();
+      await loadQueue(true);
     } catch (err) {
       setActionError(err instanceof Error ? err.message : 'Approval failed.');
     } finally {
+      setApprovingCase(false);
       setActionBusy(false);
     }
   }, [actionBusy, counselorName, currentCase, loadQueue, portalUrlInput]);
@@ -269,7 +319,7 @@ export default function CounselorView({ onNavigate }: CounselorViewProps) {
         `Updated ${currentCase.id} and re-ran plain-code checks. New risk score: ${data.case.riskScore.score}/100.`
       );
       setMode('view');
-      await loadQueue();
+      await loadQueue(true);
     } catch (err) {
       setActionError(err instanceof Error ? err.message : 'Edit failed.');
     } finally {
@@ -305,7 +355,7 @@ export default function CounselorView({ onNavigate }: CounselorViewProps) {
       setActionMessage(`Rejected ${currentCase.id} and logged reason in the audit log.`);
       setRejectReason('');
       setMode('view');
-      await loadQueue();
+      await loadQueue(true);
     } catch (err) {
       setActionError(err instanceof Error ? err.message : 'Rejection failed.');
     } finally {
@@ -336,7 +386,7 @@ export default function CounselorView({ onNavigate }: CounselorViewProps) {
       setActionMessage(
         `Batch-approved ${data.approvedCount} green case(s) with individual single-use approval tokens.`
       );
-      await loadQueue();
+      await loadQueue(true);
     } catch (err) {
       setActionError(err instanceof Error ? err.message : 'Batch approval failed.');
     } finally {
@@ -363,7 +413,7 @@ export default function CounselorView({ onNavigate }: CounselorViewProps) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.details || data.error || 'Could not save settings.');
       setActionMessage('Saved updated UK rules and dated exchange rates to Firestore.');
-      await loadQueue();
+      await loadQueue(true);
     } catch (err) {
       setActionError(err instanceof Error ? err.message : 'Failed to save settings.');
     } finally {
@@ -377,12 +427,10 @@ export default function CounselorView({ onNavigate }: CounselorViewProps) {
     const activeQueue = queue;
 
     function onKeyDown(e: KeyboardEvent) {
-      const target = e.target as HTMLElement | null;
-      const tag = target?.tagName?.toLowerCase();
-      if (tag === 'input' || tag === 'textarea' || tag === 'select' || target?.isContentEditable) {
+      if (e.isComposing || e.metaKey || e.ctrlKey || e.altKey) return;
+      if (isTypingElement(e.target) || isTypingElement(document.activeElement)) {
         return;
       }
-      if (e.metaKey || e.ctrlKey || e.altKey) return;
 
       const key = e.key.toLowerCase();
       if (key === 'j' && activeQueue.exceptions.length > 0) {
@@ -548,12 +596,12 @@ export default function CounselorView({ onNavigate }: CounselorViewProps) {
                 <div className="flex flex-wrap gap-2">
                   <button
                     type="button"
-                    onClick={() => void loadQueue()}
-                    disabled={loadingQueue}
-                    className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300"
+                    onClick={() => void loadQueue(false)}
+                    disabled={refreshingQueue}
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300 disabled:opacity-50"
                   >
-                    <RefreshCw className={`h-4 w-4 ${loadingQueue ? 'animate-spin' : ''}`} aria-hidden="true" />
-                    <span>{loadingQueue ? 'Refreshing...' : 'Refresh'}</span>
+                    <RefreshCw className={`h-4 w-4 ${refreshingQueue ? 'animate-spin' : ''}`} aria-hidden="true" />
+                    <span>{refreshingQueue ? 'Refreshing...' : 'Refresh'}</span>
                   </button>
                   <button
                     type="button"
@@ -619,16 +667,61 @@ export default function CounselorView({ onNavigate }: CounselorViewProps) {
                   <span>{actionMessage}</span>
                 </div>
                 {lastIssuedToken && (
-                  <div className="ml-8 flex flex-wrap items-center gap-3 pt-1">
-                    <span className="rounded-lg bg-white px-3 py-1 font-mono text-xs font-semibold text-emerald-900 ring-1 ring-emerald-200">
-                      Token: {lastIssuedToken.token.slice(0, 18)}...
-                    </span>
-                    <a
-                      href={`/portal?caseId=${encodeURIComponent(lastIssuedToken.caseId)}&approvalToken=${encodeURIComponent(lastIssuedToken.token)}`}
-                      className="inline-flex items-center gap-1 rounded-xl bg-emerald-700 px-3.5 py-1.5 text-xs font-bold text-white hover:bg-emerald-800"
-                    >
-                      Open /portal with Approved Token →
-                    </a>
+                  <div className="ml-8 space-y-2 pt-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-xs font-bold uppercase tracking-wide text-emerald-900">
+                        Approval Token:
+                      </span>
+                      <code className="select-all break-all rounded-lg bg-white px-3 py-1.5 font-mono text-xs font-semibold text-emerald-950 ring-1 ring-emerald-200">
+                        {lastIssuedToken.token}
+                      </code>
+                      <button
+                        type="button"
+                        onClick={() => void handleCopy(lastIssuedToken.token, 'last-token')}
+                        className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-300 bg-white px-3 py-1.5 text-xs font-bold text-emerald-900 hover:bg-emerald-100 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-emerald-300"
+                      >
+                        {copiedKey === 'last-token' ? (
+                          <>
+                            <Check className="h-3.5 w-3.5 text-emerald-700" aria-hidden="true" />
+                            <span>Copied!</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="h-3.5 w-3.5 text-emerald-700" aria-hidden="true" />
+                            <span>Copy token</span>
+                          </>
+                        )}
+                      </button>
+                      <a
+                        href={`/portal?caseId=${encodeURIComponent(lastIssuedToken.caseId)}&approvalToken=${encodeURIComponent(lastIssuedToken.token)}`}
+                        className="inline-flex items-center gap-1 rounded-xl bg-emerald-700 px-3.5 py-1.5 text-xs font-bold text-white hover:bg-emerald-800"
+                      >
+                        Open /portal with Approved Token →
+                      </a>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-emerald-900">
+                      <span className="font-semibold">Case ID:</span>
+                      <code className="select-all rounded bg-white/90 px-2 py-0.5 font-mono font-semibold text-emerald-950 ring-1 ring-emerald-200">
+                        {lastIssuedToken.caseId}
+                      </code>
+                      <button
+                        type="button"
+                        onClick={() => void handleCopy(lastIssuedToken.caseId, 'last-case-id')}
+                        className="inline-flex items-center gap-1 rounded-lg border border-emerald-300 bg-white px-2 py-0.5 text-xs font-semibold text-emerald-900 hover:bg-emerald-100"
+                      >
+                        {copiedKey === 'last-case-id' ? (
+                          <>
+                            <Check className="h-3 w-3 text-emerald-700" aria-hidden="true" />
+                            <span>Copied!</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="h-3 w-3 text-emerald-700" aria-hidden="true" />
+                            <span>Copy Case ID</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
@@ -804,13 +897,17 @@ export default function CounselorView({ onNavigate }: CounselorViewProps) {
                 <div className="flex flex-wrap gap-3 pt-2">
                   <button
                     type="button"
-                    disabled={actionBusy}
+                    disabled={actionBusy || approvingCase}
                     onClick={() => void handleApproveCurrent()}
                     className="inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-6 py-3.5 text-base font-bold text-white shadow-sm transition hover:bg-emerald-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-emerald-300 disabled:opacity-50"
                   >
                     <CheckCircle2 className="h-5 w-5" aria-hidden="true" />
-                    <span>Approve &amp; Issue Token</span>
-                    <kbd className="ml-1 rounded bg-emerald-900/60 px-2 py-0.5 font-mono text-xs">A</kbd>
+                    <span>{approvingCase ? 'Approving...' : 'Approve & Issue Token'}</span>
+                    {!approvingCase && (
+                      <kbd className="ml-1 rounded bg-emerald-900/60 px-2 py-0.5 font-mono text-xs">
+                        A
+                      </kbd>
+                    )}
                   </button>
                   <button
                     type="button"
@@ -1094,13 +1191,14 @@ export default function CounselorView({ onNavigate }: CounselorViewProps) {
                       key={entry.id}
                       className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3"
                     >
-                      <div className="flex flex-wrap justify-between gap-2 font-semibold text-slate-900">
+                      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 font-semibold text-slate-900">
                         <span>
                           {entry.action} — {entry.actor}
                           {entry.caseId ? ` (${entry.caseId})` : ''}
-                        </span>
-                        <span className="font-mono text-xs text-slate-600">
-                          {new Date(entry.timestamp).toLocaleString()}
+                          {' · '}
+                          <span className="font-mono text-xs font-normal text-slate-600">
+                            {new Date(entry.timestamp).toLocaleString()}
+                          </span>
                         </span>
                       </div>
                       <p className="mt-1 text-slate-700">{entry.details}</p>
@@ -1118,25 +1216,51 @@ export default function CounselorView({ onNavigate }: CounselorViewProps) {
                   {queue.resolved.slice(0, 10).map((c) => (
                     <li
                       key={c.id}
-                      className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3.5"
+                      className="flex flex-wrap items-start justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3.5"
                     >
-                      <div>
+                      <div className="min-w-0 flex-1">
                         <span className="font-bold text-slate-950">
                           {c.consent?.typedSignature || c.id}
                         </span>{' '}
                         <span className="font-mono text-sm text-slate-600">({c.id})</span>
                         {c.approvalTokenId && (
-                          <p className="mt-0.5 font-mono text-xs text-emerald-800">
-                            Token: {c.approvalTokenId.slice(0, 16)}... · Portal:{' '}
-                            {c.targetPortalUrl || '/portal'} · By: {c.approvedBy}
-                          </p>
+                          <div className="mt-1.5 space-y-1 text-xs text-emerald-900">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="font-semibold">Token:</span>
+                              <code className="select-all break-all rounded bg-white px-2 py-0.5 font-mono text-xs font-semibold text-emerald-950 ring-1 ring-emerald-200">
+                                {c.approvalTokenId}
+                              </code>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  void handleCopy(c.approvalTokenId!, `cleared-token-${c.id}`)
+                                }
+                                className="inline-flex items-center gap-1 rounded-lg border border-emerald-300 bg-white px-2 py-0.5 text-xs font-semibold text-emerald-900 hover:bg-emerald-100"
+                              >
+                                {copiedKey === `cleared-token-${c.id}` ? (
+                                  <>
+                                    <Check className="h-3 w-3 text-emerald-700" aria-hidden="true" />
+                                    <span>Copied!</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Copy className="h-3 w-3 text-emerald-700" aria-hidden="true" />
+                                    <span>Copy</span>
+                                  </>
+                                )}
+                              </button>
+                            </div>
+                            <p className="font-mono text-xs text-emerald-800">
+                              Portal: {c.targetPortalUrl || '/portal'} · By: {c.approvedBy}
+                            </p>
+                          </div>
                         )}
                         {c.rejectedReason && (
                           <p className="mt-0.5 text-sm text-red-800">Reason: {c.rejectedReason}</p>
                         )}
                       </div>
                       <span
-                        className={`rounded-full px-3 py-1 text-xs font-bold uppercase ${
+                        className={`shrink-0 rounded-full px-3 py-1 text-xs font-bold uppercase ${
                           c.status === 'approved'
                             ? 'bg-emerald-200 text-emerald-950'
                             : 'bg-red-200 text-red-950'
