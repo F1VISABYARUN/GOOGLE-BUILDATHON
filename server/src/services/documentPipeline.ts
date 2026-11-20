@@ -8,6 +8,7 @@ import {
   FACT_FIELDS,
   type CheckFlag,
   type DocumentType,
+  type RiskAssessment,
   type VerifiedFact,
 } from '../schemas/case.js';
 import { validateFactQuote } from '../checks/quoteValidation.js';
@@ -263,4 +264,128 @@ export async function explainFlagsWithGemini(flags: CheckFlag[]): Promise<CheckF
           : 'Check this item with your counselor before submitting.'),
     };
   });
+}
+
+const RiskScoreResponseSchema = z.object({
+  score: z.number().min(0).max(100),
+  level: z.enum(['low', 'medium', 'high']),
+  brief: z.string(),
+});
+
+export function clampRiskAssessment(
+  raw: { score: number; level: 'low' | 'medium' | 'high'; brief: string },
+  flags: CheckFlag[],
+  exceptionReasons: string[],
+  modelUsed: string
+): RiskAssessment {
+  const redCount = flags.filter((f) => f.severity === 'red').length;
+  const amberCount = flags.filter((f) => f.severity === 'amber').length;
+
+  let score = Math.round(Math.min(100, Math.max(0, raw.score)));
+  // Plain-code bounds so high-stakes exceptions always sort above green cases
+  if (redCount > 0) {
+    score = Math.max(score, Math.min(95, 65 + redCount * 10));
+  } else if (exceptionReasons.length > 0) {
+    score = Math.max(score, 45);
+  } else if (amberCount === 0) {
+    score = Math.min(score, 25);
+  }
+
+  const level: 'high' | 'medium' | 'low' =
+    score >= 65 ? 'high' : score >= 35 ? 'medium' : 'low';
+
+  return {
+    score,
+    level,
+    brief: raw.brief.trim() || 'Review the highlighted check flags before approving.',
+    modelUsed,
+  };
+}
+
+export async function scoreCaseRiskWithGemini(
+  flags: CheckFlag[],
+  facts: VerifiedFact[],
+  exceptionReasons: string[]
+): Promise<RiskAssessment> {
+  const ai = getGeminiClient();
+
+  const summaryPayload = {
+    exceptionReasons,
+    flags: flags.map((f) => ({
+      severity: f.severity,
+      title: f.title,
+      summary: f.summary,
+    })),
+    unverifiedQuoteCount: facts.filter((f) => !f.quoteVerified).length,
+    lowConfidenceCount: facts.filter((f) => f.confidence < 0.75).length,
+  };
+
+  const prompt = [
+    'You are preparing a 1-to-2 sentence brief and risk score (0 to 100) for a human study-abroad counselor reviewing exceptions.',
+    '0 = completely clean green case ready for batch approval; 100 = severe red flags blocking submission.',
+    'Use plain English, no jargon, and do not invent any facts not present in the JSON below.',
+    JSON.stringify(summaryPayload),
+  ].join('\n');
+
+  const responseSchema = {
+    type: Type.OBJECT,
+    properties: {
+      score: { type: Type.INTEGER },
+      level: { type: Type.STRING, enum: ['low', 'medium', 'high'] },
+      brief: { type: Type.STRING },
+    },
+    required: ['score', 'level', 'brief'],
+  };
+
+  async function runRisk(model: string, isFallback: boolean) {
+    const startedAt = Date.now();
+    const response = await ai.models.generateContent({
+      model,
+      contents: prompt,
+      config: {
+        responseMimeType: 'application/json',
+        responseSchema,
+      },
+    });
+    const parsed = RiskScoreResponseSchema.parse(JSON.parse(response.text || '{}'));
+    console.info(
+      `[gemini] task=riskScore model=${model} fallback=${isFallback} latencyMs=${Date.now() - startedAt} score=${parsed.score}`
+    );
+    return parsed;
+  }
+
+  try {
+    const raw = await runRisk(MODELS.audit.primary, false);
+    return clampRiskAssessment(raw, flags, exceptionReasons, MODELS.audit.primary);
+  } catch (primaryErr) {
+    console.warn(
+      `[gemini] task=riskScore fallback triggered: ${MODELS.audit.primary} -> ${MODELS.audit.fallback}:`,
+      primaryErr instanceof Error ? primaryErr.message : String(primaryErr)
+    );
+    try {
+      const raw = await runRisk(MODELS.audit.fallback, true);
+      return clampRiskAssessment(raw, flags, exceptionReasons, MODELS.audit.fallback);
+    } catch (fallbackErr) {
+      console.error(
+        `[gemini] task=riskScore both ${MODELS.audit.primary} and ${MODELS.audit.fallback} failed:`,
+        fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr)
+      );
+      const redCount = flags.filter((f) => f.severity === 'red').length;
+      const fallbackScore =
+        redCount > 0 ? Math.min(95, 65 + redCount * 10) : exceptionReasons.length > 0 ? 50 : 15;
+      return clampRiskAssessment(
+        {
+          score: fallbackScore,
+          level: fallbackScore >= 65 ? 'high' : fallbackScore >= 35 ? 'medium' : 'low',
+          brief:
+            exceptionReasons.length > 0
+              ? `Requires counselor check: ${exceptionReasons[0]}`
+              : 'All plain-code checks passed with verified quotes. Ready for batch approval.',
+        },
+        flags,
+        exceptionReasons,
+        'code_fallback'
+      );
+    }
+  }
 }

@@ -121,13 +121,77 @@ export interface CaseDocumentSummary {
   documentType: DocumentType;
 }
 
+export interface RiskAssessment {
+  score: number; // 0 to 100
+  level: 'high' | 'medium' | 'low';
+  brief: string;
+  modelUsed: string;
+}
+
+export interface AuditLogEntry {
+  id: string;
+  timestamp: string;
+  actor: string;
+  action:
+    | 'case_created'
+    | 'case_approved'
+    | 'case_batch_approved'
+    | 'case_edited'
+    | 'case_rejected'
+    | 'settings_updated'
+    | 'delete_my_data'
+    | 'token_created'
+    | 'token_consumed';
+  caseId?: string;
+  details: string;
+}
+
+export interface ApprovalTokenRecord {
+  token: string;
+  caseId: string;
+  portalUrl: string;
+  approvedBy: string;
+  approvedAt: string;
+  used: boolean;
+  usedAt?: string;
+  revoked?: boolean;
+}
+
+export interface CounselorSettings {
+  ukRules: {
+    country: 'UK';
+    asOf: string;
+    sourceUrl: string;
+    maintenance: {
+      currency: 'GBP';
+      londonPerMonth: number;
+      outsideLondonPerMonth: number;
+      maxMonths: number;
+      note: string;
+    };
+    bankStatement: {
+      minConsecutiveDaysHeld: number;
+      maxAgeDays: number;
+      sourceUrl: string;
+      note: string;
+    };
+  };
+  exchangeRates: ExchangeRateConfig;
+  updatedAt: string;
+  updatedBy: string;
+}
+
 export interface CaseRecord {
   id: string;
   createdAt: string;
   updatedAt: string;
   status: 'needs_counselor_review' | 'ready_for_batch_approval' | 'approved' | 'rejected';
+  queueBucket: 'exceptions' | 'green_batch';
+  exceptionReasons: string[];
+  riskScore: RiskAssessment;
   destinationCountry: 'UK' | 'US' | 'Canada' | 'Australia' | 'Germany' | 'Other';
   ukRegion?: 'london' | 'outside_london';
+  targetPortalUrl?: string;
   requiredCostOverride?: { amount: number; currency: string } | null;
   exchangeRates: ExchangeRateConfig;
   consent: ConsentRecord;
@@ -135,5 +199,11 @@ export interface CaseRecord {
   facts: VerifiedFact[];
   flags: CheckFlag[];
   statusTimeline: StatusStep[];
+  auditLog: AuditLogEntry[];
+  counselorNotes?: string;
+  approvalTokenId?: string;
+  approvedBy?: string;
+  approvedAt?: string;
+  rejectedReason?: string;
   storageBackend: 'firestore' | 'memory_fallback';
 }

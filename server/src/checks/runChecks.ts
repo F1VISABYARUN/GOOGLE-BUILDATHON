@@ -9,6 +9,7 @@ import {
   checkFundsVsRequiredCost,
   checkGpaAndBacklogs,
 } from './moneyAndDates.js';
+import type { UkRules } from './rulesLoader.js';
 
 export interface RunChecksInput {
   facts: VerifiedFact[];
@@ -17,6 +18,7 @@ export interface RunChecksInput {
   requiredCostOverride?: { amount: number; currency: string } | null;
   exchangeRates: ExchangeRateConfig;
   referenceDate?: Date;
+  ukRules?: UkRules;
 }
 
 export function runAllChecks(input: RunChecksInput): CheckFlag[] {
@@ -47,6 +49,7 @@ export function runAllChecks(input: RunChecksInput): CheckFlag[] {
       ukRegion: input.ukRegion,
       requiredCostOverride: input.requiredCostOverride,
       exchangeRates: input.exchangeRates,
+      ukRules: input.ukRules,
     })
   );
 
@@ -55,7 +58,8 @@ export function runAllChecks(input: RunChecksInput): CheckFlag[] {
     ...checkDocumentDates(
       input.facts,
       input.destinationCountry,
-      input.referenceDate
+      input.referenceDate,
+      input.ukRules
     )
   );
 

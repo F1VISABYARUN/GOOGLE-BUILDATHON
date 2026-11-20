@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
+import CounselorView from './CounselorView.tsx';
 
 interface HelloResponse {
   model: string;
@@ -62,6 +63,14 @@ interface CaseRecord {
   id: string;
   createdAt: string;
   status: string;
+  queueBucket?: 'exceptions' | 'green_batch';
+  exceptionReasons?: string[];
+  riskScore?: {
+    score: number;
+    level: 'high' | 'medium' | 'low';
+    brief: string;
+    modelUsed: string;
+  };
   destinationCountry: string;
   ukRegion?: 'london' | 'outside_london';
   storageBackend: 'firestore' | 'memory_fallback';
@@ -94,8 +103,29 @@ function severityStyles(severity: 'red' | 'amber' | 'green') {
 }
 
 export default function App() {
+  const [route, setRoute] = useState<'student' | 'counselor'>(() =>
+    window.location.pathname.startsWith('/counselor') ? 'counselor' : 'student'
+  );
+
+  function navigateTo(next: 'student' | 'counselor') {
+    const path = next === 'counselor' ? '/counselor' : '/';
+    window.history.pushState({}, '', path);
+    setRoute(next);
+  }
+
+  useEffect(() => {
+    function onPopState() {
+      setRoute(window.location.pathname.startsWith('/counselor') ? 'counselor' : 'student');
+    }
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, []);
+
   // Phase 2 Step state: 'consent' -> 'upload' -> 'results'
   const [step, setStep] = useState<'consent' | 'upload' | 'results'>('consent');
+  const [deletingData, setDeletingData] = useState(false);
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+  const [deleteConfirmationMsg, setDeleteConfirmationMsg] = useState<string | null>(null);
 
   // Consent & one-time authorisation state
   const [acceptedStorageNotice, setAcceptedStorageNotice] = useState(false);
@@ -138,10 +168,19 @@ export default function App() {
   const [helloError, setHelloError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch('/api/rules/uk')
+    fetch('/api/settings')
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
-        if (data) setUkRules(data as UkRules);
+        if (data?.ukRules) setUkRules(data.ukRules as UkRules);
+        if (data?.exchangeRates) {
+          if (data.exchangeRates.asOfDate) setRateDate(data.exchangeRates.asOfDate);
+          const rates = data.exchangeRates.ratesToInr || {};
+          if (rates.GBP) setRateGbp(String(rates.GBP));
+          if (rates.USD) setRateUsd(String(rates.USD));
+          if (rates.EUR) setRateEur(String(rates.EUR));
+          if (rates.CAD) setRateCad(String(rates.CAD));
+          if (rates.AUD) setRateAud(String(rates.AUD));
+        }
       })
       .catch(() => {});
 
@@ -152,6 +191,35 @@ export default function App() {
       })
       .catch(() => {});
   }, []);
+
+  async function handleDeleteMyData() {
+    if (!caseResult || deletingData) return;
+    setDeletingData(true);
+    setAnalyzeError(null);
+    try {
+      const res = await fetch(`/api/cases/${caseResult.id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Could not delete your data.');
+      }
+      setDeleteConfirmationMsg(
+        data.message ||
+          `Case ${caseResult.id} and all extracted facts, quotes, and tokens have been permanently deleted.`
+      );
+      setCaseResult(null);
+      setFiles([]);
+      setConfirmDeleteOpen(false);
+      setStep('consent');
+    } catch (err) {
+      setAnalyzeError(err instanceof Error ? err.message : 'Delete failed.');
+    } finally {
+      setDeletingData(false);
+    }
+  }
+
+  if (route === 'counselor') {
+    return <CounselorView onNavigateHome={() => navigateTo('student')} />;
+  }
 
   function handleConsentSubmit(e: FormEvent) {
     e.preventDefault();
@@ -290,29 +358,38 @@ export default function App() {
             <p className="text-sm font-semibold uppercase tracking-wide text-blue-700">
               Aira Application Agent
             </p>
-            <nav aria-label="Progress steps" className="flex gap-2 text-sm font-medium">
-              <span
-                className={`rounded-full px-3 py-1 ${
-                  step === 'consent' ? 'bg-blue-700 text-white' : 'bg-slate-100 text-slate-700'
-                }`}
+            <div className="flex flex-wrap items-center gap-2">
+              <nav aria-label="Progress steps" className="flex gap-2 text-sm font-medium">
+                <span
+                  className={`rounded-full px-3 py-1 ${
+                    step === 'consent' ? 'bg-blue-700 text-white' : 'bg-slate-100 text-slate-700'
+                  }`}
+                >
+                  1. Consent
+                </span>
+                <span
+                  className={`rounded-full px-3 py-1 ${
+                    step === 'upload' ? 'bg-blue-700 text-white' : 'bg-slate-100 text-slate-700'
+                  }`}
+                >
+                  2. Upload
+                </span>
+                <span
+                  className={`rounded-full px-3 py-1 ${
+                    step === 'results' ? 'bg-blue-700 text-white' : 'bg-slate-100 text-slate-700'
+                  }`}
+                >
+                  3. Results
+                </span>
+              </nav>
+              <button
+                type="button"
+                onClick={() => navigateTo('counselor')}
+                className="rounded-lg border border-slate-300 bg-white px-3 py-1 text-sm font-semibold text-slate-900 hover:bg-slate-100"
               >
-                1. Consent
-              </span>
-              <span
-                className={`rounded-full px-3 py-1 ${
-                  step === 'upload' ? 'bg-blue-700 text-white' : 'bg-slate-100 text-slate-700'
-                }`}
-              >
-                2. Upload
-              </span>
-              <span
-                className={`rounded-full px-3 py-1 ${
-                  step === 'results' ? 'bg-blue-700 text-white' : 'bg-slate-100 text-slate-700'
-                }`}
-              >
-                3. Results
-              </span>
-            </nav>
+                Counselor Queue
+              </button>
+            </div>
           </div>
           <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-950 sm:text-4xl">
             Document Check &amp; Verification
@@ -322,6 +399,16 @@ export default function App() {
             backed by an exact quote, and every money or date rule is checked in plain code.
           </p>
         </header>
+
+        {deleteConfirmationMsg && (
+          <div
+            role="status"
+            className="rounded-2xl border border-emerald-300 bg-emerald-50 p-5 text-base font-medium text-emerald-950"
+          >
+            <p className="font-bold">Data deleted</p>
+            <p className="mt-1">{deleteConfirmationMsg}</p>
+          </div>
+        )}
 
         {/* STEP 1: CONSENT & AUTHORISATION */}
         {step === 'consent' && (
@@ -710,21 +797,66 @@ export default function App() {
                   <p className="text-sm font-medium text-slate-600">
                     Case ID: <span className="font-mono">{caseResult.id}</span> · Stored in{' '}
                     {caseResult.storageBackend === 'firestore' ? 'Google Firestore' : 'local memory'}
+                    {caseResult.riskScore && (
+                      <>
+                        {' · '}Risk score: <strong>{caseResult.riskScore.score}/100</strong>
+                      </>
+                    )}
                   </p>
                   <h2 className="mt-1 text-2xl font-bold text-slate-950">Status Timeline</h2>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setFiles([]);
-                    setCaseResult(null);
-                    setStep('upload');
-                  }}
-                  className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-base font-medium text-slate-900 hover:bg-slate-100"
-                >
-                  Check another set of documents
-                </button>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFiles([]);
+                      setCaseResult(null);
+                      setStep('upload');
+                    }}
+                    className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-base font-medium text-slate-900 hover:bg-slate-100"
+                  >
+                    Check another set
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setConfirmDeleteOpen(true)}
+                    className="rounded-lg border border-red-300 bg-red-50 px-4 py-2 text-base font-semibold text-red-900 hover:bg-red-100"
+                  >
+                    Delete My Data
+                  </button>
+                </div>
               </div>
+
+              {confirmDeleteOpen && (
+                <div
+                  role="alertdialog"
+                  aria-label="Confirm data deletion"
+                  className="mt-4 rounded-xl border-2 border-red-400 bg-red-50 p-4 text-base text-red-950"
+                >
+                  <p className="font-bold">Permanently delete this case and all extracted facts?</p>
+                  <p className="mt-1 text-sm">
+                    This removes {caseResult.id}, all facts, quotes, flags, consent records, and
+                    tokens from Google Firestore immediately.
+                  </p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      disabled={deletingData}
+                      onClick={() => void handleDeleteMyData()}
+                      className="rounded-lg bg-red-700 px-4 py-2 text-sm font-semibold text-white hover:bg-red-800 disabled:opacity-50"
+                    >
+                      {deletingData ? 'Deleting...' : 'Yes, Permanently Delete My Data'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setConfirmDeleteOpen(false)}
+                      className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-900"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
 
               <ol className="mt-4 space-y-3">
                 {caseResult.statusTimeline.map((item, idx) => (
