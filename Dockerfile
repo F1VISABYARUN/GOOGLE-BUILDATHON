@@ -25,6 +25,7 @@ RUN npm --prefix server ci --omit=dev
 
 COPY --from=server-builder /app/server/dist ./server/dist
 COPY --from=web-builder /app/web/dist ./web/dist
+COPY rules ./rules
 
 EXPOSE 8080
 CMD ["node", "server/dist/index.js"]
