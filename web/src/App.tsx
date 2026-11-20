@@ -889,7 +889,7 @@ export default function App() {
                     className="inline-flex items-center gap-1.5 rounded-xl bg-blue-700 px-4 py-2 text-xs font-bold text-white shadow-sm hover:bg-blue-800 sm:text-sm"
                   >
                     <Sparkles className="h-4 w-4" aria-hidden="true" />
-                    <span>Load Sample (Shortfall + Masked IDs)</span>
+                    <span>Load Sample (28-Day Dip + Masked IDs)</span>
                   </button>
                   <button
                     type="button"

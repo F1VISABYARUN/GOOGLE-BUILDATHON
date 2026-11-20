@@ -40,9 +40,10 @@ function makePdfFile(fileName: string, lines: string[]): File {
 }
 
 /**
- * Generates FAKE SAMPLE UK documents showing:
- * - Unpaid CAS tuition (GBP 20,000 - GBP 5,000 deposit = GBP 15,000) + London living costs (GBP 14,130)
- * - Funding shortfall (INR 22,00,000 vs INR 34,95,600 -> Red Flag)
+ * Generates FAKE SAMPLE UK documents showing the #1 UK student visa refusal trap:
+ * - Unpaid CAS tuition (GBP 20,000 - GBP 5,000 deposit = GBP 15,000) + London living costs (GBP 14,130) = INR 34,95,600
+ * - Final closing balance is INR 36,00,000 (looks sufficient at a glance!)
+ * - ONE day inside the 28-day window (2026-11-04) dipped to INR 28,50,000 -> RED FLAG with exact date & verbatim quote
  * - Masked PAN (ABCDE1234F -> ******234F), Aadhaar (2345 6789 0123 -> ********0123), and Passport (Z4829103 -> ****9103)
  */
 export function createSampleExceptionFiles(): File[] {
@@ -58,13 +59,18 @@ export function createSampleExceptionFiles(): File[] {
   ]);
 
   const bank = makePdfFile('SAMPLE_INDIAN_BANK_STATEMENT.pdf', [
-    'SAMPLE STATE BANK OF INDIA - ACCOUNT STATEMENT (FAKE DEMO DATA)',
+    'SAMPLE STATE BANK OF INDIA - 28-DAY ACCOUNT STATEMENT (FAKE DEMO DATA)',
     'Account Holder Name: Sample Applicant',
     'Account Number: 004512349876',
     'PAN: ABCDE1234F',
     'Aadhaar: 2345 6789 0123',
     'Statement Period: 2026-10-15 to 2026-11-15',
-    'Closing Balance: INR 2200000',
+    '2026-10-15 Daily Closing Balance: INR 3600000',
+    '2026-10-25 Daily Closing Balance: INR 3550000',
+    '2026-11-04 Daily Closing Balance: INR 2850000',
+    '2026-11-05 Daily Closing Balance: INR 3600000',
+    '2026-11-15 Final Closing Balance: INR 3600000',
+    'Lowest Closing Balance in 28-Day Period: INR 2850000 on 2026-11-04',
     'Currency: INR',
   ]);
 
