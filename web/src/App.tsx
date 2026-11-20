@@ -121,7 +121,6 @@ export default function App() {
   const [step, setStep] = useState<'home' | 'upload' | 'results'>('home');
   const [consentModalOpen, setConsentModalOpen] = useState(false);
   const [isSampleRun, setIsSampleRun] = useState(false);
-  const [activeVideoTab, setActiveVideoTab] = useState<'glasgow' | 'full'>('glasgow');
 
   const [deletingData, setDeletingData] = useState(false);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
@@ -612,7 +611,7 @@ export default function App() {
               </div>
             </section>
 
-            {/* LIVE RECORDED VIDEO PROOF: Real University of Glasgow + Full 3-Step Flow */}
+            {/* LIVE RECORDED VIDEO PROOF: Real University of Glasgow */}
             <section className="overflow-hidden rounded-[12px] border border-gray-200 bg-white">
               <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-200 bg-gray-50 px-6 py-4">
                 <div>
@@ -621,67 +620,30 @@ export default function App() {
                       play_circle
                     </span>
                     <h2 className="text-[18px] font-bold text-gray-900">
-                      Watch Aira fill a real UK university portal
+                      Watch Aira fill a real UK university portal (University of Glasgow)
                     </h2>
                     <span className="rounded-full bg-[#E6F4EA] px-2.5 py-0.5 text-[14px] font-semibold text-[#188038]">
                       Passed
                     </span>
                   </div>
                   <p className="mt-0.5 text-[14px] text-gray-600">
-                    {activeVideoTab === 'glasgow'
-                      ? 'University of Glasgow (MSc Data Science & AI) — fills Programme Selection, Personal Details ✓, and Contact Information ✓, then stops in draft mode before Submit.'
-                      : 'Complete 3-step walkthrough: 1 Check documents → 2 Counselor approves → 3 University portal submit.'}
+                    University of Glasgow (MSc Data Science &amp; AI) — fills Programme Selection, Personal Details ✓, and Contact Information ✓, then stops in draft mode before Submit.
                   </p>
-                </div>
-
-                <div className="flex flex-wrap items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setActiveVideoTab('glasgow')}
-                    className={`inline-flex h-9 items-center gap-1.5 rounded-[8px] border px-3 text-[14px] font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1A73E8] ${
-                      activeVideoTab === 'glasgow'
-                        ? 'border-[#1A73E8] bg-[#E8F0FE] text-[#1A73E8]'
-                        : 'border-gray-300 bg-white text-gray-900 hover:bg-gray-50'
-                    }`}
-                  >
-                    <span>University of Glasgow (live portal)</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setActiveVideoTab('full')}
-                    className={`inline-flex h-9 items-center gap-1.5 rounded-[8px] border px-3 text-[14px] font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1A73E8] ${
-                      activeVideoTab === 'full'
-                        ? 'border-[#1A73E8] bg-[#E8F0FE] text-[#1A73E8]'
-                        : 'border-gray-300 bg-white text-gray-900 hover:bg-gray-50'
-                    }`}
-                  >
-                    <span>3-step Aira flow</span>
-                  </button>
                 </div>
               </div>
 
               <div className="bg-gray-900">
                 <video
-                  key={activeVideoTab}
+                  src="/video/glasgow-live-fill.webm"
                   controls
+                  autoPlay
+                  muted
+                  loop
                   playsInline
-                  preload="metadata"
-                  poster={activeVideoTab === 'glasgow' ? '/video/glasgow-poster.png' : undefined}
-                  onLoadedMetadata={(e) => {
-                    if (activeVideoTab === 'glasgow') {
-                      e.currentTarget.playbackRate = 2.0;
-                    }
-                  }}
+                  preload="auto"
+                  poster="/video/glasgow-poster.png"
                   className="mx-auto max-h-[520px] w-full object-contain"
                 >
-                  <source
-                    src={
-                      activeVideoTab === 'glasgow'
-                        ? '/video/glasgow-live-fill.webm'
-                        : '/video/aira-full-demo.webm'
-                    }
-                    type="video/webm"
-                  />
                   Your browser does not support embedded WebM video.
                 </video>
               </div>
