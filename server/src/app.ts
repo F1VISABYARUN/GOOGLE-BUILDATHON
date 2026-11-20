@@ -400,7 +400,7 @@ export function createApp(options?: CreateAppOptions) {
   });
 
   app.get('/api/cases/:id', async (req, res) => {
-    const record = await getCaseRecord(req.params.id);
+    const record = await getCaseRecord(String(req.params.id));
     if (!record) {
       return res.status(404).json({ error: 'Case not found.' });
     }
@@ -409,7 +409,7 @@ export function createApp(options?: CreateAppOptions) {
 
   // DPDP Delete My Data
   app.delete('/api/cases/:id', async (req, res) => {
-    const caseId = req.params.id;
+    const caseId = String(req.params.id);
     const { deleted, deletedAt } = await deleteCaseAndData(caseId);
     if (!deleted) {
       return res.status(404).json({
@@ -500,7 +500,7 @@ export function createApp(options?: CreateAppOptions) {
       });
     }
 
-    const record = await getCaseRecord(req.params.id);
+    const record = await getCaseRecord(String(req.params.id));
     if (!record) {
       return res.status(404).json({ error: 'Case not found.' });
     }
@@ -560,7 +560,7 @@ export function createApp(options?: CreateAppOptions) {
       });
     }
 
-    const record = await getCaseRecord(req.params.id);
+    const record = await getCaseRecord(String(req.params.id));
     if (!record) {
       return res.status(404).json({ error: 'Case not found.' });
     }
@@ -649,7 +649,7 @@ export function createApp(options?: CreateAppOptions) {
       });
     }
 
-    const record = await getCaseRecord(req.params.id);
+    const record = await getCaseRecord(String(req.params.id));
     if (!record) {
       return res.status(404).json({ error: 'Case not found.' });
     }
