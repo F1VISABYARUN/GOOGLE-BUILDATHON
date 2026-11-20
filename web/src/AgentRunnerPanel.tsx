@@ -159,121 +159,16 @@ export default function AgentRunnerPanel({
   }, [activeRun?.id, activeRun?.status]);
 
   return (
-    <div className="space-y-6">
-      {/* UNIVERSITY RULES GROUNDING (gemini-4-neon + Search + URL context) */}
-      <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
-        <div className="flex items-center gap-2.5">
-          <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-blue-100 text-blue-800">
-            <Globe className="h-5 w-5" aria-hidden="true" />
-          </span>
-          <div>
-            <h2 className="text-2xl font-extrabold text-slate-950">
-              Live University Rules Lookup
-            </h2>
-            <p className="text-sm text-slate-600">
-              Reads official university requirements with{' '}
-              <span className="font-mono font-semibold">gemini-4-neon</span> + Google Search + URL Context.
-            </p>
-          </div>
-        </div>
-
-        <form onSubmit={handleLookupRules} className="mt-4 space-y-3">
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div>
-              <label htmlFor="ur-name" className="block text-sm font-semibold">University name</label>
-              <input
-                id="ur-name"
-                type="text"
-                value={uniName}
-                onChange={(e) => setUniName(e.target.value)}
-                className="mt-1 w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-base"
-              />
-            </div>
-            <div>
-              <label htmlFor="ur-prog" className="block text-sm font-semibold">Programme name</label>
-              <input
-                id="ur-prog"
-                type="text"
-                value={programName}
-                onChange={(e) => setProgramName(e.target.value)}
-                className="mt-1 w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-base"
-              />
-            </div>
-          </div>
-          <div>
-            <label htmlFor="ur-url" className="block text-sm font-semibold">
-              Optional official requirements page URL
-            </label>
-            <input
-              id="ur-url"
-              type="url"
-              value={uniUrl}
-              onChange={(e) => setUniUrl(e.target.value)}
-              placeholder="https://www.manchester.ac.uk/..."
-              className="mt-1 w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-base"
-            />
-          </div>
-          <button
-            type="submit"
-            disabled={rulesLoading}
-            className="inline-flex items-center gap-2 rounded-xl bg-slate-950 px-5 py-3 text-base font-bold text-white shadow-sm hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-slate-300 disabled:opacity-50"
-          >
-            <Globe className="h-4 w-4" aria-hidden="true" />
-            <span>{rulesLoading ? 'Checking official university pages...' : 'Check Official Rules'}</span>
-          </button>
-        </form>
-
-        {rulesError && (
-          <div role="alert" className="mt-4 rounded-xl border border-red-300 bg-red-50 p-4 text-base text-red-900">
-            {rulesError}
-          </div>
-        )}
-
-        {rulesResult && (
-          <div className="mt-4 space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
-            <p className="text-xs font-semibold uppercase text-slate-600">
-              Grounded by {rulesResult.modelUsed}
-            </p>
-            {rulesResult.portalWarning && (
-              <p className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm font-semibold text-amber-950">
-                {rulesResult.portalWarning}
-              </p>
-            )}
-            <div className="whitespace-pre-wrap text-base leading-relaxed text-slate-900">
-              {rulesResult.summaryMarkdown}
-            </div>
-            {rulesResult.sources.length > 0 && (
-              <div className="border-t border-slate-200 pt-3">
-                <p className="text-sm font-bold text-slate-800">Official Source Links</p>
-                <ul className="mt-1 space-y-1 text-sm">
-                  {rulesResult.sources.map((src, i) => (
-                    <li key={i}>
-                      <a
-                        href={src.url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-blue-700 underline break-all"
-                      >
-                        {src.title || src.url}
-                      </a>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </div>
-        )}
-      </section>
-
+    <div className="space-y-4">
       {/* APPLICATION AGENT LAUNCHER & LIVE STEP FEED */}
-      <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+      <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-7">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-2.5">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-800">
+          <div className="flex items-center gap-3">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-indigo-100 text-indigo-900">
               <Bot className="h-5 w-5" aria-hidden="true" />
             </span>
             <div>
-              <h2 className="text-xl font-extrabold text-slate-950 sm:text-2xl">
+              <h2 className="text-xl font-extrabold text-slate-950">
                 Application Agent: Gemini fills the portal, stops before Submit until a counselor approves
               </h2>
               <p className="mt-0.5 text-sm text-slate-700">
@@ -284,63 +179,52 @@ export default function AgentRunnerPanel({
           <button
             type="button"
             onClick={onOpenPortal}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-300 bg-indigo-50 px-3.5 py-2 text-sm font-semibold text-indigo-900 hover:bg-indigo-100 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-indigo-300"
+            className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50 px-3.5 py-2 text-sm font-semibold text-indigo-900 hover:bg-indigo-100 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-indigo-300"
           >
             <ExternalLink className="h-4 w-4" aria-hidden="true" />
             <span>Open University portal</span>
           </button>
         </div>
 
-        <form onSubmit={handleLaunchAgent} className="mt-4 space-y-3">
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div>
-              <label htmlFor="ag-email" className="block text-sm font-semibold text-slate-800">Student email</label>
-              <input
-                id="ag-email"
-                type="email"
-                required
-                value={studentEmail}
-                onChange={(e) => setStudentEmail(e.target.value)}
-                className="mt-1 w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-base text-slate-900 focus:border-blue-600 focus:outline-none focus:ring-4 focus:ring-blue-200"
-              />
-            </div>
-            <div>
-              <label htmlFor="ag-phone" className="block text-sm font-semibold text-slate-800">Student phone</label>
-              <input
-                id="ag-phone"
-                type="tel"
-                required
-                value={studentPhone}
-                onChange={(e) => setStudentPhone(e.target.value)}
-                className="mt-1 w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-base text-slate-900 focus:border-blue-600 focus:outline-none focus:ring-4 focus:ring-blue-200"
-              />
-            </div>
-          </div>
-          <div>
-            <label htmlFor="ag-url" className="block text-sm font-semibold text-slate-800">
-              University portal destination (pre-configured for the live Sample University portal)
+        <form onSubmit={handleLaunchAgent} className="mt-4 flex flex-wrap items-end gap-3">
+          <div className="min-w-[200px] flex-1">
+            <label htmlFor="ag-email" className="block text-xs font-bold uppercase tracking-wide text-slate-700">
+              Student email
             </label>
             <input
-              id="ag-url"
-              type="text"
-              value={portalUrl}
-              onChange={(e) => setPortalUrl(e.target.value)}
-              className="mt-1 w-full rounded-xl border border-slate-300 px-3.5 py-2.5 font-mono text-base text-slate-900 focus:border-blue-600 focus:outline-none focus:ring-4 focus:ring-blue-200"
+              id="ag-email"
+              type="email"
+              required
+              value={studentEmail}
+              onChange={(e) => setStudentEmail(e.target.value)}
+              className="mt-1 w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm text-slate-900 focus:border-blue-600 focus:outline-none focus:ring-4 focus:ring-blue-200"
             />
           </div>
-
+          <div className="min-w-[180px] flex-1">
+            <label htmlFor="ag-phone" className="block text-xs font-bold uppercase tracking-wide text-slate-700">
+              Student phone
+            </label>
+            <input
+              id="ag-phone"
+              type="tel"
+              required
+              value={studentPhone}
+              onChange={(e) => setStudentPhone(e.target.value)}
+              className="mt-1 w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm text-slate-900 focus:border-blue-600 focus:outline-none focus:ring-4 focus:ring-blue-200"
+            />
+          </div>
           <button
             type="submit"
             disabled={launchLoading}
-            className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-6 py-3.5 text-lg font-bold text-white shadow-md hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300 disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-6 py-2.5 text-base font-bold text-white shadow-sm hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300 disabled:opacity-50"
           >
-            <Play className="h-5 w-5" aria-hidden="true" />
-            <span>{launchLoading ? 'Starting Application Agent...' : 'Start Application Agent'}</span>
+            <Play className="h-4 w-4" aria-hidden="true" />
+            <span>{launchLoading ? 'Starting Agent...' : 'Start Application Agent'}</span>
           </button>
         </form>
 
         {launchError && (
-          <div role="alert" className="mt-4 rounded-xl border border-red-300 bg-red-50 p-4 text-base text-red-900">
+          <div role="alert" className="mt-4 rounded-xl border border-red-300 bg-red-50 p-4 text-sm font-medium text-red-900">
             {launchError}
           </div>
         )}
@@ -451,6 +335,94 @@ export default function AgentRunnerPanel({
           </div>
         )}
       </section>
+
+      {/* COLLAPSIBLE UNIVERSITY RULES GROUNDING (gemini-4-neon + Search + URL Context) */}
+      <details className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-xl focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300">
+          <span className="inline-flex items-center gap-2.5 text-sm font-bold text-slate-900 sm:text-base">
+            <Globe className="h-4 w-4 text-blue-600" aria-hidden="true" />
+            <span>Check live university entry rules (Gemini Search + URL Context)</span>
+          </span>
+          <span className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-700">
+            Expand
+          </span>
+        </summary>
+
+        <form onSubmit={handleLookupRules} className="mt-4 space-y-3 border-t border-slate-200 pt-4">
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div>
+              <label htmlFor="ur-name" className="block text-xs font-bold text-slate-700">University</label>
+              <input
+                id="ur-name"
+                type="text"
+                value={uniName}
+                onChange={(e) => setUniName(e.target.value)}
+                className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900"
+              />
+            </div>
+            <div>
+              <label htmlFor="ur-prog" className="block text-xs font-bold text-slate-700">Programme</label>
+              <input
+                id="ur-prog"
+                type="text"
+                value={programName}
+                onChange={(e) => setProgramName(e.target.value)}
+                className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900"
+              />
+            </div>
+            <div>
+              <label htmlFor="ur-url" className="block text-xs font-bold text-slate-700">Official page URL (optional)</label>
+              <input
+                id="ur-url"
+                type="url"
+                value={uniUrl}
+                onChange={(e) => setUniUrl(e.target.value)}
+                placeholder="https://www.manchester.ac.uk/..."
+                className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900"
+              />
+            </div>
+          </div>
+          <button
+            type="submit"
+            disabled={rulesLoading}
+            className="inline-flex items-center gap-2 rounded-xl bg-indigo-900 px-4 py-2 text-sm font-bold text-white hover:bg-indigo-950 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-indigo-300 disabled:opacity-50"
+          >
+            <Globe className="h-4 w-4" aria-hidden="true" />
+            <span>{rulesLoading ? 'Checking official pages...' : 'Check Official Rules'}</span>
+          </button>
+        </form>
+
+        {rulesError && (
+          <div role="alert" className="mt-3 rounded-xl border border-red-300 bg-red-50 p-3 text-sm text-red-900">
+            {rulesError}
+          </div>
+        )}
+
+        {rulesResult && (
+          <div className="mt-4 space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm">
+            <p className="text-xs font-bold uppercase text-slate-600">Grounded by {rulesResult.modelUsed}</p>
+            {rulesResult.portalWarning && (
+              <p className="rounded-lg border border-amber-300 bg-amber-50 p-2.5 text-xs font-semibold text-amber-950">
+                {rulesResult.portalWarning}
+              </p>
+            )}
+            <div className="whitespace-pre-wrap leading-relaxed text-slate-900">
+              {rulesResult.summaryMarkdown}
+            </div>
+            {rulesResult.sources.length > 0 && (
+              <ul className="border-t border-slate-200 pt-2 text-xs">
+                {rulesResult.sources.map((src, i) => (
+                  <li key={i}>
+                    <a href={src.url} target="_blank" rel="noreferrer" className="text-blue-700 underline break-all">
+                      {src.title || src.url}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+      </details>
     </div>
   );
 }

@@ -539,141 +539,97 @@ export default function App() {
         checkCompleted={step === 'results' && Boolean(caseResult)}
       />
 
-      <div className="border-b border-amber-200 bg-amber-50 px-4 py-1.5 text-center text-xs font-semibold text-amber-950 sm:text-sm">
-        Demo mode: sample data only — use sample documents or non-sensitive test files.
-      </div>
-
-      <main id="student-main" className="mx-auto max-w-5xl space-y-8 px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
-        {/* HERO SPLIT BANNER */}
-        <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-md">
-          <div className="grid items-center gap-8 p-6 sm:p-8 lg:grid-cols-12">
-            <div className="space-y-5 lg:col-span-7">
-              <h1 className="text-3xl font-extrabold tracking-tight text-indigo-950 sm:text-5xl sm:leading-[1.1]">
-                Catch visa-refusal mistakes before you apply.
-              </h1>
-              <p className="text-base leading-relaxed text-slate-700 sm:text-lg">
-                Aira reads your real documents, checks funds, names and dates in plain code, and a
-                counselor approves before anything is submitted.
-              </p>
-
-              <div className="flex flex-wrap gap-2 text-xs font-semibold text-slate-800 sm:text-sm">
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-indigo-200 bg-indigo-50/70 px-3 py-1.5 text-indigo-950">
-                  <FileCheck2 className="h-4 w-4 text-emerald-600" aria-hidden="true" />
-                  Quotes from your own documents
-                </span>
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-indigo-200 bg-indigo-50/70 px-3 py-1.5 text-indigo-950">
-                  <Calculator className="h-4 w-4 text-blue-600" aria-hidden="true" />
-                  Math done in code, not AI
-                </span>
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-indigo-200 bg-indigo-50/70 px-3 py-1.5 text-indigo-950">
-                  <ShieldCheck className="h-4 w-4 text-emerald-600" aria-hidden="true" />
-                  Human approves every submit
-                </span>
-              </div>
-
-              <div className="space-y-2 pt-2">
-                <button
-                  type="button"
-                  disabled={runningSample || analyzing}
-                  onClick={() => void handleRunSampleCase()}
-                  className="inline-flex w-full items-center justify-center gap-3 rounded-2xl bg-blue-600 px-8 py-5 text-xl font-extrabold text-white shadow-xl shadow-blue-600/25 transition hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300 disabled:cursor-not-allowed disabled:bg-blue-400 sm:w-auto"
-                >
-                  {runningSample ? (
-                    <Loader2 className="h-6 w-6 animate-spin" aria-hidden="true" />
-                  ) : (
-                    <Sparkles className="h-6 w-6" aria-hidden="true" />
-                  )}
-                  <span>
-                    {runningSample ? 'Running sample UK case...' : 'Try with sample documents'}
-                  </span>
-                  {!runningSample && <ArrowRight className="h-6 w-6" aria-hidden="true" />}
-                </button>
-                <p className="text-xs font-medium text-slate-700 sm:text-sm">
-                  One click · Zero typing · Runs a sample UK bank statement with a hidden 1-day balance dip
+      <main id="student-main" className="mx-auto max-w-5xl space-y-6 px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+        {/* HERO SPLIT BANNER (Home only — hidden once user enters Upload or Results) */}
+        {step === 'consent' && (
+          <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+            <div className="grid items-center gap-8 p-6 sm:p-10 lg:grid-cols-12">
+              <div className="space-y-5 lg:col-span-7">
+                <h1 className="text-3xl font-extrabold tracking-tight text-indigo-950 sm:text-5xl sm:leading-[1.08]">
+                  Catch visa-refusal mistakes before you apply.
+                </h1>
+                <p className="text-base leading-relaxed text-slate-700 sm:text-lg">
+                  Aira reads your real documents, checks funds, names and dates in plain code, and a
+                  counselor approves before anything is submitted.
                 </p>
+
+                <div className="flex flex-wrap gap-2 text-xs font-semibold text-slate-800 sm:text-sm">
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-indigo-200 bg-indigo-50/70 px-3 py-1 text-indigo-950">
+                    <FileCheck2 className="h-4 w-4 text-emerald-600" aria-hidden="true" />
+                    Quotes from your own documents
+                  </span>
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-indigo-200 bg-indigo-50/70 px-3 py-1 text-indigo-950">
+                    <Calculator className="h-4 w-4 text-blue-600" aria-hidden="true" />
+                    Math done in code, not AI
+                  </span>
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-indigo-200 bg-indigo-50/70 px-3 py-1 text-indigo-950">
+                    <ShieldCheck className="h-4 w-4 text-emerald-600" aria-hidden="true" />
+                    Human approves every submit
+                  </span>
+                </div>
+
+                <div className="space-y-2 pt-1">
+                  <button
+                    type="button"
+                    disabled={runningSample || analyzing}
+                    onClick={() => void handleRunSampleCase()}
+                    className="inline-flex w-full items-center justify-center gap-3 rounded-2xl bg-blue-600 px-8 py-4.5 text-xl font-extrabold text-white shadow-lg shadow-blue-600/25 transition hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300 disabled:cursor-not-allowed disabled:bg-blue-400 sm:w-auto"
+                  >
+                    {runningSample ? (
+                      <Loader2 className="h-6 w-6 animate-spin" aria-hidden="true" />
+                    ) : (
+                      <Sparkles className="h-6 w-6" aria-hidden="true" />
+                    )}
+                    <span>
+                      {runningSample ? 'Running sample UK case...' : 'Try with sample documents'}
+                    </span>
+                    {!runningSample && <ArrowRight className="h-6 w-6" aria-hidden="true" />}
+                  </button>
+                  <p className="text-xs font-medium text-slate-600 sm:text-sm">
+                    One click · Zero typing · Catches a hidden 1-day balance dip on a sample UK bank statement
+                  </p>
+                </div>
+
+                <div className="rounded-2xl border border-indigo-100 bg-indigo-50/50 p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="min-w-0 flex-1 space-y-0.5">
+                      <p className="text-sm font-extrabold text-indigo-950">
+                        Already live: Aira 24/7 Counselor
+                      </p>
+                      <p className="text-xs leading-relaxed text-slate-700 sm:text-sm">
+                        Students ask anything, any time, answered from official university pages.
+                        445+ beta students at{' '}
+                        <span className="font-semibold text-indigo-900">airaai.io</span>. This app is
+                        the verified application agent behind it.
+                      </p>
+                    </div>
+                    <a
+                      href="https://airaai.io"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-indigo-200 bg-white px-3.5 py-2 text-xs font-bold text-indigo-900 shadow-xs transition hover:bg-indigo-100 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-indigo-300 sm:text-sm"
+                    >
+                      <span>Open 24/7 Counselor →</span>
+                    </a>
+                  </div>
+                </div>
               </div>
 
-              <div className="rounded-2xl border border-indigo-200 bg-indigo-50/70 p-4 shadow-sm">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div className="min-w-0 flex-1 space-y-1">
-                    <p className="text-sm font-extrabold text-indigo-950">
-                      Already live: Aira 24/7 Counselor
-                    </p>
-                    <p className="text-xs leading-relaxed text-slate-700 sm:text-sm">
-                      Students ask anything, any time, answered from official university pages.
-                      445+ beta students at{' '}
-                      <span className="font-semibold text-indigo-900">airaai.io</span>. This app is
-                      the verified application agent behind it.
-                    </p>
-                  </div>
-                  <a
-                    href="https://airaai.io"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-indigo-300 bg-white px-4 py-2 text-xs font-bold text-indigo-900 shadow-sm transition hover:bg-indigo-100 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-indigo-300 sm:text-sm"
-                  >
-                    <span>Open 24/7 Counselor →</span>
-                  </a>
+              <div className="lg:col-span-5">
+                <div className="overflow-hidden rounded-2xl border border-slate-100 bg-slate-50">
+                  <img
+                    src="/img/hero-student.webp"
+                    alt="Illustration of an Indian student at a laptop reviewing checked bank statement, offer letter, and marksheet documents with a counselor giving a thumbs up"
+                    loading="lazy"
+                    width={1200}
+                    height={900}
+                    className="h-auto w-full object-cover"
+                  />
                 </div>
               </div>
             </div>
-
-            <div className="lg:col-span-5">
-              <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 shadow-sm">
-                <img
-                  src="/img/hero-student.webp"
-                  alt="Illustration of an Indian student at a laptop reviewing checked bank statement, offer letter, and marksheet documents with a counselor giving a thumbs up"
-                  loading="lazy"
-                  width={1200}
-                  height={900}
-                  className="h-auto w-full object-cover"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* SUB-STEP PROGRESS FOR STEP 1 (CHECK) */}
-          <div className="border-t border-slate-200 bg-slate-50/80 px-6 py-4 sm:px-8">
-            <ol aria-label="Document check steps" className="grid gap-3 sm:grid-cols-3">
-              {[
-                { n: 1, title: 'Privacy & Authorisation', sub: 'DPDP consent + e-signature' },
-                { n: 2, title: 'Upload Documents', sub: 'Files read in memory only' },
-                { n: 3, title: 'Verdict, Quotes & Agent', sub: 'Fix mistakes before applying' },
-              ].map((s) => {
-                const isActive = stepNum === s.n;
-                const isDone = stepNum > s.n;
-                return (
-                  <li
-                    key={s.n}
-                    className={`flex items-center gap-3 rounded-2xl border px-4 py-3 transition ${
-                      isActive
-                        ? 'border-blue-600 bg-white shadow-sm'
-                        : isDone
-                          ? 'border-emerald-200 bg-emerald-50/60'
-                          : 'border-slate-200 bg-white/60 text-slate-500'
-                    }`}
-                  >
-                    <span
-                      className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-bold ${
-                        isActive
-                          ? 'bg-blue-700 text-white'
-                          : isDone
-                            ? 'bg-emerald-700 text-white'
-                            : 'bg-slate-200 text-slate-700'
-                      }`}
-                    >
-                      {isDone ? '✓' : s.n}
-                    </span>
-                    <div>
-                      <p className="text-sm font-bold text-slate-950">{s.title}</p>
-                      <p className="text-xs text-slate-600">{s.sub}</p>
-                    </div>
-                  </li>
-                );
-              })}
-            </ol>
-          </div>
-        </section>
+          </section>
+        )}
 
         {runningSample && (
           <div
@@ -685,9 +641,8 @@ export default function App() {
             <div>
               <p className="text-base font-extrabold text-blue-950">Running sample UK case...</p>
               <p className="mt-0.5 text-sm text-blue-900">
-                Auto-filled DPDP consent for Sample Applicant, generated fake UK London CAS + Indian
-                Bank Statement + Marksheet PDFs, and running Gemini fact extraction + plain-code UK
-                funds &amp; ID-masking checks.
+                Reading sample UK CAS, 28-day bank statement, and marksheet in memory and checking
+                funds, names, and dates in plain code.
               </p>
             </div>
           </div>
@@ -716,61 +671,40 @@ export default function App() {
           </div>
         )}
 
-        {/* ONE-CLICK SAMPLE CTA RIGHT ABOVE STEP 1 CONSENT */}
+        {/* MANUAL UPLOAD & DPDP CONSENT (collapsed by default so Home stays calm & uncluttered) */}
         {step === 'consent' && (
-          <section
-            aria-label="Try with sample documents"
-            className="rounded-3xl border-2 border-blue-200 bg-gradient-to-r from-blue-50 via-white to-indigo-50 p-5 shadow-sm sm:p-6"
-          >
-            <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
-              <div className="space-y-1">
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-100 px-3 py-0.5 text-xs font-bold uppercase tracking-wide text-blue-900">
-                  <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
-                  Instant Demo · Zero Typing
+          <details className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-xl focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300">
+              <div className="flex items-center gap-3">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-700">
+                  <UploadCloud className="h-5 w-5" aria-hidden="true" />
                 </span>
+                <div>
+                  <p className="text-base font-bold text-slate-950">
+                    Or upload your own documents (DPDP privacy consent)
+                  </p>
+                  <p className="text-xs text-slate-600 sm:text-sm">
+                    Files stay in memory only, IDs are masked automatically, and you can delete your data anytime.
+                  </p>
+                </div>
+              </div>
+              <span className="shrink-0 rounded-xl border border-slate-300 bg-slate-50 px-3.5 py-1.5 text-xs font-bold text-slate-800">
+                Open form
+              </span>
+            </summary>
+
+            <form
+              onSubmit={handleConsentSubmit}
+              className="mt-5 space-y-5 border-t border-slate-200 pt-5"
+            >
+              <div>
                 <h2 className="text-xl font-extrabold text-slate-950">
-                  Skip manual entry — run the full UK sample case in one click
+                  Privacy Consent &amp; One-Time Authorisation
                 </h2>
-                <p className="text-sm text-slate-700">
-                  Auto-fills DPDP consent, uploads fake UK London CAS + Bank Statement + Marksheet
-                  PDFs, and lands directly on Flags, Verbatim Quotes, Masked IDs, and the Application
-                  Agent.
+                <p className="mt-1 text-sm text-slate-700">
+                  Built to India’s DPDP Act standards. Review and sign before uploading any document.
                 </p>
               </div>
-              <button
-                type="button"
-                disabled={runningSample || analyzing}
-                onClick={() => void handleRunSampleCase()}
-                className="inline-flex w-full shrink-0 items-center justify-center gap-2.5 rounded-2xl bg-blue-700 px-7 py-4 text-lg font-extrabold text-white shadow-lg shadow-blue-700/20 transition hover:bg-blue-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300 disabled:cursor-not-allowed disabled:bg-blue-400 sm:w-auto"
-              >
-                {runningSample ? (
-                  <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" />
-                ) : (
-                  <Sparkles className="h-5 w-5" aria-hidden="true" />
-                )}
-                <span>
-                  {runningSample ? 'Running sample UK case...' : 'Try with sample documents'}
-                </span>
-                {!runningSample && <ArrowRight className="h-5 w-5" aria-hidden="true" />}
-              </button>
-            </div>
-          </section>
-        )}
-
-        {/* STEP 1: CONSENT & AUTHORISATION */}
-        {step === 'consent' && (
-          <form
-            onSubmit={handleConsentSubmit}
-            className="space-y-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8"
-          >
-            <div>
-              <h2 className="text-2xl font-extrabold text-slate-950">
-                Step 1: Privacy Consent &amp; One-Time Authorisation
-              </h2>
-              <p className="mt-1 text-base text-slate-600">
-                Built to India’s DPDP Act standards. Review and sign before uploading any document.
-              </p>
-            </div>
 
             <div className="space-y-3">
               <label className="flex cursor-pointer items-start gap-3.5 rounded-2xl border border-slate-200 bg-slate-50/70 p-4 transition hover:border-blue-300 hover:bg-blue-50/30">
@@ -888,23 +822,17 @@ export default function App() {
               </div>
             )}
 
-            <div className="flex flex-wrap items-center justify-between gap-4 pt-2">
-              <button
-                type="submit"
-                className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-blue-700 px-7 py-4 text-lg font-bold text-white shadow-md transition hover:bg-blue-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300 sm:w-auto"
-              >
-                <span>Sign &amp; Continue to Upload</span>
-                <ArrowRight className="h-5 w-5" aria-hidden="true" />
-              </button>
-              <button
-                type="button"
-                onClick={() => navigateTo('counselor')}
-                className="text-sm font-semibold text-slate-700 underline underline-offset-4 hover:text-slate-950"
-              >
-                Are you a counselor? Open Exception Queue →
-              </button>
-            </div>
-          </form>
+              <div className="flex flex-wrap items-center justify-between gap-4 pt-2">
+                <button
+                  type="submit"
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-7 py-3.5 text-base font-bold text-white shadow-md transition hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300 sm:w-auto"
+                >
+                  <span>Sign &amp; Continue to Upload</span>
+                  <ArrowRight className="h-5 w-5" aria-hidden="true" />
+                </button>
+              </div>
+            </form>
+          </details>
         )}
 
         {/* STEP 2: UPLOAD & CHECK SETTINGS */}
@@ -1317,165 +1245,178 @@ export default function App() {
                 )}
               </section>
 
-              {/* FLAGS AS CLEAN CARDS: WHAT'S WRONG -> HIGHLIGHTED QUOTE -> HOW TO FIX */}
-              <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
-                <h2 className="text-2xl font-extrabold text-slate-950">Checks &amp; Flags</h2>
-                <p className="mt-1 text-base text-slate-700">
-                  Every check ran in plain code against verbatim quotes from your uploaded files.
-                </p>
+              {/* FLAGS: ISSUES FIRST (RED / AMBER), PASSED CHECKS COMPACT & EXPANDABLE */}
+              {(() => {
+                const issueFlags = caseResult.flags.filter((f) => f.severity !== 'green');
+                const passedFlags = caseResult.flags.filter((f) => f.severity === 'green');
 
-                <div className="mt-5 space-y-4">
-                  {caseResult.flags.map((flag) => {
-                    const style = severityStyles(flag.severity);
-                    const FlagIcon = style.Icon;
-                    const fundsTable =
-                      flag.checkType === 'funds' ? parseFundsTableRows(flag.mathLines) : null;
+                const renderFlagCard = (flag: CheckFlag) => {
+                  const style = severityStyles(flag.severity);
+                  const FlagIcon = style.Icon;
+                  const fundsTable =
+                    flag.checkType === 'funds' ? parseFundsTableRows(flag.mathLines) : null;
 
-                    return (
-                      <article key={flag.id} className={`rounded-2xl border p-5 ${style.card}`}>
-                        {/* 1. What's wrong */}
-                        <div className="flex flex-wrap items-center gap-2.5">
-                          <FlagIcon className={`h-5 w-5 shrink-0 ${style.iconColor}`} aria-hidden="true" />
-                          <span className={`rounded-md px-2.5 py-0.5 text-xs font-bold ${style.badge}`}>
-                            {style.label}
-                          </span>
-                          <h3 className="text-lg font-extrabold text-slate-950">{flag.title}</h3>
+                  return (
+                    <article key={flag.id} className={`rounded-2xl border p-5 ${style.card}`}>
+                      <div className="flex flex-wrap items-center gap-2.5">
+                        <FlagIcon className={`h-5 w-5 shrink-0 ${style.iconColor}`} aria-hidden="true" />
+                        <span className={`rounded-md px-2.5 py-0.5 text-xs font-bold ${style.badge}`}>
+                          {style.label}
+                        </span>
+                        <h3 className="text-lg font-extrabold text-slate-950">{flag.title}</h3>
+                      </div>
+
+                      <p className="mt-2 text-base leading-relaxed text-slate-800">
+                        {flag.explanation || flag.summary}
+                      </p>
+
+                      {fundsTable && (
+                        <div className="mt-4 overflow-hidden rounded-xl border border-slate-200 bg-white">
+                          <table className="w-full text-left text-sm">
+                            <thead className="bg-slate-50 text-xs font-bold uppercase tracking-wide text-slate-700">
+                              <tr>
+                                <th className="px-4 py-2.5">UK Funds Check (Plain Code)</th>
+                                <th className="px-4 py-2.5 text-right">Amount</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-200 text-slate-900">
+                              <tr>
+                                <td className="px-4 py-2.5 font-medium">Required (unpaid tuition + 9 mo living)</td>
+                                <td className="px-4 py-2.5 text-right font-mono font-semibold">{fundsTable.required}</td>
+                              </tr>
+                              <tr>
+                                <td className="px-4 py-2.5 font-medium">{fundsTable.lowestLabel}</td>
+                                <td className="px-4 py-2.5 text-right font-mono font-semibold">{fundsTable.lowest28Day}</td>
+                              </tr>
+                              <tr className={fundsTable.isShortfall ? 'bg-red-50/70' : 'bg-emerald-50/70'}>
+                                <td className="px-4 py-3 font-extrabold text-slate-950">Gap</td>
+                                <td
+                                  className={`px-4 py-3 text-right font-mono text-base font-extrabold ${
+                                    fundsTable.isShortfall ? 'text-red-700' : 'text-emerald-700'
+                                  }`}
+                                >
+                                  {fundsTable.gap}
+                                </td>
+                              </tr>
+                            </tbody>
+                          </table>
+                          {flag.mathLines && flag.mathLines.length > 0 && (
+                            <details className="border-t border-slate-200 bg-slate-50/60 px-4 py-2.5 text-xs text-slate-700">
+                              <summary className="cursor-pointer font-semibold text-indigo-900 hover:underline">
+                                Show full plain-code calculation breakdown
+                              </summary>
+                              <ul className="mt-2 space-y-1 font-mono text-xs text-slate-800">
+                                {flag.mathLines.map((line, idx) => (
+                                  <li key={idx}>{line}</li>
+                                ))}
+                              </ul>
+                            </details>
+                          )}
                         </div>
+                      )}
 
-                        <p className="mt-2 text-base leading-relaxed text-slate-800">
-                          {flag.explanation || flag.summary}
+                      {!fundsTable && flag.mathLines && flag.mathLines.length > 0 && (
+                        <div className="mt-3 rounded-xl border border-slate-200 bg-white p-4">
+                          <p className="text-xs font-bold uppercase tracking-wide text-slate-700">
+                            Funds Math (Plain Code)
+                          </p>
+                          <ul className="mt-2 space-y-1 font-mono text-sm text-slate-900">
+                            {flag.mathLines.map((line, idx) => (
+                              <li key={idx}>{line}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {flag.quote && (
+                        <blockquote className="mt-3 rounded-xl border-l-4 border-amber-500 bg-amber-100/70 px-4 py-2.5 font-mono text-xs font-medium text-slate-950 sm:text-sm">
+                          <span className="font-sans text-xs font-bold uppercase tracking-wide text-amber-950">
+                            Quote from document:{' '}
+                          </span>
+                          {flag.quote}
+                        </blockquote>
+                      )}
+
+                      {flag.suggestedFix && (
+                        <p className="mt-3 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-900">
+                          <strong className="text-indigo-950">How to fix:</strong> {flag.suggestedFix}
                         </p>
+                      )}
 
-                        {/* Simple 3-row Funds Math Table */}
-                        {fundsTable && (
-                          <div className="mt-4 overflow-hidden rounded-xl border border-slate-200 bg-white">
-                            <table className="w-full text-left text-sm">
-                              <thead className="bg-slate-50 text-xs font-bold uppercase tracking-wide text-slate-700">
-                                <tr>
-                                  <th className="px-4 py-2.5">UK Funds Check (Plain Code)</th>
-                                  <th className="px-4 py-2.5 text-right">Amount</th>
-                                </tr>
-                              </thead>
-                              <tbody className="divide-y divide-slate-200 text-slate-900">
-                                <tr>
-                                  <td className="px-4 py-2.5 font-medium">Required (unpaid tuition + 9 mo living)</td>
-                                  <td className="px-4 py-2.5 text-right font-mono font-semibold">{fundsTable.required}</td>
-                                </tr>
-                                <tr>
-                                  <td className="px-4 py-2.5 font-medium">{fundsTable.lowestLabel}</td>
-                                  <td className="px-4 py-2.5 text-right font-mono font-semibold">{fundsTable.lowest28Day}</td>
-                                </tr>
-                                <tr className={fundsTable.isShortfall ? 'bg-red-50/70' : 'bg-emerald-50/70'}>
-                                  <td className="px-4 py-3 font-extrabold text-slate-950">Gap</td>
-                                  <td
-                                    className={`px-4 py-3 text-right font-mono text-base font-extrabold ${
-                                      fundsTable.isShortfall ? 'text-red-700' : 'text-emerald-700'
-                                    }`}
-                                  >
-                                    {fundsTable.gap}
-                                  </td>
-                                </tr>
-                              </tbody>
-                            </table>
-                            {flag.mathLines && flag.mathLines.length > 0 && (
-                              <details className="border-t border-slate-200 bg-slate-50/60 px-4 py-2.5 text-xs text-slate-700">
-                                <summary className="cursor-pointer font-semibold text-indigo-900 hover:underline">
-                                  Show full plain-code calculation breakdown
-                                </summary>
-                                <ul className="mt-2 space-y-1 font-mono text-xs text-slate-800">
-                                  {flag.mathLines.map((line, idx) => (
-                                    <li key={idx}>{line}</li>
-                                  ))}
-                                </ul>
-                              </details>
-                            )}
-                          </div>
-                        )}
+                      {flag.sourceUrl && (
+                        <p className="mt-2 text-xs text-slate-700">
+                          Official rule source (as of {flag.ruleAsOf}):{' '}
+                          <a
+                            href={flag.sourceUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="font-semibold text-blue-700 underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+                          >
+                            {flag.sourceUrl}
+                          </a>
+                        </p>
+                      )}
+                    </article>
+                  );
+                };
 
-                        {!fundsTable && flag.mathLines && flag.mathLines.length > 0 && (
-                          <div className="mt-3 rounded-xl border border-slate-200 bg-white p-4">
-                            <p className="text-xs font-bold uppercase tracking-wide text-slate-700">
-                              Funds Math (Plain Code)
-                            </p>
-                            <ul className="mt-2 space-y-1 font-mono text-sm text-slate-900">
-                              {flag.mathLines.map((line, idx) => (
-                                <li key={idx}>{line}</li>
-                              ))}
-                            </ul>
-                          </div>
-                        )}
+                return (
+                  <section className="space-y-4 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-7">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div>
+                        <h2 className="text-xl font-extrabold text-slate-950 sm:text-2xl">
+                          Checks &amp; Flags
+                        </h2>
+                        <p className="mt-0.5 text-sm text-slate-700">
+                          Every check ran in plain code against verbatim quotes from your files.
+                        </p>
+                      </div>
+                    </div>
 
-                        {/* 2. Exact quote from the document, highlighted */}
-                        {flag.quote && (
-                          <blockquote className="mt-3 rounded-xl border-l-4 border-amber-500 bg-amber-100/70 px-4 py-2.5 font-mono text-xs font-medium text-slate-950 sm:text-sm">
-                            <span className="font-sans text-xs font-bold uppercase tracking-wide text-amber-950">
-                              Quote from document:{' '}
+                    {issueFlags.length > 0 && (
+                      <div className="space-y-4">
+                        {issueFlags.map(renderFlagCard)}
+                      </div>
+                    )}
+
+                    {passedFlags.length > 0 && (
+                      <details className="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-4">
+                        <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-2 rounded-xl focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-emerald-300">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-700" aria-hidden="true" />
+                            <span className="text-sm font-extrabold text-emerald-950">
+                              {passedFlags.length} checks passed
                             </span>
-                            {flag.quote}
-                          </blockquote>
-                        )}
+                            <div className="flex flex-wrap gap-1.5">
+                              {passedFlags.map((pf) => (
+                                <span
+                                  key={pf.id}
+                                  className="rounded-full border border-emerald-200 bg-white px-2.5 py-0.5 text-xs font-semibold text-emerald-900"
+                                >
+                                  ✓ {pf.title}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                          <span className="text-xs font-bold text-emerald-800 underline">
+                            View quotes
+                          </span>
+                        </summary>
+                        <div className="mt-4 space-y-3 border-t border-emerald-200 pt-4">
+                          {passedFlags.map(renderFlagCard)}
+                        </div>
+                      </details>
+                    )}
+                  </section>
+                );
+              })()}
 
-                        {/* 3. How to fix */}
-                        {flag.suggestedFix && (
-                          <p className="mt-3 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-900">
-                            <strong className="text-indigo-950">How to fix:</strong> {flag.suggestedFix}
-                          </p>
-                        )}
-
-                        {flag.sourceUrl && (
-                          <p className="mt-2 text-xs text-slate-700">
-                            Official rule source (as of {flag.ruleAsOf}):{' '}
-                            <a
-                              href={flag.sourceUrl}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="font-semibold text-blue-700 underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
-                            >
-                              {flag.sourceUrl}
-                            </a>
-                          </p>
-                        )}
-                      </article>
-                    );
-                  })}
-                </div>
-              </section>
-
-              {/* STEP 3 LAUNCHER: APPLICATION AGENT & UNIVERSITY RULES */}
-              <section
-                id="start-application-agent"
-                aria-labelledby="start-application-agent-heading"
-                className="space-y-4 rounded-3xl border-2 border-indigo-200 bg-gradient-to-b from-indigo-50/60 to-slate-50 p-4 shadow-sm sm:p-6"
-              >
-                <div className="flex flex-wrap items-center justify-between gap-3 px-2 pt-1">
-                  <div>
-                    <h2
-                      id="start-application-agent-heading"
-                      className="text-2xl font-extrabold text-indigo-950"
-                    >
-                      Next: Approve &amp; Fill University Portal
-                    </h2>
-                    <p className="mt-0.5 text-sm text-slate-700">
-                      Let Gemini fill the portal draft (it stops before Submit), or jump straight to
-                      Step 2 to approve as counselor.
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => navigateTo('counselor')}
-                    className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 text-sm font-extrabold text-white shadow-md transition hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-emerald-300"
-                  >
-                    <ShieldCheck className="h-4 w-4" aria-hidden="true" />
-                    <span>Go to Step 2: Counselor Approves →</span>
-                  </button>
-                </div>
-
-                <AgentRunnerPanel
-                  caseId={caseResult.id}
-                  onOpenCounselor={() => navigateTo('counselor')}
-                  onOpenPortal={() => navigateTo('portal')}
-                />
-              </section>
+              {/* APPLICATION AGENT & OPTIONAL UNIVERSITY RULES */}
+              <AgentRunnerPanel
+                caseId={caseResult.id}
+                onOpenCounselor={() => navigateTo('counselor')}
+                onOpenPortal={() => navigateTo('portal')}
+              />
 
               {/* COLLAPSED "UNDER THE HOOD" SECTION: GOOGLE AI MODELS, FACTS, TOKENS & COST */}
               <details className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
@@ -1634,66 +1575,6 @@ export default function App() {
             </div>
           );
         })()}
-
-        {/* COLLAPSIBLE GEMINI API & MODELS STATUS */}
-        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <button
-            type="button"
-            onClick={() => setShowSystemCheck((v) => !v)}
-            className="flex w-full items-center justify-between text-left text-base font-bold text-slate-900"
-          >
-            <span className="inline-flex items-center gap-2">
-              <Sparkles className="h-4 w-4 text-blue-700" aria-hidden="true" />
-              Live Gemini API Status &amp; Models ({models.length})
-            </span>
-            {showSystemCheck ? (
-              <ChevronUp className="h-5 w-5 text-slate-600" aria-hidden="true" />
-            ) : (
-              <ChevronDown className="h-5 w-5 text-slate-600" aria-hidden="true" />
-            )}
-          </button>
-
-          {showSystemCheck && (
-            <div className="mt-4 space-y-4 border-t border-slate-200 pt-4">
-              <button
-                type="button"
-                onClick={handleSayHello}
-                disabled={helloLoading}
-                className="rounded-xl bg-slate-950 px-5 py-2.5 text-sm font-bold text-white hover:bg-slate-800 disabled:opacity-50"
-              >
-                {helloLoading ? 'Asking Gemini...' : 'Test Live /api/hello'}
-              </button>
-
-              {helloError && (
-                <p role="alert" className="text-sm font-medium text-red-800">
-                  {helloError}
-                </p>
-              )}
-
-              {helloReply && (
-                <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-950">
-                  <p className="font-semibold">{helloReply.text}</p>
-                  <p className="mt-1 font-mono text-xs">
-                    Model: {helloReply.model} · {helloReply.latencyMs} ms
-                  </p>
-                </div>
-              )}
-
-              {models.length > 0 && (
-                <ul className="grid gap-2 sm:grid-cols-3">
-                  {models.map((m) => (
-                    <li
-                      key={m}
-                      className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 font-mono text-xs font-medium text-slate-900"
-                    >
-                      {m}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          )}
-        </section>
       </main>
 
       <footer className="border-t border-slate-200 bg-white px-4 py-4 text-center text-sm font-semibold text-slate-700">

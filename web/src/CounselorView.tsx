@@ -479,42 +479,139 @@ export default function CounselorView({ onNavigate }: CounselorViewProps) {
         approveCompleted={Boolean(lastIssuedToken)}
       />
 
-      <div className="border-b border-amber-200 bg-amber-50 px-4 py-1.5 text-center text-xs font-semibold text-amber-950 sm:text-sm">
-        Demo mode: sample data only — counselor queue opens directly; enter your approver name below for the audit log.
-      </div>
-
-      <main id="counselor-main" className="mx-auto max-w-5xl space-y-6 px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
-        {/* HERO BANNER */}
-        <section className="overflow-hidden rounded-3xl border border-indigo-900/20 bg-gradient-to-br from-indigo-950 via-indigo-900 to-slate-900 p-6 text-white shadow-lg sm:p-8">
-          <div className="flex flex-wrap items-center justify-between gap-6">
-            <div className="space-y-3">
-              <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl">
+      <main id="counselor-main" className="mx-auto max-w-5xl space-y-5 px-4 py-6 sm:px-6 lg:px-8">
+        {/* COMPACT UNIFIED HEADER + APPROVER BAR + CONTROLS (Exception card sits immediately above the fold!) */}
+        <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <h1 className="text-2xl font-extrabold tracking-tight text-indigo-950 sm:text-3xl">
                 Counselor Exception Queue
               </h1>
-              <p className="max-w-2xl text-base leading-relaxed text-indigo-100 sm:text-lg">
-                Only students with visa-refusal risks land here. Clean cases clear in one click —
-                nothing is submitted without your single-use approval token.
+              <p className="mt-1 text-base font-bold text-slate-800">
+                {queue?.exceptions.length ?? 0}{' '}
+                {(queue?.exceptions.length ?? 0) === 1 ? 'student needs' : 'students need'} you.{' '}
+                <span className="text-emerald-700">
+                  {queue?.greenBatch.length ?? 0}{' '}
+                  {(queue?.greenBatch.length ?? 0) === 1 ? 'is' : 'are'} ready to approve.
+                </span>
+                <span className="ml-2 text-sm font-medium text-slate-600">
+                  · {queue?.resolved.length ?? 0} cleared
+                </span>
               </p>
+            </div>
 
-              <div className="flex flex-wrap items-center gap-3 pt-1">
-                <label
-                  htmlFor="active-counselor-name"
-                  className="inline-flex items-center gap-1.5 text-sm font-semibold text-emerald-200"
-                >
-                  <UserCheck className="h-4 w-4" aria-hidden="true" />
-                  Approver name (for audit log &amp; tokens):
-                </label>
-                <input
-                  id="active-counselor-name"
-                  type="text"
-                  value={counselorName}
-                  onChange={(e) => setCounselorName(e.target.value)}
-                  placeholder="Enter your name"
-                  className="rounded-xl border border-emerald-400/60 bg-indigo-950/90 px-3.5 py-2 text-sm font-semibold text-white placeholder:text-indigo-300 focus:border-emerald-300 focus:outline-none focus:ring-4 focus:ring-emerald-400/40"
-                />
-              </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <label
+                htmlFor="active-counselor-name"
+                className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-slate-700"
+              >
+                <UserCheck className="h-4 w-4 text-emerald-700" aria-hidden="true" />
+                Approver:
+              </label>
+              <input
+                id="active-counselor-name"
+                type="text"
+                value={counselorName}
+                onChange={(e) => setCounselorName(e.target.value)}
+                placeholder="Enter your name"
+                className="w-44 rounded-xl border border-slate-300 bg-slate-50 px-3 py-1.5 text-sm font-semibold text-slate-950 focus:border-blue-600 focus:bg-white focus:outline-none focus:ring-4 focus:ring-blue-200"
+              />
             </div>
           </div>
+
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3.5">
+            <p className="text-xs font-medium text-slate-600 sm:text-sm">
+              Only high-risk files land here — nothing submits without your single-use approval token.
+            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setShowShortcuts((v) => !v)}
+                aria-expanded={showShortcuts}
+                aria-label="Toggle keyboard shortcuts help"
+                className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300 sm:text-sm ${
+                  showShortcuts
+                    ? 'border-indigo-700 bg-indigo-50 text-indigo-900'
+                    : 'border-slate-300 bg-white text-slate-800 hover:bg-slate-100'
+                }`}
+              >
+                <HelpCircle className="h-4 w-4" aria-hidden="true" />
+                <span>?</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => void loadQueue(false)}
+                disabled={refreshingQueue}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-900 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300 disabled:opacity-50 sm:text-sm"
+              >
+                <RefreshCw className={`h-3.5 w-3.5 ${refreshingQueue ? 'animate-spin' : ''}`} aria-hidden="true" />
+                <span>{refreshingQueue ? 'Refreshing...' : 'Refresh'}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowSettings((v) => !v)}
+                className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300 sm:text-sm ${
+                  showSettings
+                    ? 'border-blue-700 bg-blue-50 text-blue-900'
+                    : 'border-slate-300 bg-white text-slate-900 hover:bg-slate-100'
+                }`}
+              >
+                <Settings2 className="h-3.5 w-3.5" aria-hidden="true" />
+                <span>{showSettings ? 'Hide Rules' : 'Rules & Rates'}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowAudit((v) => !v)}
+                className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300 sm:text-sm ${
+                  showAudit
+                    ? 'border-blue-700 bg-blue-50 text-blue-900'
+                    : 'border-slate-300 bg-white text-slate-900 hover:bg-slate-100'
+                }`}
+              >
+                <ClipboardList className="h-3.5 w-3.5" aria-hidden="true" />
+                <span>Audit Log ({queue?.auditLog.length ?? 0})</span>
+              </button>
+            </div>
+          </div>
+
+          {showShortcuts && (
+            <div
+              role="note"
+              className="mt-3 flex flex-wrap items-center gap-3 rounded-xl border border-indigo-200 bg-indigo-50/70 px-4 py-2 text-xs font-medium text-indigo-950 sm:text-sm"
+            >
+              <span className="font-bold">Keyboard shortcuts:</span>
+              <span><kbd className="rounded border border-indigo-300 bg-white px-1.5 py-0.5 font-mono text-xs font-bold">J</kbd> Next</span>
+              <span><kbd className="rounded border border-indigo-300 bg-white px-1.5 py-0.5 font-mono text-xs font-bold">K</kbd> Prev</span>
+              <span><kbd className="rounded border border-indigo-300 bg-white px-1.5 py-0.5 font-mono text-xs font-bold">A</kbd> Approve</span>
+              <span><kbd className="rounded border border-indigo-300 bg-white px-1.5 py-0.5 font-mono text-xs font-bold">E</kbd> Edit</span>
+              <span><kbd className="rounded border border-indigo-300 bg-white px-1.5 py-0.5 font-mono text-xs font-bold">R</kbd> Reject</span>
+            </div>
+          )}
+
+          {queue && queue.greenBatch.length > 0 && (
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-emerald-300 bg-emerald-50 p-4">
+              <div className="flex items-start gap-3">
+                <Sparkles className="mt-0.5 h-5 w-5 shrink-0 text-emerald-700" aria-hidden="true" />
+                <div>
+                  <p className="text-sm font-bold text-emerald-950 sm:text-base">
+                    {queue.greenBatch.length} clean case(s) passed every plain-code rule
+                  </p>
+                  <p className="text-xs text-emerald-900 sm:text-sm">
+                    No tokens are issued automatically — click Batch Approve to issue single-use tokens.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => void handleBatchApproveGreen()}
+                disabled={actionBusy}
+                className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-emerald-300 disabled:opacity-50"
+              >
+                <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
+                <span>Batch Approve {queue.greenBatch.length} Case(s)</span>
+              </button>
+            </div>
+          )}
         </section>
 
         {loadingQueue && !queue ? (
@@ -522,130 +619,7 @@ export default function CounselorView({ onNavigate }: CounselorViewProps) {
             Loading Counselor Queue...
           </div>
         ) : (
-          <div className="space-y-6">
-            {/* TOP SUMMARY LINE + TOOLBAR */}
-            <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <p className="text-xl font-extrabold text-indigo-950 sm:text-2xl">
-                    {queue?.exceptions.length ?? 0}{' '}
-                    {(queue?.exceptions.length ?? 0) === 1 ? 'student needs' : 'students need'} you.{' '}
-                    <span className="text-emerald-700">
-                      {queue?.greenBatch.length ?? 0}{' '}
-                      {(queue?.greenBatch.length ?? 0) === 1 ? 'is' : 'are'} ready to approve.
-                    </span>
-                  </p>
-                  <p className="mt-0.5 text-sm text-slate-700">
-                    {queue?.resolved.length ?? 0} already cleared · Sorted highest refusal risk first
-                  </p>
-                </div>
-
-                <div className="flex flex-wrap items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setShowShortcuts((v) => !v)}
-                    aria-expanded={showShortcuts}
-                    aria-label="Toggle keyboard shortcuts help"
-                    className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-sm font-bold transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300 ${
-                      showShortcuts
-                        ? 'border-indigo-700 bg-indigo-50 text-indigo-900'
-                        : 'border-slate-300 bg-white text-slate-800 hover:bg-slate-100'
-                    }`}
-                  >
-                    <HelpCircle className="h-4 w-4" aria-hidden="true" />
-                    <span>?</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => void loadQueue(false)}
-                    disabled={refreshingQueue}
-                    className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300 disabled:opacity-50"
-                  >
-                    <RefreshCw className={`h-4 w-4 ${refreshingQueue ? 'animate-spin' : ''}`} aria-hidden="true" />
-                    <span>{refreshingQueue ? 'Refreshing...' : 'Refresh'}</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setShowSettings((v) => !v)}
-                    className={`inline-flex items-center gap-1.5 rounded-xl border px-3.5 py-2 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300 ${
-                      showSettings
-                        ? 'border-blue-700 bg-blue-50 text-blue-900'
-                        : 'border-slate-300 bg-white text-slate-900 hover:bg-slate-100'
-                    }`}
-                  >
-                    <Settings2 className="h-4 w-4" aria-hidden="true" />
-                    <span>{showSettings ? 'Hide Rules & Rates' : 'Rules & Rates'}</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setShowAudit((v) => !v)}
-                    className={`inline-flex items-center gap-1.5 rounded-xl border px-3.5 py-2 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300 ${
-                      showAudit
-                        ? 'border-blue-700 bg-blue-50 text-blue-900'
-                        : 'border-slate-300 bg-white text-slate-900 hover:bg-slate-100'
-                    }`}
-                  >
-                    <ClipboardList className="h-4 w-4" aria-hidden="true" />
-                    <span>Audit Log ({queue?.auditLog.length ?? 0})</span>
-                  </button>
-                </div>
-              </div>
-
-              {showShortcuts && (
-                <div
-                  role="note"
-                  className="mt-3 flex flex-wrap items-center gap-3 rounded-xl border border-indigo-200 bg-indigo-50/70 px-4 py-2.5 text-sm font-medium text-indigo-950"
-                >
-                  <span className="font-bold">Keyboard shortcuts:</span>
-                  <span>
-                    <kbd className="rounded-md border border-indigo-300 bg-white px-2 py-0.5 font-mono text-xs font-bold text-indigo-950">J</kbd>{' '}
-                    Next
-                  </span>
-                  <span>
-                    <kbd className="rounded-md border border-indigo-300 bg-white px-2 py-0.5 font-mono text-xs font-bold text-indigo-950">K</kbd>{' '}
-                    Prev
-                  </span>
-                  <span>
-                    <kbd className="rounded-md border border-indigo-300 bg-white px-2 py-0.5 font-mono text-xs font-bold text-indigo-950">A</kbd>{' '}
-                    Approve
-                  </span>
-                  <span>
-                    <kbd className="rounded-md border border-indigo-300 bg-white px-2 py-0.5 font-mono text-xs font-bold text-indigo-950">E</kbd>{' '}
-                    Edit
-                  </span>
-                  <span>
-                    <kbd className="rounded-md border border-indigo-300 bg-white px-2 py-0.5 font-mono text-xs font-bold text-indigo-950">R</kbd>{' '}
-                    Reject
-                  </span>
-                </div>
-              )}
-
-              {queue && queue.greenBatch.length > 0 && (
-                <div className="mt-4 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-emerald-300 bg-emerald-50 p-4">
-                  <div className="flex items-start gap-3">
-                    <Sparkles className="mt-0.5 h-5 w-5 shrink-0 text-emerald-700" aria-hidden="true" />
-                    <div>
-                      <p className="text-base font-bold text-emerald-950">
-                        {queue.greenBatch.length} green case(s) passed every plain-code rule
-                      </p>
-                      <p className="text-sm text-emerald-900">
-                        No tokens are issued automatically—click Batch Approve to issue one
-                        single-use portal token per green case.
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => void handleBatchApproveGreen()}
-                    disabled={actionBusy}
-                    className="inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-5 py-3 text-base font-bold text-white shadow-sm hover:bg-emerald-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-emerald-300 disabled:opacity-50"
-                  >
-                    <CheckCircle2 className="h-5 w-5" aria-hidden="true" />
-                    <span>Batch Approve {queue.greenBatch.length} Green Case(s)</span>
-                  </button>
-                </div>
-              )}
-            </section>
+          <div className="space-y-5">
 
             {actionMessage && (
               <div
@@ -804,20 +778,7 @@ export default function CounselorView({ onNavigate }: CounselorViewProps) {
                   </div>
                 )}
 
-                {/* WHY THIS CASE IS IN EXCEPTIONS */}
-                <div className="rounded-2xl border border-red-200 bg-red-50/80 p-5">
-                  <h3 className="flex items-center gap-2 text-base font-bold text-red-950">
-                    <ShieldAlert className="h-5 w-5 text-red-700" aria-hidden="true" />
-                    Why this case needs your eye
-                  </h3>
-                  <ul className="mt-2 list-disc space-y-1.5 pl-6 text-base text-red-950">
-                    {currentCase.exceptionReasons.map((reason, idx) => (
-                      <li key={idx}>{reason}</li>
-                    ))}
-                  </ul>
-                </div>
-
-                {/* FLAGS WITH QUOTES & FIXES */}
+                {/* FLAGGED ISSUES WITH HIGHLIGHTED QUOTES & FIXES */}
                 <div className="space-y-4">
                   {currentCase.flags
                     .filter((f) => f.severity !== 'green')
@@ -826,47 +787,49 @@ export default function CounselorView({ onNavigate }: CounselorViewProps) {
                         key={flag.id}
                         className={`rounded-2xl border p-5 ${
                           flag.severity === 'red'
-                            ? 'border-red-300 bg-red-50'
-                            : 'border-amber-300 bg-amber-50'
+                            ? 'border-red-300 bg-red-50/80'
+                            : 'border-amber-300 bg-amber-50/80'
                         }`}
                       >
-                        <p className="text-lg font-bold text-slate-950">{flag.title}</p>
-                        <p className="mt-1.5 text-base text-slate-900">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <ShieldAlert
+                            className={`h-5 w-5 shrink-0 ${
+                              flag.severity === 'red' ? 'text-red-700' : 'text-amber-700'
+                            }`}
+                            aria-hidden="true"
+                          />
+                          <p className="text-lg font-extrabold text-slate-950">{flag.title}</p>
+                        </div>
+                        <p className="mt-1.5 text-base text-slate-800">
                           {flag.explanation || flag.summary}
                         </p>
+                        {flag.quote && (
+                          <blockquote className="mt-3 rounded-xl border-l-4 border-amber-500 bg-amber-100/70 px-3.5 py-2.5 font-mono text-xs font-medium text-slate-950 sm:text-sm">
+                            <span className="font-sans text-xs font-bold uppercase tracking-wide text-amber-950">
+                              Quote:{' '}
+                            </span>
+                            {flag.quote}
+                          </blockquote>
+                        )}
                         {flag.suggestedFix && (
-                          <p className="mt-2 rounded-xl bg-white/80 px-3.5 py-2.5 text-sm font-medium text-slate-900">
-                            <strong>Suggested fix:</strong> {flag.suggestedFix}
+                          <p className="mt-3 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-medium text-slate-900">
+                            <strong className="text-indigo-950">How to fix:</strong> {flag.suggestedFix}
                           </p>
                         )}
                         {flag.mathLines && flag.mathLines.length > 0 && (
-                          <ul className="mt-3 space-y-1 rounded-xl border border-slate-200 bg-white p-3.5 font-mono text-sm text-slate-900">
-                            {flag.mathLines.map((line, i) => (
-                              <li key={i}>{line}</li>
-                            ))}
-                          </ul>
-                        )}
-                        {flag.quote && (
-                          <blockquote className="mt-3 rounded-xl border border-slate-200 bg-white/90 px-3.5 py-2.5 font-mono text-xs text-slate-800 sm:text-sm">
-                            Quote: {flag.quote}
-                          </blockquote>
+                          <details className="mt-3 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs text-slate-700">
+                            <summary className="cursor-pointer font-bold text-indigo-900 hover:underline">
+                              Show plain-code funds math
+                            </summary>
+                            <ul className="mt-2 space-y-1 font-mono text-xs text-slate-900">
+                              {flag.mathLines.map((line, i) => (
+                                <li key={i}>{line}</li>
+                              ))}
+                            </ul>
+                          </details>
                         )}
                       </article>
                     ))}
-                </div>
-
-                {/* PORTAL URL TIED TO SINGLE-USE TOKEN */}
-                <div>
-                  <label htmlFor="portal-url" className="block text-sm font-semibold text-slate-800">
-                    Portal URL tied to the single-use approval token
-                  </label>
-                  <input
-                    id="portal-url"
-                    type="text"
-                    value={portalUrlInput}
-                    onChange={(e) => setPortalUrlInput(e.target.value)}
-                    className="mt-1.5 w-full rounded-xl border border-slate-300 px-4 py-3 font-mono text-base focus:border-blue-600 focus:outline-none focus:ring-4 focus:ring-blue-200"
-                  />
                 </div>
 
                 {/* PRIMARY ACTION BUTTONS */}

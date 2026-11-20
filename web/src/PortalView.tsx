@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { CheckCircle2, Info, Lock, ShieldAlert } from 'lucide-react';
+import { CheckCircle2, Lock, ShieldAlert } from 'lucide-react';
 import TopNav from './TopNav.tsx';
 
 interface PortalViewProps {
@@ -257,7 +257,7 @@ export default function PortalView({ onNavigate }: PortalViewProps) {
         if (res.status === 403 || !trimmedToken) {
           const detail = data?.error ? ` ${String(data.error)}` : '';
           setSubmitError(
-            `403 — Counselor approval required. Approve this case in /counselor, copy the full single-use token, and paste it into the 'Paste approval token' box above.${detail}`
+            `403 — Counselor approval required. Approve this case in Step 2 (Counselor approves), copy the full single-use token, and paste it into the 'Paste approval token' box above.${detail}`
           );
           return;
         }
@@ -271,7 +271,7 @@ export default function PortalView({ onNavigate }: PortalViewProps) {
     } catch (err) {
       if (!trimmedToken) {
         setSubmitError(
-          "403 — Counselor approval required. Approve this case in /counselor, copy the full single-use token, and paste it into the 'Paste approval token' box above."
+          "403 — Counselor approval required. Approve this case in Step 2 (Counselor approves), copy the full single-use token, and paste it into the 'Paste approval token' box above."
         );
       } else {
         setSubmitError(err instanceof Error ? err.message : 'Submission blocked.');
@@ -288,13 +288,7 @@ export default function PortalView({ onNavigate }: PortalViewProps) {
         onNavigate={onNavigate}
         submitCompleted={Boolean(submitReceipt)}
       />
-      <div className="border-b border-amber-200 bg-amber-50 px-4 py-1.5 text-center text-xs font-medium text-amber-900">
-        <span className="inline-flex items-center gap-1.5">
-          <Info className="h-3.5 w-3.5 text-amber-700" aria-hidden="true" />
-          Demo mode: sample data only
-        </span>
-      </div>
-      <main className="mx-auto max-w-3xl space-y-5 px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+      <main className="mx-auto max-w-3xl space-y-5 px-4 py-6 sm:px-6 lg:px-8">
         <header className="overflow-hidden rounded-3xl border border-indigo-200 bg-gradient-to-br from-indigo-950 via-indigo-900 to-slate-950 p-6 text-white shadow-lg">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="flex items-center gap-4">
