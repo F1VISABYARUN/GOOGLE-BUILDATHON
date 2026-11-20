@@ -14,6 +14,9 @@ const PROGRAM_OPTIONS = [
   'MS Electrical Engineering',
 ];
 
+const INPUT_CLASS =
+  'mt-1.5 h-11 w-full rounded-xl border border-slate-300 bg-white px-3.5 text-[15px] text-slate-950 placeholder:text-slate-400 transition focus:border-[#2563EB] focus:outline-none focus:ring-2 focus:ring-[#2563EB]/25';
+
 export default function PortalView({ onNavigate }: PortalViewProps) {
   const params = new URLSearchParams(window.location.search);
   const accountMode = params.get('mode') === 'account';
@@ -53,7 +56,7 @@ export default function PortalView({ onNavigate }: PortalViewProps) {
   const [backlogs, setBacklogs] = useState('0');
   const [graduationDate, setGraduationDate] = useState('2025-05-20');
   const [selectedProgram, setSelectedProgram] = useState('MSc Computer Science');
-  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   // Step 3 (page 4): English
   const [englishTestType, setEnglishTestType] = useState('IELTS Academic');
@@ -69,7 +72,7 @@ export default function PortalView({ onNavigate }: PortalViewProps) {
 
   // Step 5 (page 6): Documents
   const [docFileName, setDocFileName] = useState('SAMPLE_UK_OFFER_LETTER.pdf');
-  const [declarationAccepted, setDeclarationAccepted] = useState(true);
+  const [declarationAccepted] = useState(true);
   const [declarationName, setDeclarationName] = useState('Sample Applicant');
 
   // Feedback & Submit
@@ -274,20 +277,20 @@ export default function PortalView({ onNavigate }: PortalViewProps) {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-gray-50 text-gray-900">
+    <div className="flex min-h-screen flex-col bg-[#FAF9F6] text-slate-900">
       <TopNav
         activeRoute="portal"
         onNavigate={onNavigate}
         submitCompleted={Boolean(submitReceipt)}
       />
 
-      {/* Institutional University System Header (deliberately neutral & distinct from Aira) */}
-      <div className="border-b border-gray-200 bg-white">
-        <div className="mx-auto flex max-w-[1120px] flex-wrap items-center justify-between gap-4 px-4 py-4 sm:px-6">
-          <div className="flex items-center gap-3.5">
+      {/* Institutional University System Header (deliberately neutral & distinct from AIRA AI brand) */}
+      <div className="border-b border-slate-200/90 bg-slate-900 text-white">
+        <div className="mx-auto flex max-w-[1200px] flex-wrap items-center justify-between gap-4 px-4 py-5 sm:px-6">
+          <div className="flex items-center gap-4">
             <div
               aria-hidden="true"
-              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[8px] border border-gray-300 bg-gray-50"
+              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-slate-700 bg-slate-800"
             >
               <svg
                 viewBox="0 0 64 64"
@@ -297,32 +300,32 @@ export default function PortalView({ onNavigate }: PortalViewProps) {
               >
                 <path
                   d="M32 6L52 14V30C52 44.5 43.2 53.8 32 58C20.8 53.8 12 44.5 12 30V14L32 6Z"
-                  fill="#F9FAFB"
-                  stroke="#111827"
+                  fill="#1E293B"
+                  stroke="#E2E8F0"
                   strokeWidth="3"
                 />
-                <path d="M21 26L32 20L43 26L32 32L21 26Z" fill="#111827" />
+                <path d="M21 26L32 20L43 26L32 32L21 26Z" fill="#F8FAFC" />
                 <path
                   d="M25 29V37C25 39.2 28.1 41 32 41C35.9 41 39 39.2 39 37V29"
-                  stroke="#111827"
+                  stroke="#E2E8F0"
                   strokeWidth="2.5"
                   strokeLinecap="round"
                 />
-                <path d="M43 26V35" stroke="#111827" strokeWidth="2.5" strokeLinecap="round" />
+                <path d="M43 26V35" stroke="#E2E8F0" strokeWidth="2.5" strokeLinecap="round" />
               </svg>
             </div>
             <div>
-              <p className="text-[14px] font-medium text-gray-600">
+              <p className="text-[12px] font-semibold uppercase tracking-wider text-slate-300">
                 University Admissions System
               </p>
-              <h1 className="text-[24px] font-bold tracking-tight text-gray-900">
+              <h1 className="font-display text-[22px] font-bold tracking-tight text-white sm:text-[24px]">
                 Sample University: Postgraduate Application (demo)
               </h1>
             </div>
           </div>
 
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-[14px] font-medium text-gray-600">
-            <span className="material-symbols-outlined !text-[16px]" aria-hidden="true">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-700 bg-slate-800/90 px-3.5 py-1.5 text-[13px] font-medium text-slate-200">
+            <span className="material-symbols-outlined !text-[16px] text-slate-300" aria-hidden="true">
               lock
             </span>
             <span>Submit unlocks with a one-time counselor approval</span>
@@ -330,12 +333,12 @@ export default function PortalView({ onNavigate }: PortalViewProps) {
         </div>
       </div>
 
-      {/* Main 2-column University Portal Body: Left vertical steps + Right 2-col form */}
-      <main className="mx-auto w-full max-w-[1120px] flex-1 px-4 py-6 sm:px-6">
+      {/* Main 2-column Institutional Portal Body */}
+      <main className="mx-auto w-full max-w-[1200px] flex-1 px-4 py-6 sm:px-6 sm:py-8">
         {infoMsg && (
           <div
             role="status"
-            className="mb-4 rounded-[12px] border border-gray-200 bg-white p-4 text-[16px] text-gray-900"
+            className="mb-5 rounded-2xl border border-slate-200/80 bg-white p-4 text-[15px] text-slate-900 shadow-[0_2px_12px_rgba(15,23,42,0.04)]"
           >
             {infoMsg}
           </div>
@@ -344,17 +347,22 @@ export default function PortalView({ onNavigate }: PortalViewProps) {
         {errorMsg && (
           <div
             role="alert"
-            className="mb-4 rounded-[12px] border border-[#F6AEA9] bg-[#FCE8E6] p-4 text-[16px] text-[#D93025]"
+            className="mb-5 flex items-start gap-2.5 rounded-2xl border border-red-300 bg-red-50 p-4 text-[15px] font-medium text-red-700"
           >
-            {errorMsg}
+            <span className="material-symbols-outlined mt-0.5 !text-[20px]" aria-hidden="true">
+              error
+            </span>
+            <span>{errorMsg}</span>
           </div>
         )}
 
-        <div className="grid items-start gap-6 lg:grid-cols-[240px_1fr]">
-          {/* Left: Vertical steps with ticks */}
-          <aside className="rounded-[12px] border border-gray-200 bg-white p-3">
-            <p className="px-3 py-2 text-[14px] font-bold text-gray-600">Application sections</p>
-            <ol className="flex flex-wrap gap-1 lg:flex-col">
+        <div className="grid items-start gap-6 lg:grid-cols-[260px_1fr]">
+          {/* Left: Institutional vertical sections nav */}
+          <aside className="rounded-2xl border border-slate-200/80 bg-white p-3.5 shadow-[0_2px_12px_rgba(15,23,42,0.04)]">
+            <p className="px-3 py-2 text-[12px] font-semibold uppercase tracking-wide text-slate-500">
+              Application sections
+            </p>
+            <ol className="flex flex-wrap gap-1.5 lg:flex-col">
               {verticalSteps.map((s) => {
                 const isCurrent = page === s.pageNum;
                 const isDone = page > s.pageNum || Boolean(submitReceipt);
@@ -368,18 +376,18 @@ export default function PortalView({ onNavigate }: PortalViewProps) {
                         setSubmitError(null);
                         setPage(s.pageNum);
                       }}
-                      className={`flex h-11 w-full items-center justify-between gap-2 rounded-[8px] px-3 text-left text-[14px] font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1A73E8] ${
+                      className={`flex h-11 w-full items-center justify-between gap-2 rounded-full px-4 text-left text-[14px] font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] ${
                         isCurrent
-                          ? 'bg-[#1A73E8] text-white'
+                          ? 'bg-slate-900 text-white shadow-xs'
                           : isDone
-                            ? 'text-gray-900 hover:bg-gray-50'
-                            : 'text-gray-600 hover:bg-gray-50'
+                            ? 'text-slate-900 hover:bg-slate-100/80'
+                            : 'text-slate-600 hover:bg-slate-100/80 hover:text-slate-950'
                       }`}
                     >
                       <span>{s.buttonLabel}</span>
                       {isDone && !isCurrent && (
                         <span
-                          className="material-symbols-outlined !text-[18px] text-[#188038]"
+                          className="material-symbols-outlined !text-[18px] text-emerald-600"
                           aria-hidden="true"
                         >
                           check_circle
@@ -392,16 +400,20 @@ export default function PortalView({ onNavigate }: PortalViewProps) {
             </ol>
           </aside>
 
-          {/* Right: The form (2-column on desktop, labelled inputs) */}
-          <div className="rounded-[12px] border border-gray-200 bg-white p-6">
+          {/* Right: Application form card */}
+          <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-[0_2px_12px_rgba(15,23,42,0.04)] sm:p-7">
             {/* ACCOUNT MODE PAGE 1 (only reachable via ?mode=account) */}
             {accountMode && page === 1 && (
-              <section className="space-y-4">
-                <h2 className="text-[24px] font-bold text-gray-900">Create Applicant Account</h2>
+              <section className="space-y-5">
+                <div className="border-b border-slate-200/80 pb-4">
+                  <h2 className="font-display text-[22px] font-bold text-slate-950">
+                    Create Applicant Account
+                  </h2>
+                </div>
                 {!accountCreated ? (
                   <form onSubmit={handleRegister} className="grid gap-4 sm:grid-cols-2">
                     <div>
-                      <label htmlFor="p-name" className="block text-[14px] font-medium text-gray-900">
+                      <label htmlFor="p-name" className="block text-[13px] font-semibold text-slate-700">
                         Full name
                       </label>
                       <input
@@ -410,11 +422,11 @@ export default function PortalView({ onNavigate }: PortalViewProps) {
                         required
                         value={fullName}
                         onChange={(e) => setFullName(e.target.value)}
-                        className="mt-1 h-11 w-full rounded-[8px] border border-gray-300 px-3 text-[16px]"
+                        className={INPUT_CLASS}
                       />
                     </div>
                     <div>
-                      <label htmlFor="p-email" className="block text-[14px] font-medium text-gray-900">
+                      <label htmlFor="p-email" className="block text-[13px] font-semibold text-slate-700">
                         Email address
                       </label>
                       <input
@@ -423,11 +435,11 @@ export default function PortalView({ onNavigate }: PortalViewProps) {
                         required
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
-                        className="mt-1 h-11 w-full rounded-[8px] border border-gray-300 px-3 text-[16px]"
+                        className={INPUT_CLASS}
                       />
                     </div>
                     <div>
-                      <label htmlFor="p-phone" className="block text-[14px] font-medium text-gray-900">
+                      <label htmlFor="p-phone" className="block text-[13px] font-semibold text-slate-700">
                         Phone number
                       </label>
                       <input
@@ -436,11 +448,11 @@ export default function PortalView({ onNavigate }: PortalViewProps) {
                         required
                         value={phone}
                         onChange={(e) => setPhone(e.target.value)}
-                        className="mt-1 h-11 w-full rounded-[8px] border border-gray-300 px-3 text-[16px]"
+                        className={INPUT_CLASS}
                       />
                     </div>
                     <div>
-                      <label htmlFor="p-pass" className="block text-[14px] font-medium text-gray-900">
+                      <label htmlFor="p-pass" className="block text-[13px] font-semibold text-slate-700">
                         Portal password
                       </label>
                       <input
@@ -450,14 +462,14 @@ export default function PortalView({ onNavigate }: PortalViewProps) {
                         minLength={8}
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
-                        className="mt-1 h-11 w-full rounded-[8px] border border-gray-300 px-3 text-[16px]"
+                        className={INPUT_CLASS}
                       />
                     </div>
                     <div className="sm:col-span-2">
                       <button
                         type="submit"
                         disabled={busy}
-                        className="inline-flex h-11 items-center rounded-[8px] bg-[#1A73E8] px-5 text-[16px] font-semibold text-white hover:bg-[#1557B0]"
+                        className="inline-flex h-11 items-center rounded-full bg-[#2563EB] px-6 text-[15px] font-semibold text-white shadow-xs transition hover:bg-[#1D4ED8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] disabled:opacity-50"
                       >
                         {busy ? 'Creating...' : 'Create account'}
                       </button>
@@ -466,7 +478,7 @@ export default function PortalView({ onNavigate }: PortalViewProps) {
                 ) : (
                   <form onSubmit={handleVerifyEmail} className="space-y-4">
                     <div>
-                      <label htmlFor="p-code" className="block text-[14px] font-medium text-gray-900">
+                      <label htmlFor="p-code" className="block text-[13px] font-semibold text-slate-700">
                         6-digit email code
                       </label>
                       <input
@@ -475,15 +487,15 @@ export default function PortalView({ onNavigate }: PortalViewProps) {
                         required
                         value={verificationCode}
                         onChange={(e) => setVerificationCode(e.target.value)}
-                        className="mt-1 h-11 w-full rounded-[8px] border border-gray-300 px-3 font-mono text-[16px]"
+                        className={`${INPUT_CLASS} font-mono`}
                       />
                     </div>
                     <button
                       type="submit"
                       disabled={busy}
-                      className="inline-flex h-11 items-center rounded-[8px] bg-[#1A73E8] px-5 text-[16px] font-semibold text-white hover:bg-[#1557B0]"
+                      className="inline-flex h-11 items-center rounded-full bg-[#2563EB] px-6 text-[15px] font-semibold text-white shadow-xs transition hover:bg-[#1D4ED8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] disabled:opacity-50"
                     >
-                      Verify &amp; continue
+                      Continue
                     </button>
                   </form>
                 )}
@@ -492,17 +504,22 @@ export default function PortalView({ onNavigate }: PortalViewProps) {
 
             {/* STEP 1 (page 2): PERSONAL DETAILS */}
             {page === 2 && (
-              <section className="space-y-5">
-                <div className="border-b border-gray-200 pb-3">
-                  <h2 className="text-[24px] font-bold text-gray-900">Step 1: Personal Details</h2>
-                  <p className="text-[14px] text-gray-600">
-                    Matches the identity details on your passport.
+              <section className="space-y-6">
+                <div className="border-b border-slate-200/80 pb-4">
+                  <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-[12px] font-semibold text-slate-600">
+                    Section 1 of 6
+                  </span>
+                  <h2 className="mt-2 font-display text-[22px] font-bold tracking-tight text-slate-950">
+                    Step 1: Personal Details
+                  </h2>
+                  <p className="mt-0.5 text-[14px] text-slate-600">
+                    Pre-filled from your checked documents to match your passport details.
                   </p>
                 </div>
 
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div>
-                    <label htmlFor="p2-name" className="block text-[14px] font-medium text-gray-900">
+                    <label htmlFor="p2-name" className="block text-[13px] font-semibold text-slate-700">
                       Full legal name
                     </label>
                     <input
@@ -510,11 +527,11 @@ export default function PortalView({ onNavigate }: PortalViewProps) {
                       type="text"
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
-                      className="mt-1 h-11 w-full rounded-[8px] border border-gray-300 px-3 text-[16px]"
+                      className={INPUT_CLASS}
                     />
                   </div>
                   <div>
-                    <label htmlFor="p2-dob" className="block text-[14px] font-medium text-gray-900">
+                    <label htmlFor="p2-dob" className="block text-[13px] font-semibold text-slate-700">
                       Date of birth
                     </label>
                     <input
@@ -522,11 +539,11 @@ export default function PortalView({ onNavigate }: PortalViewProps) {
                       type="date"
                       value={dob}
                       onChange={(e) => setDob(e.target.value)}
-                      className="mt-1 h-11 w-full rounded-[8px] border border-gray-300 px-3 text-[16px]"
+                      className={INPUT_CLASS}
                     />
                   </div>
                   <div>
-                    <label htmlFor="p2-nat" className="block text-[14px] font-medium text-gray-900">
+                    <label htmlFor="p2-nat" className="block text-[13px] font-semibold text-slate-700">
                       Country of nationality
                     </label>
                     <input
@@ -534,11 +551,11 @@ export default function PortalView({ onNavigate }: PortalViewProps) {
                       type="text"
                       value={nationality}
                       onChange={(e) => setNationality(e.target.value)}
-                      className="mt-1 h-11 w-full rounded-[8px] border border-gray-300 px-3 text-[16px]"
+                      className={INPUT_CLASS}
                     />
                   </div>
                   <div>
-                    <label htmlFor="p2-pass4" className="block text-[14px] font-medium text-gray-900">
+                    <label htmlFor="p2-pass4" className="block text-[13px] font-semibold text-slate-700">
                       Passport number (last 4 digits)
                     </label>
                     <input
@@ -547,19 +564,19 @@ export default function PortalView({ onNavigate }: PortalViewProps) {
                       value={passportLast4}
                       onChange={(e) => setPassportLast4(e.target.value)}
                       placeholder="e.g. ****9103"
-                      className="mt-1 h-11 w-full rounded-[8px] border border-gray-300 px-3 text-[16px]"
+                      className={INPUT_CLASS}
                     />
                   </div>
                 </div>
 
-                <div className="flex justify-end border-t border-gray-200 pt-4">
+                <div className="flex justify-end border-t border-slate-200/80 pt-5">
                   <button
                     type="button"
                     disabled={busy}
                     onClick={() => void saveDraftAndAdvance(3)}
-                    className="inline-flex h-11 items-center gap-1.5 rounded-[8px] bg-[#1A73E8] px-5 text-[16px] font-semibold text-white hover:bg-[#1557B0]"
+                    className="inline-flex h-11 items-center gap-1.5 rounded-full bg-[#2563EB] px-6 text-[15px] font-semibold text-white shadow-xs transition hover:bg-[#1D4ED8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] disabled:opacity-50"
                   >
-                    <span>Save &amp; continue</span>
+                    <span>Save &amp; Continue</span>
                     <span className="material-symbols-outlined !text-[18px]" aria-hidden="true">
                       arrow_forward
                     </span>
@@ -570,35 +587,40 @@ export default function PortalView({ onNavigate }: PortalViewProps) {
 
             {/* STEP 2 (page 3): ACADEMICS */}
             {page === 3 && (
-              <section className="space-y-5">
-                <div className="border-b border-gray-200 pb-3">
-                  <h2 className="text-[24px] font-bold text-gray-900">Step 2: Academics</h2>
-                  <p className="text-[14px] text-gray-600">
-                    Undergraduate degree and chosen postgraduate course.
+              <section className="space-y-6">
+                <div className="border-b border-slate-200/80 pb-4">
+                  <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-[12px] font-semibold text-slate-600">
+                    Section 2 of 6
+                  </span>
+                  <h2 className="mt-2 font-display text-[22px] font-bold tracking-tight text-slate-950">
+                    Step 2: Academics
+                  </h2>
+                  <p className="mt-0.5 text-[14px] text-slate-600">
+                    Undergraduate degree record and selected postgraduate programme.
                   </p>
                 </div>
 
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="relative sm:col-span-2">
-                    <span className="block text-[14px] font-medium text-gray-900">
+                    <span className="block text-[13px] font-semibold text-slate-700">
                       Target degree course
                     </span>
                     <button
                       type="button"
                       aria-haspopup="listbox"
-                      aria-expanded={dropdownOpen}
-                      onClick={() => setDropdownOpen((o) => !o)}
-                      className="mt-1 flex h-11 w-full items-center justify-between rounded-[8px] border border-gray-300 bg-white px-3 text-left text-[16px]"
+                      aria-expanded={menuOpen}
+                      onClick={() => setMenuOpen((o) => !o)}
+                      className="mt-1.5 flex h-11 w-full items-center justify-between rounded-xl border border-slate-300 bg-white px-3.5 text-left text-[15px] text-slate-950 transition hover:border-slate-400 focus:border-[#2563EB] focus:outline-none focus:ring-2 focus:ring-[#2563EB]/25"
                     >
                       <span>{selectedProgram || 'Select a course...'}</span>
-                      <span className="material-symbols-outlined !text-[18px]" aria-hidden="true">
+                      <span className="material-symbols-outlined !text-[18px] text-slate-500" aria-hidden="true">
                         expand_more
                       </span>
                     </button>
-                    {dropdownOpen && (
+                    {menuOpen && (
                       <ul
                         role="listbox"
-                        className="absolute z-20 mt-1 w-full rounded-[8px] border border-gray-200 bg-white py-1 shadow-lg"
+                        className="absolute z-20 mt-1.5 w-full overflow-hidden rounded-2xl border border-slate-200 bg-white py-1.5 shadow-lg"
                       >
                         {PROGRAM_OPTIONS.map((opt) => (
                           <li key={opt}>
@@ -608,9 +630,13 @@ export default function PortalView({ onNavigate }: PortalViewProps) {
                               aria-selected={selectedProgram === opt}
                               onClick={() => {
                                 setSelectedProgram(opt);
-                                setDropdownOpen(false);
+                                setMenuOpen(false);
                               }}
-                              className="block w-full px-3 py-2 text-left text-[16px] hover:bg-gray-50"
+                              className={`block w-full px-4 py-2.5 text-left text-[15px] transition ${
+                                selectedProgram === opt
+                                  ? 'bg-blue-50 font-semibold text-[#2563EB]'
+                                  : 'text-slate-900 hover:bg-[#FAF9F6]'
+                              }`}
                             >
                               {opt}
                             </button>
@@ -621,7 +647,7 @@ export default function PortalView({ onNavigate }: PortalViewProps) {
                   </div>
 
                   <div>
-                    <label htmlFor="p3-uni" className="block text-[14px] font-medium text-gray-900">
+                    <label htmlFor="p3-uni" className="block text-[13px] font-semibold text-slate-700">
                       Undergraduate university
                     </label>
                     <input
@@ -629,11 +655,11 @@ export default function PortalView({ onNavigate }: PortalViewProps) {
                       type="text"
                       value={university}
                       onChange={(e) => setUniversity(e.target.value)}
-                      className="mt-1 h-11 w-full rounded-[8px] border border-gray-300 px-3 text-[16px]"
+                      className={INPUT_CLASS}
                     />
                   </div>
                   <div>
-                    <label htmlFor="p3-deg" className="block text-[14px] font-medium text-gray-900">
+                    <label htmlFor="p3-deg" className="block text-[13px] font-semibold text-slate-700">
                       Degree title
                     </label>
                     <input
@@ -641,11 +667,11 @@ export default function PortalView({ onNavigate }: PortalViewProps) {
                       type="text"
                       value={degree}
                       onChange={(e) => setDegree(e.target.value)}
-                      className="mt-1 h-11 w-full rounded-[8px] border border-gray-300 px-3 text-[16px]"
+                      className={INPUT_CLASS}
                     />
                   </div>
                   <div>
-                    <label htmlFor="p3-cgpa" className="block text-[14px] font-medium text-gray-900">
+                    <label htmlFor="p3-cgpa" className="block text-[13px] font-semibold text-slate-700">
                       CGPA / score
                     </label>
                     <input
@@ -653,11 +679,11 @@ export default function PortalView({ onNavigate }: PortalViewProps) {
                       type="text"
                       value={cgpa}
                       onChange={(e) => setCgpa(e.target.value)}
-                      className="mt-1 h-11 w-full rounded-[8px] border border-gray-300 px-3 text-[16px]"
+                      className={INPUT_CLASS}
                     />
                   </div>
                   <div>
-                    <label htmlFor="p3-scale" className="block text-[14px] font-medium text-gray-900">
+                    <label htmlFor="p3-scale" className="block text-[13px] font-semibold text-slate-700">
                       Grading scale
                     </label>
                     <input
@@ -665,11 +691,11 @@ export default function PortalView({ onNavigate }: PortalViewProps) {
                       type="text"
                       value={cgpaScale}
                       onChange={(e) => setCgpaScale(e.target.value)}
-                      className="mt-1 h-11 w-full rounded-[8px] border border-gray-300 px-3 text-[16px]"
+                      className={INPUT_CLASS}
                     />
                   </div>
                   <div>
-                    <label htmlFor="p3-backlogs" className="block text-[14px] font-medium text-gray-900">
+                    <label htmlFor="p3-backlogs" className="block text-[13px] font-semibold text-slate-700">
                       Active backlogs
                     </label>
                     <input
@@ -678,11 +704,11 @@ export default function PortalView({ onNavigate }: PortalViewProps) {
                       min="0"
                       value={backlogs}
                       onChange={(e) => setBacklogs(e.target.value)}
-                      className="mt-1 h-11 w-full rounded-[8px] border border-gray-300 px-3 text-[16px]"
+                      className={INPUT_CLASS}
                     />
                   </div>
                   <div>
-                    <label htmlFor="p3-grad" className="block text-[14px] font-medium text-gray-900">
+                    <label htmlFor="p3-grad" className="block text-[13px] font-semibold text-slate-700">
                       Graduation date
                     </label>
                     <input
@@ -690,19 +716,19 @@ export default function PortalView({ onNavigate }: PortalViewProps) {
                       type="date"
                       value={graduationDate}
                       onChange={(e) => setGraduationDate(e.target.value)}
-                      className="mt-1 h-11 w-full rounded-[8px] border border-gray-300 px-3 text-[16px]"
+                      className={INPUT_CLASS}
                     />
                   </div>
                 </div>
 
-                <div className="flex justify-end border-t border-gray-200 pt-4">
+                <div className="flex justify-end border-t border-slate-200/80 pt-5">
                   <button
                     type="button"
                     disabled={busy}
                     onClick={() => void saveDraftAndAdvance(4)}
-                    className="inline-flex h-11 items-center gap-1.5 rounded-[8px] bg-[#1A73E8] px-5 text-[16px] font-semibold text-white hover:bg-[#1557B0]"
+                    className="inline-flex h-11 items-center gap-1.5 rounded-full bg-[#2563EB] px-6 text-[15px] font-semibold text-white shadow-xs transition hover:bg-[#1D4ED8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] disabled:opacity-50"
                   >
-                    <span>Save &amp; continue</span>
+                    <span>Save &amp; Continue</span>
                     <span className="material-symbols-outlined !text-[18px]" aria-hidden="true">
                       arrow_forward
                     </span>
@@ -713,19 +739,22 @@ export default function PortalView({ onNavigate }: PortalViewProps) {
 
             {/* STEP 3 (page 4): ENGLISH */}
             {page === 4 && (
-              <section className="space-y-5">
-                <div className="border-b border-gray-200 pb-3">
-                  <h2 className="text-[24px] font-bold text-gray-900">
+              <section className="space-y-6">
+                <div className="border-b border-slate-200/80 pb-4">
+                  <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-[12px] font-semibold text-slate-600">
+                    Section 3 of 6
+                  </span>
+                  <h2 className="mt-2 font-display text-[22px] font-bold tracking-tight text-slate-950">
                     Step 3: English Proficiency
                   </h2>
-                  <p className="text-[14px] text-gray-600">
+                  <p className="mt-0.5 text-[14px] text-slate-600">
                     English language qualification details.
                   </p>
                 </div>
 
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div>
-                    <label htmlFor="p-eng-type" className="block text-[14px] font-medium text-gray-900">
+                    <label htmlFor="p-eng-type" className="block text-[13px] font-semibold text-slate-700">
                       Test type
                     </label>
                     <input
@@ -733,11 +762,11 @@ export default function PortalView({ onNavigate }: PortalViewProps) {
                       type="text"
                       value={englishTestType}
                       onChange={(e) => setEnglishTestType(e.target.value)}
-                      className="mt-1 h-11 w-full rounded-[8px] border border-gray-300 px-3 text-[16px]"
+                      className={INPUT_CLASS}
                     />
                   </div>
                   <div>
-                    <label htmlFor="p-eng-overall" className="block text-[14px] font-medium text-gray-900">
+                    <label htmlFor="p-eng-overall" className="block text-[13px] font-semibold text-slate-700">
                       Overall band / score
                     </label>
                     <input
@@ -745,11 +774,11 @@ export default function PortalView({ onNavigate }: PortalViewProps) {
                       type="text"
                       value={englishOverallScore}
                       onChange={(e) => setEnglishOverallScore(e.target.value)}
-                      className="mt-1 h-11 w-full rounded-[8px] border border-gray-300 px-3 text-[16px]"
+                      className={INPUT_CLASS}
                     />
                   </div>
                   <div>
-                    <label htmlFor="p-eng-writing" className="block text-[14px] font-medium text-gray-900">
+                    <label htmlFor="p-eng-writing" className="block text-[13px] font-semibold text-slate-700">
                       Writing score
                     </label>
                     <input
@@ -757,11 +786,11 @@ export default function PortalView({ onNavigate }: PortalViewProps) {
                       type="text"
                       value={englishWritingScore}
                       onChange={(e) => setEnglishWritingScore(e.target.value)}
-                      className="mt-1 h-11 w-full rounded-[8px] border border-gray-300 px-3 text-[16px]"
+                      className={INPUT_CLASS}
                     />
                   </div>
                   <div>
-                    <label htmlFor="p-eng-date" className="block text-[14px] font-medium text-gray-900">
+                    <label htmlFor="p-eng-date" className="block text-[13px] font-semibold text-slate-700">
                       Test date
                     </label>
                     <input
@@ -769,19 +798,19 @@ export default function PortalView({ onNavigate }: PortalViewProps) {
                       type="date"
                       value={englishTestDate}
                       onChange={(e) => setEnglishTestDate(e.target.value)}
-                      className="mt-1 h-11 w-full rounded-[8px] border border-gray-300 px-3 text-[16px]"
+                      className={INPUT_CLASS}
                     />
                   </div>
                 </div>
 
-                <div className="flex justify-end border-t border-gray-200 pt-4">
+                <div className="flex justify-end border-t border-slate-200/80 pt-5">
                   <button
                     type="button"
                     disabled={busy}
                     onClick={() => void saveDraftAndAdvance(5)}
-                    className="inline-flex h-11 items-center gap-1.5 rounded-[8px] bg-[#1A73E8] px-5 text-[16px] font-semibold text-white hover:bg-[#1557B0]"
+                    className="inline-flex h-11 items-center gap-1.5 rounded-full bg-[#2563EB] px-6 text-[15px] font-semibold text-white shadow-xs transition hover:bg-[#1D4ED8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] disabled:opacity-50"
                   >
-                    <span>Save &amp; continue</span>
+                    <span>Save &amp; Continue</span>
                     <span className="material-symbols-outlined !text-[18px]" aria-hidden="true">
                       arrow_forward
                     </span>
@@ -792,17 +821,22 @@ export default function PortalView({ onNavigate }: PortalViewProps) {
 
             {/* STEP 4 (page 5): FUNDING */}
             {page === 5 && (
-              <section className="space-y-5">
-                <div className="border-b border-gray-200 pb-3">
-                  <h2 className="text-[24px] font-bold text-gray-900">Step 4: Funding</h2>
-                  <p className="text-[14px] text-gray-600">
+              <section className="space-y-6">
+                <div className="border-b border-slate-200/80 pb-4">
+                  <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-[12px] font-semibold text-slate-600">
+                    Section 4 of 6
+                  </span>
+                  <h2 className="mt-2 font-display text-[22px] font-bold tracking-tight text-slate-950">
+                    Step 4: Funding
+                  </h2>
+                  <p className="mt-0.5 text-[14px] text-slate-600">
                     Financial evidence for tuition and living costs.
                   </p>
                 </div>
 
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div>
-                    <label htmlFor="p4-bal" className="block text-[14px] font-medium text-gray-900">
+                    <label htmlFor="p4-bal" className="block text-[13px] font-semibold text-slate-700">
                       Bank balance
                     </label>
                     <input
@@ -810,11 +844,11 @@ export default function PortalView({ onNavigate }: PortalViewProps) {
                       type="text"
                       value={bankBalance}
                       onChange={(e) => setBankBalance(e.target.value)}
-                      className="mt-1 h-11 w-full rounded-[8px] border border-gray-300 px-3 text-[16px]"
+                      className={INPUT_CLASS}
                     />
                   </div>
                   <div>
-                    <label htmlFor="p4-curr" className="block text-[14px] font-medium text-gray-900">
+                    <label htmlFor="p4-curr" className="block text-[13px] font-semibold text-slate-700">
                       Currency
                     </label>
                     <input
@@ -822,11 +856,11 @@ export default function PortalView({ onNavigate }: PortalViewProps) {
                       type="text"
                       value={currency}
                       onChange={(e) => setCurrency(e.target.value)}
-                      className="mt-1 h-11 w-full rounded-[8px] border border-gray-300 px-3 text-[16px]"
+                      className={INPUT_CLASS}
                     />
                   </div>
                   <div>
-                    <label htmlFor="p4-loan" className="block text-[14px] font-medium text-gray-900">
+                    <label htmlFor="p4-loan" className="block text-[13px] font-semibold text-slate-700">
                       Education loan amount
                     </label>
                     <input
@@ -834,11 +868,11 @@ export default function PortalView({ onNavigate }: PortalViewProps) {
                       type="text"
                       value={loanAmount}
                       onChange={(e) => setLoanAmount(e.target.value)}
-                      className="mt-1 h-11 w-full rounded-[8px] border border-gray-300 px-3 text-[16px]"
+                      className={INPUT_CLASS}
                     />
                   </div>
                   <div>
-                    <label htmlFor="p4-spon" className="block text-[14px] font-medium text-gray-900">
+                    <label htmlFor="p4-spon" className="block text-[13px] font-semibold text-slate-700">
                       Funding source
                     </label>
                     <input
@@ -846,19 +880,19 @@ export default function PortalView({ onNavigate }: PortalViewProps) {
                       type="text"
                       value={sponsor}
                       onChange={(e) => setSponsor(e.target.value)}
-                      className="mt-1 h-11 w-full rounded-[8px] border border-gray-300 px-3 text-[16px]"
+                      className={INPUT_CLASS}
                     />
                   </div>
                 </div>
 
-                <div className="flex justify-end border-t border-gray-200 pt-4">
+                <div className="flex justify-end border-t border-slate-200/80 pt-5">
                   <button
                     type="button"
                     disabled={busy}
                     onClick={() => void saveDraftAndAdvance(6)}
-                    className="inline-flex h-11 items-center gap-1.5 rounded-[8px] bg-[#1A73E8] px-5 text-[16px] font-semibold text-white hover:bg-[#1557B0]"
+                    className="inline-flex h-11 items-center gap-1.5 rounded-full bg-[#2563EB] px-6 text-[15px] font-semibold text-white shadow-xs transition hover:bg-[#1D4ED8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] disabled:opacity-50"
                   >
-                    <span>Save &amp; continue</span>
+                    <span>Save &amp; Continue</span>
                     <span className="material-symbols-outlined !text-[18px]" aria-hidden="true">
                       arrow_forward
                     </span>
@@ -869,34 +903,42 @@ export default function PortalView({ onNavigate }: PortalViewProps) {
 
             {/* STEP 5 (page 6): DOCUMENTS */}
             {page === 6 && (
-              <section className="space-y-5">
-                <div className="border-b border-gray-200 pb-3">
-                  <h2 className="text-[24px] font-bold text-gray-900">Step 5: Documents</h2>
-                  <p className="text-[14px] text-gray-600">
+              <section className="space-y-6">
+                <div className="border-b border-slate-200/80 pb-4">
+                  <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-[12px] font-semibold text-slate-600">
+                    Section 5 of 6
+                  </span>
+                  <h2 className="mt-2 font-display text-[22px] font-bold tracking-tight text-slate-950">
+                    Step 5: Documents
+                  </h2>
+                  <p className="mt-0.5 text-[14px] text-slate-600">
                     Supporting academic and financial documents.
                   </p>
                 </div>
 
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="sm:col-span-2">
-                    <label htmlFor="p5-file" className="block text-[14px] font-medium text-gray-900">
+                    <label htmlFor="p5-file" className="block text-[13px] font-semibold text-slate-700">
                       Attached document packet
                     </label>
                     <input
                       id="p5-file"
                       type="file"
                       onChange={(e) => setDocFileName(e.target.files?.[0]?.name || docFileName)}
-                      className="mt-1 block w-full rounded-[8px] border border-gray-300 bg-gray-50 p-2.5 text-[14px]"
+                      className="mt-1.5 block w-full rounded-xl border border-slate-300 bg-[#FAF9F6] p-3 text-[14px] text-slate-700 file:mr-3 file:rounded-full file:border-0 file:bg-slate-900 file:px-4 file:py-1.5 file:text-[13px] file:font-semibold file:text-white hover:file:bg-slate-800"
                     />
                     {docFileName && (
-                      <p className="mt-1.5 text-[14px] text-[#188038]">
-                        Current file: {docFileName}
+                      <p className="mt-2 inline-flex items-center gap-1.5 text-[13px] font-semibold text-emerald-700">
+                        <span className="material-symbols-outlined !text-[16px]" aria-hidden="true">
+                          check_circle
+                        </span>
+                        <span>Current file: {docFileName}</span>
                       </p>
                     )}
                   </div>
 
                   <div className="sm:col-span-2">
-                    <label htmlFor="p6-sig" className="block text-[14px] font-medium text-gray-900">
+                    <label htmlFor="p6-sig" className="block text-[13px] font-semibold text-slate-700">
                       Applicant declaration name
                     </label>
                     <input
@@ -904,19 +946,19 @@ export default function PortalView({ onNavigate }: PortalViewProps) {
                       type="text"
                       value={declarationName}
                       onChange={(e) => setDeclarationName(e.target.value)}
-                      className="mt-1 h-11 w-full rounded-[8px] border border-gray-300 px-3 text-[16px]"
+                      className={INPUT_CLASS}
                     />
                   </div>
                 </div>
 
-                <div className="flex justify-end border-t border-gray-200 pt-4">
+                <div className="flex justify-end border-t border-slate-200/80 pt-5">
                   <button
                     type="button"
                     disabled={busy}
                     onClick={() => void saveDraftAndAdvance(7)}
-                    className="inline-flex h-11 items-center gap-1.5 rounded-[8px] bg-[#1A73E8] px-5 text-[16px] font-semibold text-white hover:bg-[#1557B0]"
+                    className="inline-flex h-11 items-center gap-1.5 rounded-full bg-[#2563EB] px-6 text-[15px] font-semibold text-white shadow-xs transition hover:bg-[#1D4ED8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] disabled:opacity-50"
                   >
-                    <span>Continue to Submit</span>
+                    <span>Save &amp; Continue</span>
                     <span className="material-symbols-outlined !text-[18px]" aria-hidden="true">
                       arrow_forward
                     </span>
@@ -927,59 +969,75 @@ export default function PortalView({ onNavigate }: PortalViewProps) {
 
             {/* STEP 6 (page 7): SUBMIT */}
             {page === 7 && (
-              <section className="space-y-5">
-                <div className="border-b border-gray-200 pb-3">
-                  <h2 className="text-[24px] font-bold text-gray-900">
+              <section className="space-y-6">
+                <div className="border-b border-slate-200/80 pb-4">
+                  <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-[12px] font-semibold text-slate-600">
+                    Section 6 of 6
+                  </span>
+                  <h2 className="mt-2 font-display text-[22px] font-bold tracking-tight text-slate-950">
                     Step 6: Final Review &amp; Submit
                   </h2>
-                  <p className="text-[14px] text-gray-600">
-                    Review your details and enter your counselor approval to submit.
+                  <p className="mt-0.5 text-[14px] text-slate-600">
+                    Confirm your details and provide the one-time counselor approval token to
+                    submit.
                   </p>
                 </div>
 
                 {/* Lock banner */}
-                <div className="flex items-center gap-3 rounded-[8px] border border-gray-200 bg-gray-50 px-4 py-3 text-[14px] font-medium text-gray-900">
-                  <span className="material-symbols-outlined text-[#1A73E8]" aria-hidden="true">
+                <div className="flex items-center gap-3 rounded-xl border border-slate-200/80 bg-[#FAF9F6] px-4 py-3 text-[14px] font-medium text-slate-800">
+                  <span className="material-symbols-outlined !text-[20px] text-[#2563EB]" aria-hidden="true">
                     lock
                   </span>
                   <span>Submit unlocks with a one-time counselor approval</span>
                 </div>
 
                 {/* 2-column summary */}
-                <dl className="grid gap-4 border-y border-gray-200 py-4 text-[14px] sm:grid-cols-2">
+                <dl className="grid gap-4 rounded-2xl border border-slate-200/80 bg-[#FAF9F6] p-5 text-[14px] sm:grid-cols-2">
                   <div>
-                    <dt className="text-gray-600">Applicant</dt>
-                    <dd className="mt-0.5 text-[16px] font-semibold text-gray-900">
+                    <dt className="text-[12px] font-semibold uppercase tracking-wide text-slate-500">
+                      Applicant
+                    </dt>
+                    <dd className="mt-0.5 text-[15px] font-semibold text-slate-950">
                       {fullName || '—'}
                     </dd>
                   </div>
                   <div>
-                    <dt className="text-gray-600">Email</dt>
-                    <dd className="mt-0.5 text-[16px] font-semibold text-gray-900">
+                    <dt className="text-[12px] font-semibold uppercase tracking-wide text-slate-500">
+                      Email
+                    </dt>
+                    <dd className="mt-0.5 text-[15px] font-semibold text-slate-950">
                       {email || '—'}
                     </dd>
                   </div>
                   <div>
-                    <dt className="text-gray-600">Course</dt>
-                    <dd className="mt-0.5 text-[16px] font-semibold text-gray-900">
+                    <dt className="text-[12px] font-semibold uppercase tracking-wide text-slate-500">
+                      Course
+                    </dt>
+                    <dd className="mt-0.5 text-[15px] font-semibold text-slate-950">
                       {selectedProgram || '—'}
                     </dd>
                   </div>
                   <div>
-                    <dt className="text-gray-600">Undergraduate / CGPA</dt>
-                    <dd className="mt-0.5 text-[16px] font-semibold text-gray-900">
+                    <dt className="text-[12px] font-semibold uppercase tracking-wide text-slate-500">
+                      Undergraduate / CGPA
+                    </dt>
+                    <dd className="mt-0.5 text-[15px] font-semibold text-slate-950">
                       {university || '—'} ({cgpa || '—'}/{cgpaScale})
                     </dd>
                   </div>
                   <div>
-                    <dt className="text-gray-600">English score</dt>
-                    <dd className="mt-0.5 text-[16px] font-semibold text-gray-900">
+                    <dt className="text-[12px] font-semibold uppercase tracking-wide text-slate-500">
+                      English score
+                    </dt>
+                    <dd className="mt-0.5 text-[15px] font-semibold text-slate-950">
                       {englishTestType} {englishOverallScore}
                     </dd>
                   </div>
                   <div>
-                    <dt className="text-gray-600">Funding</dt>
-                    <dd className="mt-0.5 text-[16px] font-semibold text-gray-900">
+                    <dt className="text-[12px] font-semibold uppercase tracking-wide text-slate-500">
+                      Funding
+                    </dt>
+                    <dd className="mt-0.5 text-[15px] font-semibold text-slate-950">
                       {currency.toUpperCase() === 'INR'
                         ? `${formatRupees(Number(bankBalance) || 0)} (Loan: ${formatRupees(Number(loanAmount) || 0)})`
                         : `${currency} ${bankBalance || '0'} (Loan: ${loanAmount || '0'})`}
@@ -992,7 +1050,7 @@ export default function PortalView({ onNavigate }: PortalViewProps) {
                   <div>
                     <label
                       htmlFor="p7-tok"
-                      className="block text-[14px] font-semibold text-gray-900"
+                      className="block text-[13px] font-semibold text-slate-700"
                     >
                       Counselor approval code
                     </label>
@@ -1005,14 +1063,14 @@ export default function PortalView({ onNavigate }: PortalViewProps) {
                         setSubmitError(null);
                       }}
                       placeholder="Paste one-time counselor approval code"
-                      className="mt-1 h-11 w-full rounded-[8px] border border-gray-300 px-3 font-mono text-[14px] text-gray-900 focus:border-[#1A73E8] focus:outline-none focus:ring-2 focus:ring-[#1A73E8]/30"
+                      className="mt-1.5 h-11 w-full rounded-xl border border-slate-300 bg-white px-3.5 font-mono text-[14px] text-slate-950 placeholder:text-slate-400 transition focus:border-[#2563EB] focus:outline-none focus:ring-2 focus:ring-[#2563EB]/25"
                     />
                   </div>
 
                   <div>
                     <label
                       htmlFor="p7-case"
-                      className="block text-[14px] font-semibold text-gray-900"
+                      className="block text-[13px] font-semibold text-slate-700"
                     >
                       Application reference
                     </label>
@@ -1025,7 +1083,7 @@ export default function PortalView({ onNavigate }: PortalViewProps) {
                         setSubmitError(null);
                       }}
                       placeholder="case_..."
-                      className="mt-1 h-11 w-full rounded-[8px] border border-gray-300 px-3 font-mono text-[14px] text-gray-900 focus:border-[#1A73E8] focus:outline-none focus:ring-2 focus:ring-[#1A73E8]/30"
+                      className="mt-1.5 h-11 w-full rounded-xl border border-slate-300 bg-white px-3.5 font-mono text-[14px] text-slate-950 placeholder:text-slate-400 transition focus:border-[#2563EB] focus:outline-none focus:ring-2 focus:ring-[#2563EB]/25"
                     />
                     {latestApprovedCaseId && caseId !== latestApprovedCaseId && (
                       <button
@@ -1034,7 +1092,7 @@ export default function PortalView({ onNavigate }: PortalViewProps) {
                           setCaseId(latestApprovedCaseId);
                           setSubmitError(null);
                         }}
-                        className="mt-1 text-left text-[14px] font-semibold text-[#1A73E8] underline"
+                        className="mt-1.5 text-left text-[13px] font-semibold text-[#2563EB] underline decoration-blue-300 underline-offset-2 hover:text-[#1D4ED8]"
                       >
                         Use latest approved case
                       </button>
@@ -1045,30 +1103,33 @@ export default function PortalView({ onNavigate }: PortalViewProps) {
                 {submitReceipt ? (
                   <div
                     role="status"
-                    className="rounded-[12px] border border-[#CEEAD6] bg-[#E6F4EA] p-6"
+                    className="rounded-2xl border border-emerald-200 bg-emerald-50 p-6 shadow-[0_2px_12px_rgba(16,185,129,0.08)]"
                   >
-                    <div className="flex items-start gap-3">
-                      <span
-                        className="material-symbols-outlined !text-[28px] text-[#188038]"
-                        aria-hidden="true"
-                      >
-                        check_circle
+                    <div className="flex items-start gap-3.5">
+                      <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700">
+                        <span
+                          className="material-symbols-outlined !text-[26px]"
+                          aria-hidden="true"
+                        >
+                          check_circle
+                        </span>
                       </span>
                       <div className="space-y-1">
-                        <h3 className="text-[24px] font-bold text-gray-900">
+                        <h3 className="font-display text-[22px] font-extrabold tracking-tight text-slate-950">
                           Application Submitted!
                         </h3>
-                        <p className="text-[16px] text-gray-900">
+                        <p className="text-[15px] text-slate-900">
                           Receipt ID:{' '}
-                          <strong className="font-mono font-bold text-[#188038]">
+                          <strong className="font-mono font-bold text-emerald-700">
                             {submitReceipt.submissionId}
                           </strong>
                         </p>
-                        <p className="text-[14px] font-semibold text-gray-900">
+                        <p className="text-[14px] font-semibold text-slate-900">
                           Submitted only after counselor approval.
                         </p>
-                        <p className="text-[14px] text-gray-600">
-                          Approved by <strong>{submitReceipt.approvedBy}</strong> ·{' '}
+                        <p className="text-[13px] text-slate-600">
+                          Approved by <strong>{submitReceipt.approvedBy}</strong>
+                          {' · '}
                           {new Date(submitReceipt.submittedAt).toLocaleString()}
                         </p>
                       </div>
@@ -1079,21 +1140,24 @@ export default function PortalView({ onNavigate }: PortalViewProps) {
                     {submitError && (
                       <div
                         role="alert"
-                        className="flex items-start gap-2.5 rounded-[12px] border border-[#F6AEA9] bg-[#FCE8E6] p-4 text-[14px] font-semibold text-[#D93025]"
+                        className="flex items-start gap-3 rounded-2xl border border-red-300 bg-red-50 p-4 text-[14px] font-semibold text-red-700"
                       >
-                        <span className="material-symbols-outlined !text-[20px]" aria-hidden="true">
+                        <span
+                          className="material-symbols-outlined mt-0.5 !text-[20px] text-red-600"
+                          aria-hidden="true"
+                        >
                           error
                         </span>
                         <p>{submitError}</p>
                       </div>
                     )}
 
-                    <div className="flex justify-end">
+                    <div className="flex justify-end border-t border-slate-200/80 pt-5">
                       <button
                         type="button"
                         disabled={busy}
                         onClick={() => void handleFinalSubmit()}
-                        className="inline-flex h-11 items-center gap-2 rounded-[8px] bg-[#1A73E8] px-6 text-[16px] font-semibold text-white hover:bg-[#1557B0] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1A73E8] disabled:opacity-50"
+                        className="inline-flex h-11 items-center gap-2 rounded-full bg-[#2563EB] px-6 text-[15px] font-semibold text-white shadow-xs transition hover:bg-[#1D4ED8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] disabled:opacity-50"
                       >
                         <span>{busy ? 'Submitting...' : 'Submit Application'}</span>
                       </button>
@@ -1106,8 +1170,9 @@ export default function PortalView({ onNavigate }: PortalViewProps) {
         </div>
       </main>
 
-      <footer className="mt-12 border-t border-gray-200 bg-white px-4 py-6 text-center text-[14px] font-medium text-gray-600 sm:px-6">
-        Built for Indian students going abroad. UK rules live today; more countries next.
+      <footer className="mt-12 border-t border-slate-200/80 bg-white px-4 py-6 text-center text-[14px] font-medium text-slate-600 sm:px-6">
+        Global dreams, zero guesswork. AI prepares every application; a human counselor approves
+        every submit.
       </footer>
     </div>
   );

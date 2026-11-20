@@ -13,7 +13,9 @@ function isTypingElement(el: EventTarget | null): boolean {
     return true;
   }
   return (
-    el.closest('input, textarea, select, [contenteditable="true"], [role="textbox"]') !== null
+    el.closest(
+      'input, textarea, select, [contenteditable]:not([contenteditable="false"]), [role="textbox"]'
+    ) !== null
   );
 }
 
@@ -139,7 +141,6 @@ export default function CounselorView({ onNavigate }: CounselorViewProps) {
     portalUrl: string;
     approvedBy: string;
   } | null>(null);
-  const [approvalModalOpen, setApprovalModalOpen] = useState(false);
 
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const copyTimerRef = useRef<number | null>(null);
@@ -246,7 +247,6 @@ export default function CounselorView({ onNavigate }: CounselorViewProps) {
         portalUrl: data.approvalToken.portalUrl,
         approvedBy: data.approvalToken.approvedBy,
       });
-      setApprovalModalOpen(true);
       setActionMessage(`Approved by ${data.approvalToken.approvedBy}.`);
       await loadQueue(true);
     } catch (err) {
@@ -289,7 +289,7 @@ export default function CounselorView({ onNavigate }: CounselorViewProps) {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Could not save edits.');
-      setActionMessage(`Updated details and re-ran checks.`);
+      setActionMessage('Updated details and re-ran checks.');
       setMode('view');
       await loadQueue(true);
     } catch (err) {
@@ -396,10 +396,10 @@ export default function CounselorView({ onNavigate }: CounselorViewProps) {
   }, [currentCase, handleApproveCurrent, mode, queue]);
 
   return (
-    <div className="flex min-h-screen flex-col bg-white text-gray-900">
+    <div className="flex min-h-screen flex-col bg-[#FAF9F6] text-slate-900">
       <a
         href="#counselor-main"
-        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-[8px] focus:bg-[#1A73E8] focus:px-4 focus:py-2 focus:text-white"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-full focus:bg-[#2563EB] focus:px-4 focus:py-2 focus:text-white"
       >
         Skip to main content
       </a>
@@ -414,99 +414,283 @@ export default function CounselorView({ onNavigate }: CounselorViewProps) {
 
       <main
         id="counselor-main"
-        className="mx-auto w-full max-w-[1120px] flex-1 space-y-6 px-4 py-6 sm:px-6"
+        className="mx-auto w-full max-w-[1200px] flex-1 space-y-6 px-4 py-6 sm:px-6 sm:py-8"
       >
-        <span className="sr-only">Counselor Exception Queue</span>
+        {/* 10x Counselor Admin Workspace Banner */}
+        <section className="rounded-2xl border border-slate-200/80 bg-white px-6 py-5 shadow-[0_2px_12px_rgba(15,23,42,0.04)]">
+          <div className="flex flex-wrap items-center justify-between gap-5">
+            <div className="max-w-2xl space-y-1.5">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-blue-200 bg-blue-50 px-3 py-0.5 text-[12px] font-semibold text-[#2563EB]">
+                  <span className="material-symbols-outlined !text-[15px]" aria-hidden="true">
+                    verified_user
+                  </span>
+                  <span>10x Counselor Admin Workspace</span>
+                </span>
+                <span className="inline-flex items-center rounded-full border border-slate-200 bg-[#FAF9F6] px-3 py-0.5 text-[12px] font-semibold text-slate-600">
+                  Exception Queue
+                </span>
+              </div>
+              <h1 className="font-display text-[24px] font-extrabold tracking-tight text-slate-950 sm:text-[26px]">
+                Calmly review &amp; verify 500+ student applications with 1 counselor
+              </h1>
+              <p className="text-[14px] leading-relaxed text-slate-600">
+                AI audits every packet against official funding and academic rules and escalates
+                only exceptions here. One click issues a single-use approval token before any
+                university submit.
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => void loadQueue(false)}
+                aria-label="Refresh queue"
+                className="inline-flex h-10 items-center gap-1.5 rounded-full border border-slate-300 bg-white px-3.5 text-[13px] font-semibold text-slate-800 shadow-2xs transition hover:border-slate-400 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB]"
+              >
+                <span className="material-symbols-outlined !text-[17px]" aria-hidden="true">
+                  refresh
+                </span>
+                <span>Refresh</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowSettings((v) => !v)}
+                aria-expanded={showSettings}
+                className={`inline-flex h-10 items-center gap-1.5 rounded-full border px-4 text-[13px] font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] ${
+                  showSettings
+                    ? 'border-[#2563EB] bg-blue-50 text-[#2563EB]'
+                    : 'border-slate-300 bg-white text-slate-800 shadow-2xs hover:border-slate-400 hover:bg-slate-50'
+                }`}
+              >
+                <span className="material-symbols-outlined !text-[17px]" aria-hidden="true">
+                  tune
+                </span>
+                <span>Rules</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowAudit((v) => !v)}
+                aria-expanded={showAudit}
+                className={`inline-flex h-10 items-center gap-1.5 rounded-full border px-4 text-[13px] font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] ${
+                  showAudit
+                    ? 'border-[#2563EB] bg-blue-50 text-[#2563EB]'
+                    : 'border-slate-300 bg-white text-slate-800 shadow-2xs hover:border-slate-400 hover:bg-slate-50'
+                }`}
+              >
+                <span className="material-symbols-outlined !text-[17px]" aria-hidden="true">
+                  history
+                </span>
+                <span>Audit Log</span>
+              </button>
+            </div>
+          </div>
+
+          {queue && (
+            <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-slate-200/80 pt-4 text-[13px]">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1 font-semibold text-amber-800">
+                <span className="h-2 w-2 rounded-full bg-amber-500" aria-hidden="true" />
+                <span>
+                  {queue.exceptions.length}{' '}
+                  {queue.exceptions.length === 1 ? 'exception awaiting' : 'exceptions awaiting'}{' '}
+                  review
+                </span>
+              </span>
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 font-semibold text-emerald-700">
+                <span className="h-2 w-2 rounded-full bg-emerald-500" aria-hidden="true" />
+                <span>{queue.greenBatch.length} green batch ready</span>
+              </span>
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 font-semibold text-slate-700">
+                <span>{queue.resolved.length} cleared</span>
+              </span>
+            </div>
+          )}
+        </section>
 
         {actionError && (
           <div
             role="alert"
-            className="rounded-[12px] border border-[#F6AEA9] bg-[#FCE8E6] px-4 py-3 text-[16px] text-[#D93025]"
+            className="flex items-start gap-2.5 rounded-2xl border border-red-300 bg-red-50 px-5 py-3.5 text-[15px] font-medium text-red-700"
           >
-            {actionError}
+            <span className="material-symbols-outlined mt-0.5 !text-[20px]" aria-hidden="true">
+              error
+            </span>
+            <span>{actionError}</span>
           </div>
         )}
 
-        {/* Inline Approval Issued strip (also accessible when modal is closed) */}
-        {lastIssuedToken && !approvalModalOpen && (
-          <div
-            role="status"
-            className="flex flex-wrap items-center justify-between gap-3 rounded-[12px] border border-[#CEEAD6] bg-[#E6F4EA] px-5 py-3.5 text-[14px]"
-          >
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="material-symbols-outlined !text-[18px] text-[#188038]" aria-hidden="true">
-                check_circle
+        {/* Audit Log section (opens inline right below header so it is immediately visible & never blocked) */}
+        {showAudit && queue && (
+          <section className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-[0_2px_12px_rgba(15,23,42,0.04)]">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5">
+                <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 text-slate-700">
+                  <span className="material-symbols-outlined !text-[19px]" aria-hidden="true">
+                    history
+                  </span>
+                </span>
+                <div>
+                  <h3 className="font-display text-[19px] font-bold text-slate-950">Audit Log</h3>
+                  <p className="text-[13px] text-slate-500">
+                    Immutable record of every counselor decision, token issue, and rule edit.
+                  </p>
+                </div>
+              </div>
+              <span className="rounded-full bg-slate-100 px-3 py-1 text-[13px] font-semibold text-slate-700">
+                {queue.auditLog.length} {queue.auditLog.length === 1 ? 'event' : 'events'}
               </span>
-              <span className="font-semibold text-gray-900">Approval issued:</span>
-              <code className="rounded bg-white px-2 py-0.5 font-mono text-[14px] font-semibold text-gray-900">
-                <span className="sr-only">{lastIssuedToken.token}</span>
-                <span aria-hidden="true">{shortTail(lastIssuedToken.token)}</span>
-              </code>
+            </div>
+
+            <ul className="mt-4 divide-y divide-slate-200/80 border-t border-slate-200/80 text-[14px]">
+              {queue.auditLog.map((entry) => (
+                <li key={entry.id} className="py-3.5">
+                  <p className="font-semibold text-slate-900">
+                    {entry.action}
+                    {' · '}
+                    {entry.actor}
+                    {entry.caseId ? ` · ${entry.caseId}` : ''}
+                    {' · '}
+                    <span className="font-mono text-[13px] font-normal text-slate-500">
+                      {new Date(entry.timestamp).toLocaleString()}
+                    </span>
+                  </p>
+                  <p className="mt-1 text-[14px] text-slate-600">
+                    {formatInrInText(entry.details)}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
+        {/* Editable UK rules drawer */}
+        {showSettings && settingsDraft && (
+          <form
+            onSubmit={handleSaveSettings}
+            className="space-y-4 rounded-2xl border border-slate-200/80 bg-white p-6 shadow-[0_2px_12px_rgba(15,23,42,0.04)]"
+          >
+            <div>
+              <h2 className="font-display text-[19px] font-bold text-slate-950">
+                UK rules &amp; exchange rates
+              </h2>
+              <p className="mt-0.5 text-[13px] text-slate-500">
+                Updates apply immediately to all new document checks and counselor re-checks.
+              </p>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-3">
+              <div>
+                <label
+                  htmlFor="set-uk-london"
+                  className="block text-[13px] font-semibold text-slate-700"
+                >
+                  London (GBP/month)
+                </label>
+                <input
+                  id="set-uk-london"
+                  type="number"
+                  value={settingsDraft.ukRules.maintenance.londonPerMonth}
+                  onChange={(e) =>
+                    setSettingsDraft({
+                      ...settingsDraft,
+                      ukRules: {
+                        ...settingsDraft.ukRules,
+                        maintenance: {
+                          ...settingsDraft.ukRules.maintenance,
+                          londonPerMonth: Number(e.target.value),
+                        },
+                      },
+                    })
+                  }
+                  className="mt-1.5 h-11 w-full rounded-xl border border-slate-300 bg-white px-3.5 text-[15px] text-slate-950 focus:border-[#2563EB] focus:outline-none focus:ring-2 focus:ring-[#2563EB]/25"
+                />
+              </div>
+              <div>
+                <label
+                  htmlFor="set-uk-outside"
+                  className="block text-[13px] font-semibold text-slate-700"
+                >
+                  Outside London (GBP/month)
+                </label>
+                <input
+                  id="set-uk-outside"
+                  type="number"
+                  value={settingsDraft.ukRules.maintenance.outsideLondonPerMonth}
+                  onChange={(e) =>
+                    setSettingsDraft({
+                      ...settingsDraft,
+                      ukRules: {
+                        ...settingsDraft.ukRules,
+                        maintenance: {
+                          ...settingsDraft.ukRules.maintenance,
+                          outsideLondonPerMonth: Number(e.target.value),
+                        },
+                      },
+                    })
+                  }
+                  className="mt-1.5 h-11 w-full rounded-xl border border-slate-300 bg-white px-3.5 text-[15px] text-slate-950 focus:border-[#2563EB] focus:outline-none focus:ring-2 focus:ring-[#2563EB]/25"
+                />
+              </div>
+              <div>
+                <label
+                  htmlFor="set-uk-days"
+                  className="block text-[13px] font-semibold text-slate-700"
+                >
+                  28-day holding minimum
+                </label>
+                <input
+                  id="set-uk-days"
+                  type="number"
+                  value={settingsDraft.ukRules.bankStatement.minConsecutiveDaysHeld}
+                  onChange={(e) =>
+                    setSettingsDraft({
+                      ...settingsDraft,
+                      ukRules: {
+                        ...settingsDraft.ukRules,
+                        bankStatement: {
+                          ...settingsDraft.ukRules.bankStatement,
+                          minConsecutiveDaysHeld: Number(e.target.value),
+                        },
+                      },
+                    })
+                  }
+                  className="mt-1.5 h-11 w-full rounded-xl border border-slate-300 bg-white px-3.5 text-[15px] text-slate-950 focus:border-[#2563EB] focus:outline-none focus:ring-2 focus:ring-[#2563EB]/25"
+                />
+              </div>
+            </div>
+            <div className="flex justify-end">
               <button
-                type="button"
-                onClick={() => void handleCopy(lastIssuedToken.token, 'strip-token')}
-                className="inline-flex h-9 items-center gap-1 rounded-[8px] border border-gray-300 bg-white px-3 text-[14px] font-semibold text-gray-900 hover:bg-gray-50"
+                type="submit"
+                disabled={savingSettings}
+                className="inline-flex h-11 items-center rounded-full border border-slate-300 bg-white px-5 text-[14px] font-semibold text-slate-900 shadow-2xs transition hover:border-slate-400 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] disabled:opacity-50"
               >
-                <span>{copiedKey === 'strip-token' ? 'Copied' : 'Copy token'}</span>
+                {savingSettings ? 'Saving...' : 'Save rules'}
               </button>
             </div>
-            <a
-              href={`/portal?caseId=${encodeURIComponent(lastIssuedToken.caseId)}&approvalToken=${encodeURIComponent(lastIssuedToken.token)}`}
-              className="inline-flex h-9 items-center gap-1 rounded-[8px] border border-gray-300 bg-white px-3 text-[14px] font-semibold text-[#1A73E8] hover:bg-gray-50"
-            >
-              <span>Open university portal</span>
-              <span className="material-symbols-outlined !text-[16px]" aria-hidden="true">
-                arrow_forward
-              </span>
-            </a>
-          </div>
+          </form>
         )}
 
         {loadingQueue && !queue ? (
-          <div className="rounded-[12px] border border-gray-200 bg-white p-8 text-center text-[16px] text-gray-600">
-            Loading cases...
+          <div className="rounded-2xl border border-slate-200/80 bg-white p-10 text-center text-[15px] text-slate-600 shadow-[0_2px_12px_rgba(15,23,42,0.04)]">
+            Loading exception queue...
           </div>
         ) : (
           <div className="space-y-6">
-            {/* INBOX LAYOUT: Left list (320px on desktop) + Right panel */}
-            <div className="grid items-start gap-6 lg:grid-cols-[320px_1fr]">
-              {/* LEFT LIST (320px) */}
-              <aside className="overflow-hidden rounded-[12px] border border-gray-200 bg-white">
-                <div className="flex items-center justify-between border-b border-gray-200 bg-gray-50 px-4 py-3.5">
-                  <h1 className="text-[16px] font-bold text-gray-900">
+            {/* INBOX LAYOUT: Left list (340px on desktop) + Right review panel */}
+            <div className="grid items-start gap-6 lg:grid-cols-[340px_1fr]">
+              {/* LEFT EXCEPTION QUEUE */}
+              <aside className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_2px_12px_rgba(15,23,42,0.04)]">
+                <div className="flex items-center justify-between border-b border-slate-200/80 bg-[#FAF9F6] px-5 py-4">
+                  <h2 className="font-display text-[16px] font-bold text-slate-950">
+                    Exception Queue
+                  </h2>
+                  <span className="rounded-full bg-white px-2.5 py-0.5 text-[12px] font-semibold text-slate-700 ring-1 ring-slate-200/80">
                     {queue?.exceptions.length ?? 0}{' '}
-                    {(queue?.exceptions.length ?? 0) === 1 ? 'case needs' : 'cases need'} review
-                  </h1>
-                  <div className="flex items-center gap-1">
-                    <button
-                      type="button"
-                      onClick={() => void loadQueue(false)}
-                      aria-label="Refresh queue"
-                      className="inline-flex h-8 w-8 items-center justify-center rounded-[8px] text-gray-600 hover:bg-gray-200/60 hover:text-gray-900"
-                    >
-                      <span className="material-symbols-outlined !text-[18px]" aria-hidden="true">
-                        refresh
-                      </span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setShowSettings((v) => !v)}
-                      className="rounded-[8px] px-2 py-1 text-[14px] font-medium text-gray-600 hover:bg-gray-200/60 hover:text-gray-900"
-                    >
-                      Rules
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setShowAudit((v) => !v)}
-                      className="rounded-[8px] px-2 py-1 text-[14px] font-medium text-gray-600 hover:bg-gray-200/60 hover:text-gray-900"
-                    >
-                      Audit Log
-                    </button>
-                  </div>
+                    {(queue?.exceptions.length ?? 0) === 1 ? 'case' : 'cases'}
+                  </span>
                 </div>
 
                 {queue && queue.exceptions.length > 0 ? (
-                  <ul className="max-h-[600px] divide-y divide-gray-200 overflow-y-auto">
+                  <ul className="max-h-[620px] divide-y divide-slate-200/70 overflow-y-auto">
                     {queue.exceptions.map((item, idx) => {
                       const isSelected = idx === selectedIndex;
                       const issueCount = item.flags.filter((f) => f.severity !== 'green').length;
@@ -518,17 +702,18 @@ export default function CounselorView({ onNavigate }: CounselorViewProps) {
                           <button
                             type="button"
                             onClick={() => setSelectedIndex(idx)}
-                            className={`flex w-full flex-col gap-1.5 border-l-4 px-4 py-3.5 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1A73E8] ${
+                            aria-current={isSelected ? 'true' : undefined}
+                            className={`flex w-full flex-col gap-2 border-l-4 px-5 py-4 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#2563EB] ${
                               isSelected
-                                ? 'border-l-[#1A73E8] bg-gray-50'
-                                : 'border-l-transparent bg-white hover:bg-gray-50/70'
+                                ? 'border-l-[#2563EB] bg-blue-50/50'
+                                : 'border-l-transparent bg-white hover:bg-[#FAF9F6]'
                             }`}
                           >
                             <div className="flex items-center justify-between gap-2">
-                              <span className="truncate text-[16px] font-semibold text-gray-900">
+                              <span className="truncate font-display text-[15px] font-bold text-slate-950">
                                 {item.consent?.typedSignature || 'Sample Applicant'}
                               </span>
-                              <span className="shrink-0 text-[14px] text-gray-600">
+                              <span className="shrink-0 text-[13px] font-medium text-slate-500">
                                 {countryFlagEmoji(item.destinationCountry)}{' '}
                                 {item.destinationCountry}
                               </span>
@@ -536,98 +721,189 @@ export default function CounselorView({ onNavigate }: CounselorViewProps) {
 
                             <div className="flex items-center justify-between gap-2">
                               <span
-                                className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[14px] font-semibold ${
+                                className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[12px] font-semibold ${
                                   isHigh
-                                    ? 'bg-[#FCE8E6] text-[#D93025]'
-                                    : 'bg-[#FEF7E0] text-[#B06000]'
+                                    ? 'bg-red-50 text-red-700'
+                                    : 'bg-amber-50 text-amber-800'
                                 }`}
                               >
                                 {isHigh ? 'High risk' : 'Needs review'}
                               </span>
-                              <span className="text-[14px] font-medium text-gray-600">
+                              <span className="text-[13px] font-medium text-slate-500">
                                 {issueCount} {issueCount === 1 ? 'issue' : 'issues'}
                               </span>
                             </div>
-                            <span className="sr-only">{item.id}</span>
+
+                            <p className="font-mono text-[12px] text-slate-400">
+                              <span className="sr-only">{item.id}</span>
+                              <span aria-hidden="true">{shortTail(item.id)}</span>
+                            </p>
                           </button>
                         </li>
                       );
                     })}
                   </ul>
                 ) : (
-                  <div className="p-6 text-center text-[14px] text-gray-600">
-                    All cases reviewed.
+                  <div className="p-8 text-center">
+                    <span
+                      className="material-symbols-outlined !text-[28px] text-emerald-600"
+                      aria-hidden="true"
+                    >
+                      check_circle
+                    </span>
+                    <p className="mt-2 text-[14px] font-semibold text-slate-900">
+                      All cases reviewed
+                    </p>
+                    <p className="mt-0.5 text-[13px] text-slate-500">
+                      Zero exceptions waiting in queue.
+                    </p>
                   </div>
                 )}
               </aside>
 
-              {/* RIGHT PANEL: Same Issue Card as Results + Actions Bar */}
+              {/* RIGHT PANEL: Inline Approval Banner + Case Details + IssueCard */}
               <div className="space-y-4">
-                {currentCase ? (
-                  <>
-                    {/* Student header strip */}
-                    <div className="flex flex-wrap items-center justify-between gap-3 rounded-[12px] border border-gray-200 bg-white px-6 py-4">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <h2 className="text-[24px] font-bold text-gray-900">
-                            {currentCase.consent?.typedSignature || 'Sample Applicant'}
-                          </h2>
-                          <span className="text-[16px] text-gray-600">
-                            · {countryFlagEmoji(currentCase.destinationCountry)}{' '}
-                            {currentCase.destinationCountry}
-                            {currentCase.ukRegion
-                              ? ` (${currentCase.ukRegion.replace('_', ' ')})`
-                              : ''}
+                {/* CRITICAL: Inline Emerald Approval Card right at top of right panel (never a blocking modal!) */}
+                {lastIssuedToken && (
+                  <div
+                    role="status"
+                    className="rounded-2xl border border-emerald-200 bg-emerald-50/90 p-5 shadow-[0_2px_12px_rgba(16,185,129,0.08)]"
+                  >
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div className="flex items-start gap-3">
+                        <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700">
+                          <span
+                            className="material-symbols-outlined !text-[22px]"
+                            aria-hidden="true"
+                          >
+                            verified
                           </span>
+                        </span>
+                        <div>
+                          <h2 className="font-display text-[19px] font-bold text-slate-950">
+                            Approval issued &amp; token ready
+                          </h2>
+                          <p className="mt-0.5 text-[14px] text-slate-700">
+                            {actionMessage ||
+                              `One-time approval token signed by ${lastIssuedToken.approvedBy}.`}{' '}
+                            <span className="text-slate-500">
+                              Case <span className="font-mono">{lastIssuedToken.caseId}</span>
+                            </span>
+                          </p>
                         </div>
-                        <p className="mt-0.5 text-[14px] text-gray-600">
-                          Case{' '}
-                          <code className="font-mono text-gray-900">
-                            <span className="sr-only">{currentCase.id}</span>
-                            <span aria-hidden="true">{shortTail(currentCase.id)}</span>
-                          </code>
-                          {currentCase.usageSummary && (
-                            <>
-                              {' '}
-                              · AI check cost ${currentCase.usageSummary.estimatedUsd.toFixed(4)}
-                            </>
-                          )}
-                        </p>
                       </div>
 
-                      {/* Actions bar: Approve (primary) · Request fix (secondary) · Reject (destructive) */}
-                      <div className="flex flex-wrap items-center gap-2.5">
-                        {/* Sole Primary Button on Screen 3 */}
-                        <button
-                          type="button"
-                          disabled={actionBusy || approvingCase}
-                          onClick={() => void handleApproveCurrent()}
-                          className="inline-flex h-11 items-center gap-1.5 rounded-[8px] bg-[#1A73E8] px-5 text-[16px] font-semibold text-white transition hover:bg-[#1557B0] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1A73E8] disabled:opacity-50"
-                        >
-                          <span className="material-symbols-outlined !text-[18px]" aria-hidden="true">
-                            check
-                          </span>
-                          <span>{approvingCase ? 'Approving...' : 'Approve'}</span>
-                          {!approvingCase && (
-                            <span className="sr-only"> &amp; Issue Token</span>
-                          )}
-                        </button>
+                      <button
+                        type="button"
+                        onClick={() => setLastIssuedToken(null)}
+                        aria-label="Dismiss approval banner"
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-full text-slate-500 transition hover:bg-emerald-100 hover:text-slate-900"
+                      >
+                        <span className="material-symbols-outlined !text-[18px]" aria-hidden="true">
+                          close
+                        </span>
+                      </button>
+                    </div>
 
-                        <button
-                          type="button"
-                          onClick={() => setMode((m) => (m === 'edit' ? 'view' : 'edit'))}
-                          className="inline-flex h-11 items-center gap-1.5 rounded-[8px] border border-gray-300 bg-white px-4 text-[16px] font-semibold text-gray-900 transition hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1A73E8]"
-                        >
-                          <span>{mode === 'edit' ? 'Cancel' : 'Request fix'}</span>
-                        </button>
+                    <div className="mt-4 space-y-2">
+                      <p className="text-[12px] font-semibold uppercase tracking-wide text-emerald-800">
+                        Single-use approval token
+                      </p>
+                      <code className="block break-all rounded-xl border border-emerald-200 bg-white px-4 py-3 font-mono text-[13px] font-semibold text-slate-950 select-all">
+                        {lastIssuedToken.token}
+                      </code>
+                    </div>
 
-                        <button
-                          type="button"
-                          onClick={() => setMode((m) => (m === 'reject' ? 'view' : 'reject'))}
-                          className="inline-flex h-11 items-center gap-1.5 rounded-[8px] bg-[#D93025] px-4 text-[16px] font-semibold text-white transition hover:bg-[#B3261E] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D93025]"
-                        >
-                          <span>{mode === 'reject' ? 'Cancel' : 'Reject'}</span>
-                        </button>
+                    <div className="mt-4 flex flex-wrap items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => void handleCopy(lastIssuedToken.token, 'last-token')}
+                        className="inline-flex h-11 items-center gap-1.5 rounded-full border border-slate-300 bg-white px-5 text-[14px] font-semibold text-slate-900 shadow-2xs transition hover:border-slate-400 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB]"
+                      >
+                        <span className="material-symbols-outlined !text-[18px]" aria-hidden="true">
+                          {copiedKey === 'last-token' ? 'check' : 'content_copy'}
+                        </span>
+                        <span>{copiedKey === 'last-token' ? 'Copied' : 'Copy token'}</span>
+                      </button>
+
+                      <a
+                        href={`/portal?caseId=${encodeURIComponent(lastIssuedToken.caseId)}&approvalToken=${encodeURIComponent(lastIssuedToken.token)}`}
+                        className="inline-flex h-11 items-center gap-1.5 rounded-full bg-[#2563EB] px-5 text-[14px] font-semibold text-white shadow-xs transition hover:bg-[#1D4ED8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB]"
+                      >
+                        <span>Open University Portal →</span>
+                      </a>
+                    </div>
+                  </div>
+                )}
+
+                {currentCase ? (
+                  <>
+                    {/* Student header & action bar */}
+                    <div className="rounded-2xl border border-slate-200/80 bg-white px-6 py-5 shadow-[0_2px_12px_rgba(15,23,42,0.04)]">
+                      <div className="flex flex-wrap items-center justify-between gap-4">
+                        <div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <h2 className="font-display text-[22px] font-extrabold tracking-tight text-slate-950">
+                              {currentCase.consent?.typedSignature || 'Sample Applicant'}
+                            </h2>
+                            <span className="inline-flex items-center gap-1 rounded-full bg-[#FAF9F6] px-3 py-0.5 text-[13px] font-semibold text-slate-700 ring-1 ring-slate-200/80">
+                              {countryFlagEmoji(currentCase.destinationCountry)}{' '}
+                              {currentCase.destinationCountry}
+                              {currentCase.ukRegion
+                                ? ` · ${currentCase.ukRegion.replace('_', ' ')}`
+                                : ''}
+                            </span>
+                          </div>
+                          <p className="mt-1 text-[13px] text-slate-500">
+                            Case{' '}
+                            <code className="font-mono font-semibold text-slate-800">
+                              <span className="sr-only">{currentCase.id}</span>
+                              <span aria-hidden="true">{shortTail(currentCase.id)}</span>
+                            </code>
+                            {currentCase.usageSummary && (
+                              <>
+                                {' · '}
+                                AI check cost ${currentCase.usageSummary.estimatedUsd.toFixed(4)}
+                              </>
+                            )}
+                          </p>
+                        </div>
+
+                        {/* Actions bar: Approve & Issue Token (Primary) · Request fix (Secondary) · Reject (Destructive) */}
+                        <div className="flex flex-wrap items-center gap-2.5">
+                          <button
+                            type="button"
+                            disabled={actionBusy || approvingCase}
+                            onClick={() => void handleApproveCurrent()}
+                            className="inline-flex h-11 items-center gap-1.5 rounded-full bg-[#2563EB] px-5 text-[14px] font-semibold text-white shadow-xs transition hover:bg-[#1D4ED8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:ring-offset-1 disabled:opacity-50"
+                          >
+                            <span
+                              className="material-symbols-outlined !text-[18px]"
+                              aria-hidden="true"
+                            >
+                              {approvingCase ? 'progress_activity' : 'verified'}
+                            </span>
+                            <span>
+                              {approvingCase ? 'Approving...' : 'Approve & Issue Token'}
+                            </span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => setMode((m) => (m === 'edit' ? 'view' : 'edit'))}
+                            className="inline-flex h-11 items-center gap-1.5 rounded-full border border-slate-300 bg-white px-4 text-[14px] font-semibold text-slate-900 shadow-2xs transition hover:border-slate-400 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB]"
+                          >
+                            <span>{mode === 'edit' ? 'Cancel' : 'Request fix'}</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => setMode((m) => (m === 'reject' ? 'view' : 'reject'))}
+                            className="inline-flex h-11 items-center gap-1.5 rounded-full bg-[#DC2626] px-4 text-[14px] font-semibold text-white shadow-xs transition hover:bg-[#B91C1C] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#DC2626]"
+                          >
+                            <span>{mode === 'reject' ? 'Cancel' : 'Reject'}</span>
+                          </button>
+                        </div>
                       </div>
                     </div>
 
@@ -635,14 +911,17 @@ export default function CounselorView({ onNavigate }: CounselorViewProps) {
                     {mode === 'edit' && (
                       <form
                         onSubmit={handleSaveEdits}
-                        className="space-y-4 rounded-[12px] border border-gray-200 bg-gray-50 p-5"
+                        className="space-y-4 rounded-2xl border border-slate-200/80 bg-white p-6 shadow-[0_2px_12px_rgba(15,23,42,0.04)]"
                       >
-                        <h3 className="text-[18px] font-bold text-gray-900">
+                        <h3 className="font-display text-[18px] font-bold text-slate-950">
                           Update extracted details &amp; re-run checks
                         </h3>
-                        <div className="grid gap-3 sm:grid-cols-2">
+                        <div className="grid gap-3.5 sm:grid-cols-2">
                           <div>
-                            <label htmlFor="edit-cost" className="block text-[14px] font-medium text-gray-900">
+                            <label
+                              htmlFor="edit-cost"
+                              className="block text-[13px] font-semibold text-slate-700"
+                            >
                               Override required total cost (optional)
                             </label>
                             <input
@@ -652,18 +931,21 @@ export default function CounselorView({ onNavigate }: CounselorViewProps) {
                               value={costOverrideDraft}
                               onChange={(e) => setCostOverrideDraft(e.target.value)}
                               placeholder="Leave blank for default UK rule"
-                              className="mt-1 h-11 w-full rounded-[8px] border border-gray-300 bg-white px-3 text-[16px]"
+                              className="mt-1.5 h-11 w-full rounded-xl border border-slate-300 bg-white px-3.5 text-[15px] text-slate-950 focus:border-[#2563EB] focus:outline-none focus:ring-2 focus:ring-[#2563EB]/25"
                             />
                           </div>
                           <div>
-                            <label htmlFor="edit-curr" className="block text-[14px] font-medium text-gray-900">
+                            <label
+                              htmlFor="edit-curr"
+                              className="block text-[13px] font-semibold text-slate-700"
+                            >
                               Currency
                             </label>
                             <select
                               id="edit-curr"
                               value={costCurrencyDraft}
                               onChange={(e) => setCostCurrencyDraft(e.target.value)}
-                              className="mt-1 h-11 w-full rounded-[8px] border border-gray-300 bg-white px-3 text-[16px]"
+                              className="mt-1.5 h-11 w-full rounded-xl border border-slate-300 bg-white px-3.5 text-[15px] text-slate-950 focus:border-[#2563EB] focus:outline-none focus:ring-2 focus:ring-[#2563EB]/25"
                             >
                               <option value="GBP">GBP</option>
                               <option value="USD">USD</option>
@@ -673,7 +955,7 @@ export default function CounselorView({ onNavigate }: CounselorViewProps) {
                           </div>
                         </div>
 
-                        <div className="space-y-2 border-t border-gray-200 pt-3">
+                        <div className="space-y-2.5 border-t border-slate-200/80 pt-4">
                           {currentCase.facts.slice(0, 8).map((fact, idx) => (
                             <div
                               key={idx}
@@ -681,7 +963,7 @@ export default function CounselorView({ onNavigate }: CounselorViewProps) {
                             >
                               <label
                                 htmlFor={`fact-${idx}`}
-                                className="text-[14px] font-medium text-gray-600"
+                                className="text-[13px] font-semibold capitalize text-slate-600"
                               >
                                 {fact.field.replace(/_/g, ' ')}
                               </label>
@@ -692,19 +974,21 @@ export default function CounselorView({ onNavigate }: CounselorViewProps) {
                                 onChange={(e) =>
                                   setFactDrafts((prev) => ({ ...prev, [idx]: e.target.value }))
                                 }
-                                className="h-10 rounded-[8px] border border-gray-300 bg-white px-3 text-[14px] sm:col-span-2"
+                                className="h-10 rounded-xl border border-slate-300 bg-white px-3.5 text-[14px] text-slate-950 focus:border-[#2563EB] focus:outline-none focus:ring-2 focus:ring-[#2563EB]/25 sm:col-span-2"
                               />
                             </div>
                           ))}
                         </div>
 
-                        <button
-                          type="submit"
-                          disabled={actionBusy}
-                          className="inline-flex h-11 items-center rounded-[8px] border border-gray-300 bg-white px-4 text-[14px] font-semibold text-gray-900 hover:bg-gray-100"
-                        >
-                          Save &amp; re-check
-                        </button>
+                        <div className="flex justify-end pt-1">
+                          <button
+                            type="submit"
+                            disabled={actionBusy}
+                            className="inline-flex h-11 items-center rounded-full border border-slate-300 bg-white px-5 text-[14px] font-semibold text-slate-900 shadow-2xs transition hover:border-slate-400 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] disabled:opacity-50"
+                          >
+                            Save &amp; re-check
+                          </button>
+                        </div>
                       </form>
                     )}
 
@@ -712,11 +996,11 @@ export default function CounselorView({ onNavigate }: CounselorViewProps) {
                     {mode === 'reject' && (
                       <form
                         onSubmit={handleRejectSubmit}
-                        className="space-y-3 rounded-[12px] border border-[#F6AEA9] bg-[#FCE8E6] p-5"
+                        className="space-y-3.5 rounded-2xl border border-red-200 bg-red-50/80 p-6"
                       >
                         <label
                           htmlFor="reject-reason"
-                          className="block text-[16px] font-bold text-gray-900"
+                          className="block font-display text-[16px] font-bold text-slate-950"
                         >
                           Reason for rejecting
                         </label>
@@ -725,190 +1009,110 @@ export default function CounselorView({ onNavigate }: CounselorViewProps) {
                           rows={2}
                           value={rejectReason}
                           onChange={(e) => setRejectReason(e.target.value)}
-                          placeholder="e.g. Upload a fresh 28-day bank statement without the 4 Nov dip."
-                          className="w-full rounded-[8px] border border-gray-300 bg-white p-3 text-[16px]"
+                          placeholder="e.g. Upload an updated bank statement showing the required closing balance across the full 28-day period."
+                          className="w-full rounded-xl border border-red-200 bg-white p-3.5 text-[15px] text-slate-950 placeholder:text-slate-400 focus:border-[#DC2626] focus:outline-none focus:ring-2 focus:ring-red-200"
                         />
-                        <button
-                          type="submit"
-                          disabled={actionBusy}
-                          className="inline-flex h-11 items-center rounded-[8px] bg-[#D93025] px-4 text-[14px] font-semibold text-white hover:bg-[#B3261E]"
-                        >
-                          Confirm reject
-                        </button>
+                        <div className="flex justify-end">
+                          <button
+                            type="submit"
+                            disabled={actionBusy}
+                            className="inline-flex h-11 items-center rounded-full bg-[#DC2626] px-5 text-[14px] font-semibold text-white shadow-xs transition hover:bg-[#B91C1C] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#DC2626] disabled:opacity-50"
+                          >
+                            Confirm reject
+                          </button>
+                        </div>
                       </form>
                     )}
 
-                    {/* Reuse the exact IssueCard component from Results */}
+                    {/* IssueCard stack */}
                     {currentCase.flags
                       .filter((f) => f.severity !== 'green')
                       .map((flag) => (
                         <IssueCard key={flag.id} flag={flag} />
                       ))}
 
-                    {/* Footer shortcut hint */}
-                    <p className="text-[14px] text-gray-600">
-                      A approve · R reject · J/K next/prev
-                    </p>
+                    {/* Subtle keyboard shortcut legend */}
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 px-1 text-[13px] text-slate-500">
+                      <span className="inline-flex items-center gap-1.5">
+                        <kbd className="rounded-md border border-slate-200 bg-white px-1.5 py-0.5 font-mono text-[11px] font-semibold text-slate-700 shadow-2xs">
+                          A
+                        </kbd>
+                        <span>Approve</span>
+                      </span>
+                      <span className="inline-flex items-center gap-1.5">
+                        <kbd className="rounded-md border border-slate-200 bg-white px-1.5 py-0.5 font-mono text-[11px] font-semibold text-slate-700 shadow-2xs">
+                          E
+                        </kbd>
+                        <span>Edit</span>
+                      </span>
+                      <span className="inline-flex items-center gap-1.5">
+                        <kbd className="rounded-md border border-slate-200 bg-white px-1.5 py-0.5 font-mono text-[11px] font-semibold text-slate-700 shadow-2xs">
+                          R
+                        </kbd>
+                        <span>Reject</span>
+                      </span>
+                      <span className="inline-flex items-center gap-1.5">
+                        <kbd className="rounded-md border border-slate-200 bg-white px-1.5 py-0.5 font-mono text-[11px] font-semibold text-slate-700 shadow-2xs">
+                          J
+                        </kbd>
+                        <kbd className="rounded-md border border-slate-200 bg-white px-1.5 py-0.5 font-mono text-[11px] font-semibold text-slate-700 shadow-2xs">
+                          K
+                        </kbd>
+                        <span>Next / Prev</span>
+                      </span>
+                    </div>
                   </>
                 ) : (
-                  <div className="rounded-[12px] border border-gray-200 bg-white p-8 text-center">
-                    <span className="material-symbols-outlined !text-[32px] text-[#188038]" aria-hidden="true">
+                  <div className="rounded-2xl border border-slate-200/80 bg-white p-10 text-center shadow-[0_2px_12px_rgba(15,23,42,0.04)]">
+                    <span
+                      className="material-symbols-outlined !text-[36px] text-emerald-600"
+                      aria-hidden="true"
+                    >
                       check_circle
                     </span>
-                    <h2 className="mt-2 text-[18px] font-bold text-gray-900">
+                    <h2 className="mt-2 font-display text-[20px] font-bold text-slate-950">
                       No cases need review right now
                     </h2>
-                    <p className="mt-1 text-[14px] text-gray-600">
-                      Every flagged application has been reviewed.
+                    <p className="mt-1 text-[14px] text-slate-600">
+                      Every flagged application has been reviewed and logged.
                     </p>
                   </div>
                 )}
               </div>
             </div>
 
-            {/* Editable UK rules drawer */}
-            {showSettings && settingsDraft && (
-              <form
-                onSubmit={handleSaveSettings}
-                className="space-y-4 rounded-[12px] border border-gray-200 bg-white p-6"
-              >
-                <h2 className="text-[18px] font-bold text-gray-900">
-                  UK rules &amp; exchange rates
-                </h2>
-                <div className="grid gap-4 sm:grid-cols-3">
-                  <div>
-                    <label htmlFor="set-uk-london" className="block text-[14px] font-medium">
-                      London (GBP/month)
-                    </label>
-                    <input
-                      id="set-uk-london"
-                      type="number"
-                      value={settingsDraft.ukRules.maintenance.londonPerMonth}
-                      onChange={(e) =>
-                        setSettingsDraft({
-                          ...settingsDraft,
-                          ukRules: {
-                            ...settingsDraft.ukRules,
-                            maintenance: {
-                              ...settingsDraft.ukRules.maintenance,
-                              londonPerMonth: Number(e.target.value),
-                            },
-                          },
-                        })
-                      }
-                      className="mt-1 h-11 w-full rounded-[8px] border border-gray-300 px-3"
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="set-uk-outside" className="block text-[14px] font-medium">
-                      Outside London (GBP/month)
-                    </label>
-                    <input
-                      id="set-uk-outside"
-                      type="number"
-                      value={settingsDraft.ukRules.maintenance.outsideLondonPerMonth}
-                      onChange={(e) =>
-                        setSettingsDraft({
-                          ...settingsDraft,
-                          ukRules: {
-                            ...settingsDraft.ukRules,
-                            maintenance: {
-                              ...settingsDraft.ukRules.maintenance,
-                              outsideLondonPerMonth: Number(e.target.value),
-                            },
-                          },
-                        })
-                      }
-                      className="mt-1 h-11 w-full rounded-[8px] border border-gray-300 px-3"
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="set-uk-days" className="block text-[14px] font-medium">
-                      28-day holding minimum
-                    </label>
-                    <input
-                      id="set-uk-days"
-                      type="number"
-                      value={settingsDraft.ukRules.bankStatement.minConsecutiveDaysHeld}
-                      onChange={(e) =>
-                        setSettingsDraft({
-                          ...settingsDraft,
-                          ukRules: {
-                            ...settingsDraft.ukRules,
-                            bankStatement: {
-                              ...settingsDraft.ukRules.bankStatement,
-                              minConsecutiveDaysHeld: Number(e.target.value),
-                            },
-                          },
-                        })
-                      }
-                      className="mt-1 h-11 w-full rounded-[8px] border border-gray-300 px-3"
-                    />
-                  </div>
-                </div>
-                <button
-                  type="submit"
-                  disabled={savingSettings}
-                  className="inline-flex h-11 items-center rounded-[8px] border border-gray-300 bg-white px-4 text-[14px] font-semibold text-gray-900 hover:bg-gray-50"
-                >
-                  {savingSettings ? 'Saving...' : 'Save rules'}
-                </button>
-              </form>
-            )}
-
-            {/* Audit Log section (verified by verify_judge_loop.mjs) */}
-            {showAudit && queue && (
-              <section className="rounded-[12px] border border-gray-200 bg-white p-6">
-                <h2 className="text-[18px] font-bold text-gray-900">Audit Log</h2>
-                <ul className="mt-3 divide-y divide-gray-200 border-t border-gray-200 text-[14px]">
-                  {queue.auditLog.map((entry) => (
-                    <li key={entry.id} className="py-3">
-                      <div className="font-semibold text-gray-900">
-                        <span>
-                          {entry.action} — {entry.actor}
-                          {entry.caseId ? ` (${entry.caseId})` : ''}
-                          {' · '}
-                          <span className="font-mono text-[14px] font-normal text-gray-600">
-                            {new Date(entry.timestamp).toLocaleString()}
-                          </span>
-                        </span>
-                      </div>
-                      <p className="mt-0.5 text-gray-600">{formatInrInText(entry.details)}</p>
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            )}
-
             {/* Recently cleared: last 3 only, collapsed by default */}
             {queue && queue.resolved.length > 0 && (
-              <details className="group rounded-[12px] border border-gray-200 bg-gray-50">
-                <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-6 py-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1A73E8]">
-                  <span className="text-[16px] font-bold text-gray-900">
+              <details className="group overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_2px_12px_rgba(15,23,42,0.04)]">
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-6 py-4 transition hover:bg-[#FAF9F6] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB]">
+                  <span className="font-display text-[16px] font-bold text-slate-950">
                     Recently cleared (last {Math.min(3, queue.resolved.length)})
                   </span>
-                  <span className="material-symbols-outlined !text-[20px] text-gray-600 transition-transform group-open:rotate-180" aria-hidden="true">
+                  <span
+                    className="material-symbols-outlined !text-[20px] text-slate-500 transition-transform group-open:rotate-180"
+                    aria-hidden="true"
+                  >
                     expand_more
                   </span>
                 </summary>
-                <ul className="divide-y divide-gray-200 border-t border-gray-200 bg-white px-6">
+                <ul className="divide-y divide-slate-200/80 border-t border-slate-200/80 px-6">
                   {queue.resolved.slice(0, 3).map((c) => (
                     <li
                       key={c.id}
                       className="flex flex-wrap items-center justify-between gap-3 py-3.5 text-[14px]"
                     >
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-semibold text-gray-900">
+                        <span className="font-semibold text-slate-950">
                           {c.consent?.typedSignature || 'Sample Applicant'}
                         </span>
-                        <code className="font-mono text-gray-600">
+                        <code className="font-mono text-[13px] text-slate-500">
                           <span className="sr-only">{c.id}</span>
                           <span aria-hidden="true">{shortTail(c.id)}</span>
                         </code>
                         {c.approvalTokenId && (
                           <>
-                            <span className="text-gray-400">·</span>
-                            <code className="font-mono text-gray-900">
+                            <span className="text-slate-300">·</span>
+                            <code className="font-mono text-[13px] text-slate-800">
                               <span className="sr-only">{c.approvalTokenId}</span>
                               <span aria-hidden="true">{shortTail(c.approvalTokenId)}</span>
                             </code>
@@ -917,7 +1121,7 @@ export default function CounselorView({ onNavigate }: CounselorViewProps) {
                               onClick={() =>
                                 void handleCopy(c.approvalTokenId!, `cleared-tok-${c.id}`)
                               }
-                              className="rounded-[6px] border border-gray-300 bg-white px-2 py-0.5 text-[14px] font-medium text-gray-900 hover:bg-gray-50"
+                              className="rounded-full border border-slate-300 bg-white px-3 py-0.5 text-[12px] font-semibold text-slate-800 transition hover:bg-slate-50"
                             >
                               {copiedKey === `cleared-tok-${c.id}` ? 'Copied' : 'Copy'}
                             </button>
@@ -925,13 +1129,13 @@ export default function CounselorView({ onNavigate }: CounselorViewProps) {
                         )}
                       </div>
                       <span
-                        className={`rounded-full px-2.5 py-0.5 text-[14px] font-semibold ${
+                        className={`rounded-full px-3 py-0.5 text-[12px] font-semibold ${
                           c.status === 'approved'
-                            ? 'bg-[#E6F4EA] text-[#188038]'
-                            : 'bg-[#FCE8E6] text-[#D93025]'
+                            ? 'bg-emerald-50 text-emerald-700'
+                            : 'bg-red-50 text-red-700'
                         }`}
                       >
-                        {c.status === 'approved' ? 'Passed' : 'Rejected'}
+                        {c.status === 'approved' ? 'Approved' : 'Rejected'}
                       </span>
                     </li>
                   ))}
@@ -942,86 +1146,9 @@ export default function CounselorView({ onNavigate }: CounselorViewProps) {
         )}
       </main>
 
-      {/* =======================================================================
-          AFTER APPROVE MODAL: "Approval issued"
-         ======================================================================= */}
-      {approvalModalOpen && lastIssuedToken && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="approval-modal-title"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/50 p-4"
-        >
-          <div className="w-full max-w-md rounded-[12px] border border-gray-200 bg-white p-6 shadow-xl">
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex items-center gap-2.5">
-                <span className="material-symbols-outlined !text-[24px] text-[#188038]" aria-hidden="true">
-                  check_circle
-                </span>
-                <h2 id="approval-modal-title" className="text-[24px] font-bold text-gray-900">
-                  Approval issued
-                </h2>
-              </div>
-              <button
-                type="button"
-                onClick={() => setApprovalModalOpen(false)}
-                aria-label="Close approval modal"
-                className="inline-flex h-9 w-9 items-center justify-center rounded-[8px] text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-              >
-                <span className="material-symbols-outlined" aria-hidden="true">
-                  close
-                </span>
-              </button>
-            </div>
-
-            <p className="mt-2 text-[16px] text-gray-600">
-              {actionMessage || `One-time approval issued by ${lastIssuedToken.approvedBy}.`}
-            </p>
-
-            <div className="mt-4 flex items-center justify-between gap-3 rounded-[8px] border border-gray-200 bg-gray-50 px-4 py-3">
-              <div>
-                <p className="text-[14px] text-gray-600">One-time approval code</p>
-                <code className="font-mono text-[16px] font-bold text-gray-900">
-                  <span className="sr-only">{lastIssuedToken.token}</span>
-                  <span aria-hidden="true">{shortTail(lastIssuedToken.token)}</span>
-                </code>
-              </div>
-              <button
-                type="button"
-                onClick={() => void handleCopy(lastIssuedToken.token, 'last-token')}
-                className="inline-flex h-11 items-center gap-1.5 rounded-[8px] border border-gray-300 bg-white px-4 text-[14px] font-semibold text-gray-900 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1A73E8]"
-              >
-                <span className="material-symbols-outlined !text-[18px]" aria-hidden="true">
-                  {copiedKey === 'last-token' ? 'check' : 'content_copy'}
-                </span>
-                <span>{copiedKey === 'last-token' ? 'Copied' : 'Copy token'}</span>
-              </button>
-            </div>
-
-            <div className="mt-5 flex items-center justify-end gap-3">
-              <button
-                type="button"
-                onClick={() => setApprovalModalOpen(false)}
-                className="inline-flex h-11 items-center rounded-[8px] border border-gray-300 bg-white px-4 text-[14px] font-semibold text-gray-900 hover:bg-gray-50"
-              >
-                Done
-              </button>
-              <a
-                href={`/portal?caseId=${encodeURIComponent(lastIssuedToken.caseId)}&approvalToken=${encodeURIComponent(lastIssuedToken.token)}`}
-                className="inline-flex h-11 items-center gap-1.5 rounded-[8px] bg-[#1A73E8] px-5 text-[16px] font-semibold text-white hover:bg-[#1557B0] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1A73E8]"
-              >
-                <span>Open university portal</span>
-                <span className="material-symbols-outlined !text-[18px]" aria-hidden="true">
-                  arrow_forward
-                </span>
-              </a>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <footer className="mt-12 border-t border-gray-200 bg-white px-4 py-6 text-center text-[14px] font-medium text-gray-600 sm:px-6">
-        Built for Indian students going abroad. UK rules live today; more countries next.
+      <footer className="mt-12 border-t border-slate-200/80 bg-white px-4 py-6 text-center text-[14px] font-medium text-slate-600 sm:px-6">
+        Global dreams, zero guesswork. AI prepares every application; a human counselor approves
+        every submit.
       </footer>
     </div>
   );
