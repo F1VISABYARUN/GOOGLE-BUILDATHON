@@ -18,6 +18,35 @@ const MAX_STEPS_PER_GROUP = 40;
 const FAILURES_BEFORE_ESCALATION = 3;
 const MAX_INLINE_THUMBNAILS = 6;
 
+function logAgentGeminiStep(params: {
+  caseId: string;
+  runId: string;
+  model: string;
+  fallbackUsed: boolean;
+  latencyMs: number;
+  stepNumber: number;
+  usage?: { total_input_tokens?: number; total_output_tokens?: number; input_tokens?: number; output_tokens?: number };
+}): void {
+  // Structured Cloud Logging JSON — strictly ZERO document/page contents or secrets
+  console.log(
+    JSON.stringify({
+      severity: params.fallbackUsed ? 'WARNING' : 'INFO',
+      component: 'aira-agent',
+      event: 'gemini_call',
+      task: 'computer_use_step',
+      caseId: params.caseId,
+      runId: params.runId,
+      model: params.model,
+      fallbackUsed: params.fallbackUsed,
+      latencyMs: params.latencyMs,
+      stepNumber: params.stepNumber,
+      inputTokens: Number(params.usage?.total_input_tokens ?? params.usage?.input_tokens ?? 0),
+      outputTokens: Number(params.usage?.total_output_tokens ?? params.usage?.output_tokens ?? 0),
+      timestamp: new Date().toISOString(),
+    })
+  );
+}
+
 function pruneStepsForFirestore(steps: AgentStepFeedItem[]): AgentStepFeedItem[] {
   const trimmed = steps.length > 50 ? steps.slice(-50) : steps;
   const thumbStartIdx = Math.max(0, trimmed.length - MAX_INLINE_THUMBNAILS);
@@ -743,7 +772,9 @@ export async function runComputerUseAgent(params: {
 
       // Next Interactions API turn chained via previous_interaction_id.
       // IMPORTANT: Do NOT re-send `tools` when `previous_interaction_id` is set (tools are persisted server-side).
-      if (currentModel === ESCALATION_MODEL && run.currentModel !== ESCALATION_MODEL) {
+      const turnStart = Date.now();
+      const escalatedTurn = currentModel === ESCALATION_MODEL && run.currentModel !== ESCALATION_MODEL;
+      if (escalatedTurn) {
         // Fresh interaction when escalating model from hydrogen -> carbon
         const freshShots = await captureScreenshots(page);
         interaction = await (ai.interactions as any).create({
@@ -780,6 +811,15 @@ export async function runComputerUseAgent(params: {
           input: functionResults,
         });
       }
+      logAgentGeminiStep({
+        caseId: run.caseId,
+        runId: run.id,
+        model: currentModel,
+        fallbackUsed: currentModel === ESCALATION_MODEL,
+        latencyMs: Date.now() - turnStart,
+        stepNumber: run.stepCount,
+        usage: interaction?.usage,
+      });
       previousInteractionId = interaction.id;
     }
 

@@ -1,5 +1,6 @@
 import { MODELS } from '../config/models.js';
 import { getGeminiClient } from '../gemini.js';
+import { logGeminiCall } from './cloudLogger.js';
 
 export interface GroundedSource {
   title: string;
@@ -53,9 +54,19 @@ export async function fetchUniversityRulesGrounded(params: {
         tools: [{ googleSearch: {} }, { urlContext: {} }],
       },
     });
-    console.info(
-      `[gemini] task=universityRules model=${model} fallback=${isFallback} latencyMs=${Date.now() - startedAt}`
-    );
+    const meta = (response as { usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number } })
+      ?.usageMetadata;
+    logGeminiCall({
+      severity: isFallback ? 'WARNING' : 'INFO',
+      component: 'aira-web',
+      event: 'gemini_call',
+      task: 'universityRules',
+      model,
+      fallbackUsed: isFallback,
+      latencyMs: Date.now() - startedAt,
+      inputTokens: Number(meta?.promptTokenCount || 0),
+      outputTokens: Number(meta?.candidatesTokenCount || 0),
+    });
     return response;
   }
 

@@ -13,6 +13,16 @@ import {
 } from '../schemas/case.js';
 import { validateFactQuote } from '../checks/quoteValidation.js';
 import { maskFactIfSensitive } from '../checks/masking.js';
+import { logGeminiCall, type ModelUsageEntry } from './cloudLogger.js';
+
+function readUsageTokens(response: unknown): { inputTokens: number; outputTokens: number } {
+  const meta = (response as { usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number } })
+    ?.usageMetadata;
+  return {
+    inputTokens: Number(meta?.promptTokenCount || 0),
+    outputTokens: Number(meta?.candidatesTokenCount || 0),
+  };
+}
 
 const ClassificationResponseSchema = z.object({
   documentType: z.enum(DOCUMENT_TYPES),
@@ -31,7 +41,8 @@ const FlagExplanationsResponseSchema = z.object({
 export async function classifyDocument(
   fileBuffer: Buffer,
   mimeType: string,
-  fileName: string
+  fileName: string,
+  usageCollector?: ModelUsageEntry[]
 ): Promise<DocumentType> {
   const ai = getGeminiClient();
   const base64Data = fileBuffer.toString('base64');
@@ -68,15 +79,39 @@ export async function classifyDocument(
     });
 
     const parsed = ClassificationResponseSchema.parse(JSON.parse(response.text || '{}'));
-    console.info(
-      `[gemini] task=classify model=${model} fallback=false latencyMs=${Date.now() - startedAt} docType=${parsed.documentType}`
-    );
+    const latencyMs = Date.now() - startedAt;
+    const { inputTokens, outputTokens } = readUsageTokens(response);
+    usageCollector?.push({
+      model,
+      task: 'classify',
+      inputTokens,
+      outputTokens,
+      latencyMs,
+      fallbackUsed: false,
+    });
+    logGeminiCall({
+      severity: 'INFO',
+      component: 'aira-web',
+      event: 'gemini_call',
+      task: 'classify',
+      model,
+      fallbackUsed: false,
+      latencyMs,
+      inputTokens,
+      outputTokens,
+    });
     return parsed.documentType;
   } catch (err) {
-    console.warn(
-      `[gemini] task=classify model=${model} failed, defaulting to "other":`,
-      err instanceof Error ? err.message : String(err)
-    );
+    logGeminiCall({
+      severity: 'WARNING',
+      component: 'aira-web',
+      event: 'gemini_call',
+      task: 'classify',
+      model,
+      fallbackUsed: false,
+      latencyMs: Date.now() - startedAt,
+      errorCode: err instanceof Error ? err.name : 'CLASSIFY_ERROR',
+    });
     return 'other';
   }
 }
@@ -85,7 +120,8 @@ export async function extractDocumentFacts(
   fileBuffer: Buffer,
   mimeType: string,
   fileName: string,
-  docType: DocumentType
+  docType: DocumentType,
+  usageCollector?: ModelUsageEntry[]
 ): Promise<{ facts: VerifiedFact[]; modelUsed: string }> {
   const ai = getGeminiClient();
   const base64Data = fileBuffer.toString('base64');
@@ -142,9 +178,27 @@ export async function extractDocumentFacts(
       },
     });
     const parsed = DocumentExtractionSchema.parse(JSON.parse(response.text || '{}'));
-    console.info(
-      `[gemini] task=extract model=${model} fallback=${isFallback} latencyMs=${Date.now() - startedAt} factsCount=${parsed.facts.length}`
-    );
+    const latencyMs = Date.now() - startedAt;
+    const { inputTokens, outputTokens } = readUsageTokens(response);
+    usageCollector?.push({
+      model,
+      task: 'extract',
+      inputTokens,
+      outputTokens,
+      latencyMs,
+      fallbackUsed: isFallback,
+    });
+    logGeminiCall({
+      severity: isFallback ? 'WARNING' : 'INFO',
+      component: 'aira-web',
+      event: 'gemini_call',
+      task: 'extract',
+      model,
+      fallbackUsed: isFallback,
+      latencyMs,
+      inputTokens,
+      outputTokens,
+    });
     return parsed;
   }
 
@@ -170,7 +224,10 @@ export async function extractDocumentFacts(
   return { facts: verifiedFacts, modelUsed };
 }
 
-export async function explainFlagsWithGemini(flags: CheckFlag[]): Promise<CheckFlag[]> {
+export async function explainFlagsWithGemini(
+  flags: CheckFlag[],
+  usageCollector?: ModelUsageEntry[]
+): Promise<CheckFlag[]> {
   if (flags.length === 0) return flags;
 
   const ai = getGeminiClient();
@@ -219,9 +276,27 @@ export async function explainFlagsWithGemini(flags: CheckFlag[]): Promise<CheckF
       },
     });
     const parsed = FlagExplanationsResponseSchema.parse(JSON.parse(response.text || '{}'));
-    console.info(
-      `[gemini] task=explainFlags model=${model} fallback=${isFallback} latencyMs=${Date.now() - startedAt}`
-    );
+    const latencyMs = Date.now() - startedAt;
+    const { inputTokens, outputTokens } = readUsageTokens(response);
+    usageCollector?.push({
+      model,
+      task: 'explainFlags',
+      inputTokens,
+      outputTokens,
+      latencyMs,
+      fallbackUsed: isFallback,
+    });
+    logGeminiCall({
+      severity: isFallback ? 'WARNING' : 'INFO',
+      component: 'aira-web',
+      event: 'gemini_call',
+      task: 'explainFlags',
+      model,
+      fallbackUsed: isFallback,
+      latencyMs,
+      inputTokens,
+      outputTokens,
+    });
     return parsed.items;
   }
 
@@ -305,7 +380,8 @@ export function clampRiskAssessment(
 export async function scoreCaseRiskWithGemini(
   flags: CheckFlag[],
   facts: VerifiedFact[],
-  exceptionReasons: string[]
+  exceptionReasons: string[],
+  usageCollector?: ModelUsageEntry[]
 ): Promise<RiskAssessment> {
   const ai = getGeminiClient();
 
@@ -348,9 +424,27 @@ export async function scoreCaseRiskWithGemini(
       },
     });
     const parsed = RiskScoreResponseSchema.parse(JSON.parse(response.text || '{}'));
-    console.info(
-      `[gemini] task=riskScore model=${model} fallback=${isFallback} latencyMs=${Date.now() - startedAt} score=${parsed.score}`
-    );
+    const latencyMs = Date.now() - startedAt;
+    const { inputTokens, outputTokens } = readUsageTokens(response);
+    usageCollector?.push({
+      model,
+      task: 'riskScore',
+      inputTokens,
+      outputTokens,
+      latencyMs,
+      fallbackUsed: isFallback,
+    });
+    logGeminiCall({
+      severity: isFallback ? 'WARNING' : 'INFO',
+      component: 'aira-web',
+      event: 'gemini_call',
+      task: 'riskScore',
+      model,
+      fallbackUsed: isFallback,
+      latencyMs,
+      inputTokens,
+      outputTokens,
+    });
     return parsed;
   }
 

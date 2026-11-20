@@ -88,6 +88,13 @@ interface CaseRecord {
   approvedBy?: string;
   approvedAt?: string;
   rejectedReason?: string;
+  usageSummary?: {
+    totalInputTokens: number;
+    totalOutputTokens: number;
+    totalTokens: number;
+    agentSteps: number;
+    estimatedUsd: number;
+  };
 }
 
 interface QueueResponse {
@@ -408,8 +415,14 @@ export default function CounselorView({ onNavigateHome }: CounselorViewProps) {
   }, [currentCase, handleApproveCurrent, mode, queue, unlocked]);
 
   return (
-    <main className="min-h-screen bg-slate-50 px-4 py-6 text-slate-900 sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-4xl space-y-6">
+    <div className="min-h-screen bg-slate-50 px-4 py-6 text-slate-900 sm:px-6 lg:px-8">
+      <a
+        href="#counselor-main"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-blue-800 focus:px-4 focus:py-2 focus:text-white"
+      >
+        Skip to main content
+      </a>
+      <main id="counselor-main" className="mx-auto max-w-4xl space-y-6">
         <header className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
@@ -635,6 +648,36 @@ export default function CounselorView({ onNavigateHome }: CounselorViewProps) {
                   </div>
                 </div>
 
+                {/* COST PER CASE (TOKENS & AGENT STEPS) */}
+                {currentCase.usageSummary && (
+                  <div className="grid gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm sm:grid-cols-4">
+                    <div>
+                      <p className="font-semibold text-slate-600">Input Tokens</p>
+                      <p className="font-mono text-lg font-bold text-slate-950">
+                        {currentCase.usageSummary.totalInputTokens.toLocaleString()}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="font-semibold text-slate-600">Output Tokens</p>
+                      <p className="font-mono text-lg font-bold text-slate-950">
+                        {currentCase.usageSummary.totalOutputTokens.toLocaleString()}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="font-semibold text-slate-600">Agent Steps</p>
+                      <p className="font-mono text-lg font-bold text-slate-950">
+                        {currentCase.usageSummary.agentSteps}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="font-semibold text-slate-600">Est. AI Cost (USD)</p>
+                      <p className="font-mono text-lg font-bold text-emerald-900">
+                        ${currentCase.usageSummary.estimatedUsd.toFixed(4)}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
                 {/* WHY THIS CASE IS IN EXCEPTIONS */}
                 <div className="rounded-xl border border-red-200 bg-red-50 p-4">
                   <h3 className="text-base font-bold text-red-950">Why this case needs your eye</h3>
@@ -845,8 +888,9 @@ export default function CounselorView({ onNavigateHome }: CounselorViewProps) {
 
                 <div className="grid gap-4 sm:grid-cols-3">
                   <div>
-                    <label className="block text-sm font-semibold">London (GBP/month)</label>
+                    <label htmlFor="set-uk-london" className="block text-sm font-semibold">London (GBP/month)</label>
                     <input
+                      id="set-uk-london"
                       type="number"
                       value={settingsDraft.ukRules.maintenance.londonPerMonth}
                       onChange={(e) =>
@@ -865,8 +909,9 @@ export default function CounselorView({ onNavigateHome }: CounselorViewProps) {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold">Outside London (GBP/month)</label>
+                    <label htmlFor="set-uk-outside" className="block text-sm font-semibold">Outside London (GBP/month)</label>
                     <input
+                      id="set-uk-outside"
                       type="number"
                       value={settingsDraft.ukRules.maintenance.outsideLondonPerMonth}
                       onChange={(e) =>
@@ -885,8 +930,9 @@ export default function CounselorView({ onNavigateHome }: CounselorViewProps) {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold">28-day holding minimum</label>
+                    <label htmlFor="set-uk-days" className="block text-sm font-semibold">28-day holding minimum</label>
                     <input
+                      id="set-uk-days"
                       type="number"
                       value={settingsDraft.ukRules.bankStatement.minConsecutiveDaysHeld}
                       onChange={(e) =>
@@ -908,8 +954,9 @@ export default function CounselorView({ onNavigateHome }: CounselorViewProps) {
 
                 <div className="grid gap-4 sm:grid-cols-3">
                   <div>
-                    <label className="block text-sm font-semibold">Rate as-of date</label>
+                    <label htmlFor="set-rate-date" className="block text-sm font-semibold">Rate as-of date</label>
                     <input
+                      id="set-rate-date"
                       type="date"
                       value={settingsDraft.exchangeRates.asOfDate}
                       onChange={(e) =>
@@ -926,8 +973,9 @@ export default function CounselorView({ onNavigateHome }: CounselorViewProps) {
                   </div>
                   {(['GBP', 'USD', 'EUR', 'CAD', 'AUD'] as const).map((curr) => (
                     <div key={curr}>
-                      <label className="block text-sm font-semibold">1 {curr} in INR</label>
+                      <label htmlFor={`set-rate-${curr}`} className="block text-sm font-semibold">1 {curr} in INR</label>
                       <input
+                        id={`set-rate-${curr}`}
                         type="number"
                         step="0.01"
                         value={settingsDraft.exchangeRates.ratesToInr[curr] ?? ''}
@@ -1024,7 +1072,7 @@ export default function CounselorView({ onNavigateHome }: CounselorViewProps) {
             )}
           </div>
         )}
-      </div>
-    </main>
+      </main>
+    </div>
   );
 }
