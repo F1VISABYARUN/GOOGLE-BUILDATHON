@@ -7,12 +7,12 @@ import {
   DollarSign,
   Edit3,
   Layers,
-  Lock,
   RefreshCw,
   Settings2,
   ShieldAlert,
   ShieldCheck,
   Sparkles,
+  UserCheck,
   XCircle,
 } from 'lucide-react';
 import TopNav from './TopNav.tsx';
@@ -127,22 +127,22 @@ interface CounselorViewProps {
 }
 
 export default function CounselorView({ onNavigate }: CounselorViewProps) {
-  const [passcode, setPasscode] = useState('');
-  const [counselorName, setCounselorName] = useState('Arun (Counselor)');
-  const [unlocked, setUnlocked] = useState(false);
-  const [checkingMode, setCheckingMode] = useState(true);
-  const [openDemoMode, setOpenDemoMode] = useState(false);
-  const [authError, setAuthError] = useState<string | null>(null);
-  const [authLoading, setAuthLoading] = useState(false);
+  const [counselorName, setCounselorName] = useState('Arun Reddy (Counselor)');
 
   const [queue, setQueue] = useState<QueueResponse | null>(null);
-  const [loadingQueue, setLoadingQueue] = useState(false);
+  const [loadingQueue, setLoadingQueue] = useState(true);
   const [selectedIndex, setSelectedIndex] = useState(0);
 
   const [portalUrlInput, setPortalUrlInput] = useState('/portal');
   const [actionBusy, setActionBusy] = useState(false);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [lastIssuedToken, setLastIssuedToken] = useState<{
+    token: string;
+    caseId: string;
+    portalUrl: string;
+    approvedBy: string;
+  } | null>(null);
 
   const [mode, setMode] = useState<'view' | 'edit' | 'reject'>('view');
   const [rejectReason, setRejectReason] = useState('');
@@ -155,13 +155,11 @@ export default function CounselorView({ onNavigate }: CounselorViewProps) {
   const [settingsDraft, setSettingsDraft] = useState<CounselorSettings | null>(null);
   const [savingSettings, setSavingSettings] = useState(false);
 
-  const loadQueue = useCallback(async (activePasscode: string) => {
+  const loadQueue = useCallback(async () => {
     setLoadingQueue(true);
     setActionError(null);
     try {
-      const headers: Record<string, string> = {};
-      if (activePasscode) headers['X-Counselor-Passcode'] = activePasscode;
-      const res = await fetch('/api/counselor/queue', { headers });
+      const res = await fetch('/api/counselor/queue');
       const data = await res.json();
       if (!res.ok) {
         throw new Error(data.error || 'Could not load counselor queue.');
@@ -179,56 +177,10 @@ export default function CounselorView({ onNavigate }: CounselorViewProps) {
     }
   }, []);
 
-  // Automatically check if open live mode is enabled so judges & counselor can enter in 0 clicks
+  // Opens directly on load (no passcode gate)
   useEffect(() => {
-    let active = true;
-    fetch('/api/counselor/auth-mode')
-      .then((r) => (r.ok ? r.json() : { openDemoMode: false }))
-      .then(async (data: { openDemoMode?: boolean }) => {
-        if (!active) return;
-        if (data.openDemoMode) {
-          setOpenDemoMode(true);
-          setUnlocked(true);
-          await loadQueue('');
-        }
-      })
-      .catch(() => {})
-      .finally(() => {
-        if (active) setCheckingMode(false);
-      });
-    return () => {
-      active = false;
-    };
+    void loadQueue();
   }, [loadQueue]);
-
-  async function handleUnlock(e: FormEvent) {
-    e.preventDefault();
-    setAuthError(null);
-    if (!passcode.trim()) {
-      setAuthError('Please enter the counselor passcode.');
-      return;
-    }
-    if (counselorName.trim().length < 2) {
-      setAuthError('Please enter your name for the audit log.');
-      return;
-    }
-
-    setAuthLoading(true);
-    try {
-      const res = await fetch('/api/counselor/verify', {
-        method: 'POST',
-        headers: { 'X-Counselor-Passcode': passcode.trim() },
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Passcode check failed.');
-      setUnlocked(true);
-      await loadQueue(passcode.trim());
-    } catch (err) {
-      setAuthError(err instanceof Error ? err.message : 'Invalid passcode.');
-    } finally {
-      setAuthLoading(false);
-    }
-  }
 
   const currentCase = queue?.exceptions[selectedIndex] ?? null;
 
@@ -244,42 +196,50 @@ export default function CounselorView({ onNavigate }: CounselorViewProps) {
     }
   }, [currentCase?.id]);
 
-  const authHeaders = useCallback(() => {
-    const h: Record<string, string> = { 'Content-Type': 'application/json' };
-    if (passcode.trim()) h['X-Counselor-Passcode'] = passcode.trim();
-    return h;
-  }, [passcode]);
-
   const handleApproveCurrent = useCallback(async () => {
     if (!currentCase || actionBusy) return;
+    if (counselorName.trim().length < 2) {
+      setActionError('Please enter the approver name above before approving.');
+      return;
+    }
     setActionBusy(true);
     setActionError(null);
     setActionMessage(null);
     try {
       const res = await fetch(`/api/counselor/cases/${currentCase.id}/approve`, {
         method: 'POST',
-        headers: authHeaders(),
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          counselorName: counselorName.trim() || 'Counselor',
+          counselorName: counselorName.trim(),
           portalUrl: portalUrlInput.trim() || '/portal',
         }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Approval failed.');
+      setLastIssuedToken({
+        token: data.approvalToken.token,
+        caseId: currentCase.id,
+        portalUrl: data.approvalToken.portalUrl,
+        approvedBy: data.approvalToken.approvedBy,
+      });
       setActionMessage(
-        `Approved ${currentCase.id} for ${data.approvalToken.portalUrl}. Single-use token issued (${data.approvalToken.token.slice(0, 14)}...) by ${data.approvalToken.approvedBy}.`
+        `Approved ${currentCase.id} for ${data.approvalToken.portalUrl}. Single-use token issued by ${data.approvalToken.approvedBy}.`
       );
-      await loadQueue(passcode.trim());
+      await loadQueue();
     } catch (err) {
       setActionError(err instanceof Error ? err.message : 'Approval failed.');
     } finally {
       setActionBusy(false);
     }
-  }, [actionBusy, authHeaders, counselorName, currentCase, loadQueue, passcode, portalUrlInput]);
+  }, [actionBusy, counselorName, currentCase, loadQueue, portalUrlInput]);
 
   async function handleSaveEdits(e: FormEvent) {
     e.preventDefault();
     if (!currentCase || actionBusy) return;
+    if (counselorName.trim().length < 2) {
+      setActionError('Please enter the approver name above before saving edits.');
+      return;
+    }
     setActionBusy(true);
     setActionError(null);
     setActionMessage(null);
@@ -296,9 +256,9 @@ export default function CounselorView({ onNavigate }: CounselorViewProps) {
 
       const res = await fetch(`/api/counselor/cases/${currentCase.id}/edit`, {
         method: 'POST',
-        headers: authHeaders(),
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          counselorName: counselorName.trim() || 'Counselor',
+          counselorName: counselorName.trim(),
           factEdits,
           requiredCostOverride,
         }),
@@ -309,7 +269,7 @@ export default function CounselorView({ onNavigate }: CounselorViewProps) {
         `Updated ${currentCase.id} and re-ran plain-code checks. New risk score: ${data.case.riskScore.score}/100.`
       );
       setMode('view');
-      await loadQueue(passcode.trim());
+      await loadQueue();
     } catch (err) {
       setActionError(err instanceof Error ? err.message : 'Edit failed.');
     } finally {
@@ -320,6 +280,10 @@ export default function CounselorView({ onNavigate }: CounselorViewProps) {
   async function handleRejectSubmit(e: FormEvent) {
     e.preventDefault();
     if (!currentCase || actionBusy) return;
+    if (counselorName.trim().length < 2) {
+      setActionError('Please enter the approver name above before rejecting.');
+      return;
+    }
     if (rejectReason.trim().length < 3) {
       setActionError('Please write a short reason for rejecting this case.');
       return;
@@ -330,9 +294,9 @@ export default function CounselorView({ onNavigate }: CounselorViewProps) {
     try {
       const res = await fetch(`/api/counselor/cases/${currentCase.id}/reject`, {
         method: 'POST',
-        headers: authHeaders(),
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          counselorName: counselorName.trim() || 'Counselor',
+          counselorName: counselorName.trim(),
           reason: rejectReason.trim(),
         }),
       });
@@ -341,7 +305,7 @@ export default function CounselorView({ onNavigate }: CounselorViewProps) {
       setActionMessage(`Rejected ${currentCase.id} and logged reason in the audit log.`);
       setRejectReason('');
       setMode('view');
-      await loadQueue(passcode.trim());
+      await loadQueue();
     } catch (err) {
       setActionError(err instanceof Error ? err.message : 'Rejection failed.');
     } finally {
@@ -351,15 +315,19 @@ export default function CounselorView({ onNavigate }: CounselorViewProps) {
 
   async function handleBatchApproveGreen() {
     if (!queue || queue.greenBatch.length === 0 || actionBusy) return;
+    if (counselorName.trim().length < 2) {
+      setActionError('Please enter the approver name above before batch approving.');
+      return;
+    }
     setActionBusy(true);
     setActionError(null);
     setActionMessage(null);
     try {
       const res = await fetch('/api/counselor/batch-approve', {
         method: 'POST',
-        headers: authHeaders(),
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          counselorName: counselorName.trim() || 'Counselor',
+          counselorName: counselorName.trim(),
           portalUrl: portalUrlInput.trim() || '/portal',
         }),
       });
@@ -368,7 +336,7 @@ export default function CounselorView({ onNavigate }: CounselorViewProps) {
       setActionMessage(
         `Batch-approved ${data.approvedCount} green case(s) with individual single-use approval tokens.`
       );
-      await loadQueue(passcode.trim());
+      await loadQueue();
     } catch (err) {
       setActionError(err instanceof Error ? err.message : 'Batch approval failed.');
     } finally {
@@ -385,7 +353,7 @@ export default function CounselorView({ onNavigate }: CounselorViewProps) {
     try {
       const res = await fetch('/api/counselor/settings', {
         method: 'PUT',
-        headers: authHeaders(),
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           counselorName: counselorName.trim() || 'Counselor',
           ukRules: settingsDraft.ukRules,
@@ -395,7 +363,7 @@ export default function CounselorView({ onNavigate }: CounselorViewProps) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.details || data.error || 'Could not save settings.');
       setActionMessage('Saved updated UK rules and dated exchange rates to Firestore.');
-      await loadQueue(passcode.trim());
+      await loadQueue();
     } catch (err) {
       setActionError(err instanceof Error ? err.message : 'Failed to save settings.');
     } finally {
@@ -405,7 +373,7 @@ export default function CounselorView({ onNavigate }: CounselorViewProps) {
 
   // Keyboard shortcuts: A, E, R, J, K
   useEffect(() => {
-    if (!unlocked || !queue) return;
+    if (!queue) return;
     const activeQueue = queue;
 
     function onKeyDown(e: KeyboardEvent) {
@@ -437,7 +405,7 @@ export default function CounselorView({ onNavigate }: CounselorViewProps) {
 
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [currentCase, handleApproveCurrent, mode, queue, unlocked]);
+  }, [currentCase, handleApproveCurrent, mode, queue]);
 
   const totalEstimatedUsd = queue
     ? [...queue.exceptions, ...queue.greenBatch, ...queue.resolved].reduce(
@@ -457,6 +425,10 @@ export default function CounselorView({ onNavigate }: CounselorViewProps) {
 
       <TopNav activeRoute="counselor" onNavigate={onNavigate} />
 
+      <div className="border-b border-amber-200 bg-amber-50 px-4 py-2 text-center text-xs font-semibold text-amber-950 sm:text-sm">
+        Demo mode: sample data only — counselor queue opens directly; enter your approver name below for the audit log.
+      </div>
+
       <main id="counselor-main" className="mx-auto max-w-5xl space-y-6 px-4 py-8 sm:px-6 lg:px-8">
         {/* HERO BANNER WITH CUSTOM COUNSELOR SHIELD VISUAL */}
         <section className="overflow-hidden rounded-3xl border border-slate-200 bg-gradient-to-br from-slate-950 via-slate-900 to-emerald-950 p-6 text-white shadow-lg sm:p-8">
@@ -475,25 +447,23 @@ export default function CounselorView({ onNavigate }: CounselorViewProps) {
                 without your single-use token.
               </p>
 
-              {unlocked && (
-                <div className="flex flex-wrap items-center gap-3 pt-1">
-                  <label htmlFor="active-counselor-name" className="text-sm font-medium text-slate-300">
-                    Signing approvals as:
-                  </label>
-                  <input
-                    id="active-counselor-name"
-                    type="text"
-                    value={counselorName}
-                    onChange={(e) => setCounselorName(e.target.value)}
-                    className="rounded-xl border border-slate-600 bg-slate-800/80 px-3.5 py-1.5 text-sm font-semibold text-white placeholder:text-slate-400 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-400/50"
-                  />
-                  {openDemoMode && (
-                    <span className="rounded-full bg-emerald-600/30 px-3 py-1 text-xs font-semibold text-emerald-200">
-                      Live Review Mode Active
-                    </span>
-                  )}
-                </div>
-              )}
+              <div className="flex flex-wrap items-center gap-3 pt-1">
+                <label
+                  htmlFor="active-counselor-name"
+                  className="inline-flex items-center gap-1.5 text-sm font-semibold text-emerald-200"
+                >
+                  <UserCheck className="h-4 w-4" aria-hidden="true" />
+                  Approver name (for audit log &amp; tokens):
+                </label>
+                <input
+                  id="active-counselor-name"
+                  type="text"
+                  value={counselorName}
+                  onChange={(e) => setCounselorName(e.target.value)}
+                  placeholder="Enter your name"
+                  className="rounded-xl border border-emerald-400/50 bg-slate-800/90 px-3.5 py-2 text-sm font-semibold text-white placeholder:text-slate-400 focus:border-emerald-300 focus:outline-none focus:ring-2 focus:ring-emerald-400/50"
+                />
+              </div>
             </div>
 
             <div className="flex justify-center md:justify-end">
@@ -506,70 +476,10 @@ export default function CounselorView({ onNavigate }: CounselorViewProps) {
           </div>
         </section>
 
-        {checkingMode ? (
+        {loadingQueue && !queue ? (
           <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-base font-medium text-slate-700 shadow-sm">
             Loading Counselor Queue...
           </div>
-        ) : !unlocked ? (
-          <form
-            onSubmit={handleUnlock}
-            className="mx-auto max-w-xl space-y-5 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8"
-          >
-            <div className="flex items-center gap-3">
-              <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-100 text-blue-800">
-                <Lock className="h-5 w-5" aria-hidden="true" />
-              </span>
-              <div>
-                <h2 className="text-2xl font-bold text-slate-950">Sign in as Counselor</h2>
-                <p className="text-sm text-slate-600">
-                  Protected by <span className="font-mono">COUNSELOR_PASSCODE</span> in Google Secret Manager.
-                </p>
-              </div>
-            </div>
-
-            <div>
-              <label htmlFor="counselor-name" className="block text-sm font-semibold text-slate-900">
-                Your name (recorded in approval tokens &amp; audit log)
-              </label>
-              <input
-                id="counselor-name"
-                type="text"
-                value={counselorName}
-                onChange={(e) => setCounselorName(e.target.value)}
-                className="mt-1.5 w-full rounded-xl border border-slate-300 px-4 py-3 text-base focus:border-blue-600 focus:outline-none focus:ring-4 focus:ring-blue-200"
-              />
-            </div>
-
-            <div>
-              <label htmlFor="counselor-passcode" className="block text-sm font-semibold text-slate-900">
-                Counselor passcode
-              </label>
-              <input
-                id="counselor-passcode"
-                type="password"
-                autoComplete="current-password"
-                value={passcode}
-                onChange={(e) => setPasscode(e.target.value)}
-                placeholder="Enter passcode from Secret Manager"
-                className="mt-1.5 w-full rounded-xl border border-slate-300 px-4 py-3 text-base focus:border-blue-600 focus:outline-none focus:ring-4 focus:ring-blue-200"
-              />
-            </div>
-
-            {authError && (
-              <div role="alert" className="rounded-xl border border-red-300 bg-red-50 p-4 text-sm font-medium text-red-900">
-                {authError}
-              </div>
-            )}
-
-            <button
-              type="submit"
-              disabled={authLoading}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-blue-700 px-6 py-3.5 text-base font-semibold text-white shadow-sm hover:bg-blue-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300 disabled:bg-blue-400"
-            >
-              <Lock className="h-4 w-4" aria-hidden="true" />
-              <span>{authLoading ? 'Checking passcode...' : 'Unlock Counselor Queue'}</span>
-            </button>
-          </form>
         ) : (
           <div className="space-y-6">
             {/* KPI SUMMARY STRIP */}
@@ -638,7 +548,7 @@ export default function CounselorView({ onNavigate }: CounselorViewProps) {
                 <div className="flex flex-wrap gap-2">
                   <button
                     type="button"
-                    onClick={() => void loadQueue(passcode.trim())}
+                    onClick={() => void loadQueue()}
                     disabled={loadingQueue}
                     className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300"
                   >
@@ -702,10 +612,25 @@ export default function CounselorView({ onNavigate }: CounselorViewProps) {
             {actionMessage && (
               <div
                 role="status"
-                className="flex items-start gap-3 rounded-2xl border border-emerald-300 bg-emerald-50 p-4 text-base font-medium text-emerald-950 shadow-sm"
+                className="space-y-2 rounded-2xl border border-emerald-300 bg-emerald-50 p-4 text-base font-medium text-emerald-950 shadow-sm"
               >
-                <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-700" aria-hidden="true" />
-                <span>{actionMessage}</span>
+                <div className="flex items-start gap-3">
+                  <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-700" aria-hidden="true" />
+                  <span>{actionMessage}</span>
+                </div>
+                {lastIssuedToken && (
+                  <div className="ml-8 flex flex-wrap items-center gap-3 pt-1">
+                    <span className="rounded-lg bg-white px-3 py-1 font-mono text-xs font-semibold text-emerald-900 ring-1 ring-emerald-200">
+                      Token: {lastIssuedToken.token.slice(0, 18)}...
+                    </span>
+                    <a
+                      href={`/portal?caseId=${encodeURIComponent(lastIssuedToken.caseId)}&approvalToken=${encodeURIComponent(lastIssuedToken.token)}`}
+                      className="inline-flex items-center gap-1 rounded-xl bg-emerald-700 px-3.5 py-1.5 text-xs font-bold text-white hover:bg-emerald-800"
+                    >
+                      Open /portal with Approved Token →
+                    </a>
+                  </div>
+                )}
               </div>
             )}
 

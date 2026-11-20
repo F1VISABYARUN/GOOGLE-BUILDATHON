@@ -3,10 +3,11 @@
 **Google Startup Buildathon India 2026 — Hyderabad**
 
 - **Live Public URL:** https://aira-web-217073132830.asia-south1.run.app
-- **Counselor Exception Queue:** https://aira-web-217073132830.asia-south1.run.app/counselor
+- **Counselor Exception Queue:** https://aira-web-217073132830.asia-south1.run.app/counselor (opens directly in demo mode; enter approver name for audit logs)
 - **Direct Application Test Portal (`/portal`):** https://aira-web-217073132830.asia-south1.run.app/portal
 - **Architecture Diagram:** [docs/architecture.md](docs/architecture.md)
 - **2-Minute Demo Script:** [docs/demo-script.md](docs/demo-script.md)
+- **Pitch Deck Copy:** [docs/deck-content.md](docs/deck-content.md)
 
 ---
 
@@ -18,10 +19,10 @@ Indian students applying to study abroad juggle multiple university portals, mar
 
 **Aira Application Agent** combines Gemini's multimodal understanding and browser computer use with plain-code deterministic checks and a human counselor safety gate:
 
-1. **Upload & Authorise:** The student completes a DPDP-ready privacy consent notice and signs a one-time authorisation.
+1. **Upload & Authorise:** The student completes a DPDP-ready privacy consent notice and signs a one-time authorisation (judges can also click **Load Sample (Shortfall + Masked IDs)** or **Load Clean Green Sample** to generate fake sample PDFs in-browser).
 2. **Extract with Quotes:** Gemini extracts structured facts paired with verbatim quotes from uploaded PDFs/images (held in memory only and deleted immediately after reading).
 3. **Plain-Code Verification:** TypeScript code verifies every quote against the extracted document text (marking unfound quotes as **"needs review"**), masks passport, bank account, Aadhaar, and PAN numbers to the last 4 digits, and runs exact funds, name, GPA/backlog, and date checks.
-4. **Exception-Only Counselor Queue:** Clean green cases are pre-approved by code rules for one-click batch approval; only high-stakes exceptions (red flags, unverified quotes, low confidence, declarations, safety confirmations) appear one-per-screen on `/counselor` with keyboard shortcuts (`A`, `E`, `R`, `J`/`K`), cost-per-case tracking, and timestamped audit logs.
+4. **Exception-Only Counselor Queue:** Clean green cases are pre-approved by code rules for one-click batch approval (never issued a token automatically); only high-stakes exceptions appear one-per-screen on `/counselor` (opens directly in demo mode — enter the approver's name for the audit log) with keyboard shortcuts (`A`, `E`, `R`, `J`/`K`), cost-per-case tracking, single-use approval tokens, and timestamped audit logs.
 5. **Computer-Use Agent with Hard Submit Gate:** An isolated Playwright worker on Cloud Run (`aira-agent`), dispatched via Cloud Tasks, creates the portal account, reads email verification codes, and fills every form page using the Gemini Interactions API (`client.interactions.create`). Both a plain-code action filter and `/portal`'s Submit endpoint (**HTTP 403**) block submission until a human counselor issues a single-use approval token.
 
 ---
@@ -37,7 +38,7 @@ Indian students applying to study abroad juggle multiple university portals, mar
 | **Cloud Run (`aira-web` + `aira-agent`)** | Public web/API server + private `--no-allow-unauthenticated` Playwright worker (`gen2`, 2 vCPU, 4 GiB, concurrency 1, 15m timeout) | Scales cleanly and isolates untrusted browser automation from the public web server |
 | **Cloud Tasks (`aira-agent-queue`)** | Dispatches computer-use runs to private `aira-agent` using OIDC tokens | Reliable async execution for multi-minute portal runs without blocking HTTP requests |
 | **Firestore (`asia-south1`)** | Stores `cases`, `approval_tokens`, `audit_logs`, `settings`, `agent_runs`, and `/portal` state | Real-time state persistence, single-use token transactions, and live step feed checkpoints |
-| **Secret Manager** | Stores `GEMINI_API_KEY`, `COUNSELOR_PASSCODE`, and generated per-portal passwords | Keeps all credentials out of code, Git, Firestore, and logs |
+| **Secret Manager** | Stores `GEMINI_API_KEY` and generated per-portal passwords | Keeps all credentials out of code, Git, Firestore, and logs |
 | **Cloud Logging** | Structured JSON logs for model, latency, fallback, and token counts | Full observability with zero document text or PII in logs |
 
 ---
@@ -56,7 +57,7 @@ Indian students applying to study abroad juggle multiple university portals, mar
 
 ### Prerequisites
 - Node.js 24+
-- Copy `.env.example` to `.env` and add your `GEMINI_API_KEY` and `COUNSELOR_PASSCODE` locally (never commit `.env`).
+- Copy `.env.example` to `.env` and add your `GEMINI_API_KEY` locally (never commit `.env`).
 
 ### Install, Test, and Build
 ```bash

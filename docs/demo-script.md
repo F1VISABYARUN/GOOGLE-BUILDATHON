@@ -4,11 +4,11 @@
 
 ---
 
-### 0:00 – 0:25 | Beat 1: DPDP Consent, Upload & Verbatim Quote Audit
-1. Open `/` and point out the **Privacy Consent & One-Time Authorisation** screen (files stay in memory only, deleted immediately; passport/account/Aadhaar/PAN masked; under-18 parental consent toggle; typed e-signature).
-2. Upload 2 sample documents (sample CAS letter + sample Indian bank statement) for **UK (London)**.
+### 0:00 – 0:25 | Beat 1: DPDP Consent, 1-Click Sample Upload & Verbatim Quote Audit
+1. Open `/` (notice the subtle **"Demo mode: sample data only"** banner) and point out the **Privacy Consent & One-Time Authorisation** screen (files stay in memory only, deleted immediately; passport/account/Aadhaar/PAN masked; under-18 parental consent toggle; typed e-signature).
+2. Click **Load Sample (Shortfall + Masked IDs)** on Step 2 to generate fake UK London CAS + Indian Bank Statement + Marksheet PDFs directly in browser memory, then click **Extract Facts & Run Checks**.
 3. Point out the **Results Page**:
-   - Every fact shows its **exact verbatim quote** from the document (and Aadhaar/PAN/passport/account numbers are masked to the last 4 digits).
+   - Every fact shows its **exact verbatim quote** from the document (and Aadhaar/PAN/passport/account numbers are masked to the last 4 digits in both facts and quotes).
    - **Plain-Code Funds Math** shows exact arithmetic: `CAS Tuition − Deposit Paid = Unpaid Tuition + UK London Living (£1,570 × 9)` using visible, dated exchange rates — never LLM math.
    - Red/Amber flags include plain-English fixes written by `gemini-4-carbon`.
 
@@ -23,10 +23,10 @@
 9. Explain our two-layer safety lock: the agent's plain-code action filter blocks Submit/Declaration without a counselor token, AND `/portal`'s Submit endpoint enforces **HTTP 403** in Firestore without a valid single-use token.
 
 ### 1:15 – 1:40 | Beat 4: Counselor Exception Queue (`/counselor`)
-10. Open `/counselor` (protected by `COUNSELOR_PASSCODE` in Secret Manager).
-11. Highlight: counselors see **only exceptions** sorted by risk score (0–100), one case per screen, with **Cost Per Case** (tokens, steps, USD) and `A`/`E`/`R`/`J`/`K` shortcuts — while clean green cases are cleared in one click via **Batch Approve**.
-12. Press **`A`** (Approve) to issue a **single-use approval token** in Firestore tied to that exact case ID and portal URL, logged in the timestamped Audit Log.
+10. Open `/counselor` — opens directly (no passcode in demo mode); enter or confirm the **Approver Name** for the audit log.
+11. Highlight: counselors see **only exceptions** sorted by risk score (0–100), one case per screen, with **Cost Per Case** (tokens, steps, USD) and `A`/`E`/`R`/`J`/`K` shortcuts — while clean green cases never receive a token automatically and are cleared in one click via **Batch Approve**.
+12. Press **`A`** (Approve) to issue a **single-use approval token** in Firestore tied to that exact case ID and portal URL, recorded with the approver's name in the timestamped Audit Log.
 
 ### 1:40 – 2:00 | Beat 5: Application Submitted & Privacy Proof
-13. Return to `/portal` (or click **Resume Agent After Approval**): with the counselor's single-use token attached, Submit succeeds with an official receipt (`APP-...`), and any replay attempt returns **HTTP 403**.
+13. Click **Open /portal with Approved Token →** (or return to `/portal` Page 7): first show that submitting without a token returns **HTTP 403**, then submit with the counselor's single-use token to get an official receipt (`APP-...`), and note that any replay attempt returns **HTTP 403**.
 14. Point out the **Delete My Data** button on the student page to prove DPDP compliance end-to-end.

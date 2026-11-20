@@ -1,5 +1,5 @@
-import { useState, type FormEvent } from 'react';
-import { CheckCircle2, Lock, ShieldAlert } from 'lucide-react';
+import { useEffect, useState, type FormEvent } from 'react';
+import { CheckCircle2, Info, Lock, ShieldAlert } from 'lucide-react';
 import TopNav from './TopNav.tsx';
 
 interface PortalViewProps {
@@ -18,8 +18,10 @@ export default function PortalView({ onNavigate }: PortalViewProps) {
   const params = new URLSearchParams(window.location.search);
   const initialCaseId = params.get('caseId') || '';
   const initialApprovalToken = params.get('approvalToken') || '';
+  const initialStep =
+    params.get('step') === '7' || (initialCaseId && initialApprovalToken) ? 7 : 1;
 
-  const [page, setPage] = useState<number>(1);
+  const [page, setPage] = useState<number>(initialStep);
   const [caseId, setCaseId] = useState(initialCaseId);
   const [approvalToken, setApprovalToken] = useState(initialApprovalToken);
 
@@ -69,6 +71,22 @@ export default function PortalView({ onNavigate }: PortalViewProps) {
     approvedBy: string;
     submittedAt: string;
   } | null>(null);
+
+  useEffect(() => {
+    if (!initialCaseId) return;
+    fetch(`/api/cases/${encodeURIComponent(initialCaseId)}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((c) => {
+        if (!c) return;
+        if (c.studentName && !fullName) setFullName(String(c.studentName));
+        if (c.studentEmail && !email) setEmail(String(c.studentEmail));
+        if (c.targetUniversity && !university) setUniversity(String(c.targetUniversity));
+        if (c.targetProgram && !selectedProgram) setSelectedProgram(String(c.targetProgram));
+      })
+      .catch(() => {
+        // ignore prefill lookup errors
+      });
+  }, [initialCaseId]);
 
   async function handleRegister(e: FormEvent) {
     e.preventDefault();
@@ -185,6 +203,12 @@ export default function PortalView({ onNavigate }: PortalViewProps) {
   return (
     <div className="min-h-screen bg-slate-100 text-slate-900">
       <TopNav activeRoute="portal" onNavigate={onNavigate} />
+      <div className="border-b border-amber-200 bg-amber-50 px-4 py-1.5 text-center text-xs font-medium text-amber-900">
+        <span className="inline-flex items-center gap-1.5">
+          <Info className="h-3.5 w-3.5 text-amber-700" aria-hidden="true" />
+          Demo mode: sample data only
+        </span>
+      </div>
       <main className="mx-auto max-w-3xl space-y-5 px-4 py-8 sm:px-6 lg:px-8">
         <header className="overflow-hidden rounded-3xl border border-indigo-200 bg-gradient-to-br from-indigo-950 via-indigo-900 to-slate-950 p-6 text-white shadow-lg">
           <div className="flex flex-wrap items-center justify-between gap-4">

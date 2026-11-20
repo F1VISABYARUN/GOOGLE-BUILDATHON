@@ -4,9 +4,7 @@ import { createApp } from './app.js';
 import { createApprovalToken } from './services/firestoreStore.js';
 
 async function startTestServer() {
-  const app = createApp({
-    counselorPasscodeLoader: async () => 'test-passcode-only',
-  });
+  const app = createApp();
   const server = http.createServer(app);
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
   const address = server.address();

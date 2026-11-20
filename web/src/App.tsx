@@ -19,6 +19,7 @@ import TopNav from './TopNav.tsx';
 import CounselorView from './CounselorView.tsx';
 import PortalView from './PortalView.tsx';
 import AgentRunnerPanel from './AgentRunnerPanel.tsx';
+import { createSampleExceptionFiles, createSampleGreenFiles } from './samplePdfs.ts';
 
 interface HelloResponse {
   model: string;
@@ -395,6 +396,10 @@ export default function App() {
 
       <TopNav activeRoute="student" onNavigate={navigateTo} />
 
+      <div className="border-b border-amber-200 bg-amber-50 px-4 py-2 text-center text-xs font-semibold text-amber-950 sm:text-sm">
+        Demo mode: sample data only — use sample documents or non-sensitive test files.
+      </div>
+
       <main id="student-main" className="mx-auto max-w-5xl space-y-8 px-4 py-8 sm:px-6 lg:px-8">
         {/* HERO SPLIT BANNER */}
         <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-md">
@@ -677,6 +682,48 @@ export default function App() {
                 {new Date(signedAt).toLocaleString()}. Uploaded files stay in memory only and are
                 deleted right after reading.
               </span>
+            </div>
+
+            {/* ONE-CLICK SAMPLE DOCUMENTS FOR JUDGES */}
+            <div className="rounded-2xl border border-blue-200 bg-blue-50/70 p-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-bold text-blue-950">
+                    No files handy? Load fake sample UK documents in one click
+                  </p>
+                  <p className="text-xs text-blue-900">
+                    Generates sample PDFs directly in your browser (CAS + Bank Statement + Marksheet) with zero personal data.
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAnalyzeError(null);
+                      setDestinationCountry('UK');
+                      setUkRegion('london');
+                      setFiles(createSampleExceptionFiles());
+                    }}
+                    className="inline-flex items-center gap-1.5 rounded-xl bg-blue-700 px-4 py-2 text-xs font-bold text-white shadow-sm hover:bg-blue-800 sm:text-sm"
+                  >
+                    <Sparkles className="h-4 w-4" aria-hidden="true" />
+                    <span>Load Sample (Shortfall + Masked IDs)</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAnalyzeError(null);
+                      setDestinationCountry('UK');
+                      setUkRegion('outside_london');
+                      setFiles(createSampleGreenFiles());
+                    }}
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-2 text-xs font-bold text-emerald-950 hover:bg-emerald-100 sm:text-sm"
+                  >
+                    <CheckCircle2 className="h-4 w-4 text-emerald-700" aria-hidden="true" />
+                    <span>Load Clean Green Sample</span>
+                  </button>
+                </div>
+              </div>
             </div>
 
             {/* DRAG-AND-DROP STYLE UPLOAD BOX */}

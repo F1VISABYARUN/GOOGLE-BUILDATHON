@@ -41,10 +41,6 @@ import {
   saveCounselorSettings,
 } from './services/firestoreStore.js';
 import { createMultiWindowRateLimiter } from './middleware/rateLimit.js';
-import {
-  createCounselorAuthMiddleware,
-  isCounselorDemoOpen,
-} from './middleware/counselorAuth.js';
 import { createPortalRouter } from './routes/portal.js';
 import { fetchUniversityRulesGrounded } from './services/universityRules.js';
 import { enqueueAgentRunTask } from './services/cloudTasks.js';
@@ -142,13 +138,8 @@ const CounselorSettingsUpdateSchema = z.object({
   exchangeRates: ExchangeRateConfigSchema,
 });
 
-export interface CreateAppOptions {
-  counselorPasscodeLoader?: () => Promise<string | null>;
-}
-
-export function createApp(options?: CreateAppOptions) {
+export function createApp() {
   const app = express();
-  const requireCounselor = createCounselorAuthMiddleware(options?.counselorPasscodeLoader);
 
   app.set('trust proxy', 1);
   app.use(cors());
@@ -442,19 +433,11 @@ export function createApp(options?: CreateAppOptions) {
   });
 
   // =========================================================================
-  // COUNSELOR QUEUE ENDPOINTS (Protected by COUNSELOR_PASSCODE in Secret Manager,
-  // or open immediately when COUNSELOR_DEMO_OPEN=true)
+  // COUNSELOR QUEUE ENDPOINTS (Demo mode: opens directly; approver's name is
+  // required on every write for approval tokens & timestamped audit logs)
   // =========================================================================
 
-  app.get('/api/counselor/auth-mode', (_req, res) => {
-    res.json({ openDemoMode: isCounselorDemoOpen() });
-  });
-
-  app.post('/api/counselor/verify', requireCounselor, (_req, res) => {
-    res.json({ ok: true, openDemoMode: isCounselorDemoOpen() });
-  });
-
-  app.get('/api/counselor/queue', requireCounselor, async (_req, res) => {
+  app.get('/api/counselor/queue', async (_req, res) => {
     try {
       const [allCases, auditLog, settings] = await Promise.all([
         listCaseRecords(),
@@ -530,7 +513,7 @@ export function createApp(options?: CreateAppOptions) {
     }
   });
 
-  app.post('/api/counselor/cases/:id/approve', requireCounselor, async (req, res) => {
+  app.post('/api/counselor/cases/:id/approve', async (req, res) => {
     const parsed = CounselorApproveSchema.safeParse(req.body);
     if (!parsed.success) {
       return res.status(400).json({
@@ -590,7 +573,7 @@ export function createApp(options?: CreateAppOptions) {
     return res.json({ case: updated, approvalToken });
   });
 
-  app.post('/api/counselor/cases/:id/edit', requireCounselor, async (req, res) => {
+  app.post('/api/counselor/cases/:id/edit', async (req, res) => {
     const parsed = CounselorEditSchema.safeParse(req.body);
     if (!parsed.success) {
       return res.status(400).json({
@@ -679,7 +662,7 @@ export function createApp(options?: CreateAppOptions) {
     return res.json({ case: updated });
   });
 
-  app.post('/api/counselor/cases/:id/reject', requireCounselor, async (req, res) => {
+  app.post('/api/counselor/cases/:id/reject', async (req, res) => {
     const parsed = CounselorRejectSchema.safeParse(req.body);
     if (!parsed.success) {
       return res.status(400).json({
@@ -725,7 +708,7 @@ export function createApp(options?: CreateAppOptions) {
     return res.json({ case: updated });
   });
 
-  app.post('/api/counselor/batch-approve', requireCounselor, async (req, res) => {
+  app.post('/api/counselor/batch-approve', async (req, res) => {
     const parsed = CounselorBatchApproveSchema.safeParse(req.body);
     if (!parsed.success) {
       return res.status(400).json({
@@ -793,7 +776,7 @@ export function createApp(options?: CreateAppOptions) {
     });
   });
 
-  app.put('/api/counselor/settings', requireCounselor, async (req, res) => {
+  app.put('/api/counselor/settings', async (req, res) => {
     const parsed = CounselorSettingsUpdateSchema.safeParse(req.body);
     if (!parsed.success) {
       return res.status(400).json({
@@ -819,7 +802,7 @@ export function createApp(options?: CreateAppOptions) {
     return res.json(nextSettings);
   });
 
-  app.get('/api/counselor/audit', requireCounselor, async (_req, res) => {
+  app.get('/api/counselor/audit', async (_req, res) => {
     const logs = await listAuditLogs(100);
     res.json({ auditLog: logs });
   });

@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
+import http from 'node:http';
+import { createApp } from './app.js';
 import { evaluateExceptionRouting } from './checks/exceptionRouting.js';
 import { clampRiskAssessment } from './services/documentPipeline.js';
 import { createMultiWindowRateLimiter } from './middleware/rateLimit.js';
-import { timingSafePasscodeEquals } from './middleware/counselorAuth.js';
 import {
   createApprovalToken,
   deleteCaseAndData,
@@ -130,11 +131,28 @@ describe('multi-window rate limiter (30/hr, 200/day, 10/hr per IP)', () => {
   });
 });
 
-describe('counselorAuth timingSafePasscodeEquals', () => {
-  it('matches identical passcodes and rejects mismatches', () => {
-    expect(timingSafePasscodeEquals('secret-code-123', 'secret-code-123')).toBe(true);
-    expect(timingSafePasscodeEquals('secret-code-124', 'secret-code-123')).toBe(false);
-    expect(timingSafePasscodeEquals('short', 'secret-code-123')).toBe(false);
+describe('counselor queue direct access (no passcode, approver name required)', () => {
+  it('opens /api/counselor/queue directly without a passcode and requires approver name on approve', async () => {
+    const app = createApp();
+    const server = http.createServer(app);
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const address = server.address();
+    const port = typeof address === 'object' && address ? address.port : 0;
+    const baseUrl = `http://127.0.0.1:${port}`;
+
+    try {
+      const queueRes = await fetch(`${baseUrl}/api/counselor/queue`);
+      expect(queueRes.status).toBe(200);
+
+      const badApprove = await fetch(`${baseUrl}/api/counselor/cases/case_missing/approve`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ counselorName: '' }),
+      });
+      expect(badApprove.status).toBe(400);
+    } finally {
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
   });
 });
 

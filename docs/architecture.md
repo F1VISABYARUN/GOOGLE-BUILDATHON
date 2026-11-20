@@ -5,7 +5,7 @@
 ```mermaid
 flowchart TD
     Student["Student Browser (Mobile-First Web UI)"] -->|"HTTPS (/, /portal)"| WebRun["Cloud Run: aira-web (React + Express API)"]
-    Counselor["Human Counselor Browser"] -->|"HTTPS (/counselor + X-Counselor-Passcode)"| WebRun
+    Counselor["Human Counselor Browser"] -->|"HTTPS (/counselor + Approver Name)"| WebRun
 
     WebRun -->|"In-Memory Upload (Multer) -> Deleted Immediately"| Pipeline["Document & Audit Pipeline"]
 
@@ -16,7 +16,7 @@ flowchart TD
     WebRun -->|"University Rules + Search + URL Context"| GNeon["Gemini 4 Neon (Fallback: 4 Carbon)"]
 
     WebRun -->|"Store Facts, Quotes, Flags, Tokens, Audit Logs"| Firestore["Google Cloud Firestore (asia-south1)"]
-    WebRun -->|"Read GEMINI_API_KEY & COUNSELOR_PASSCODE"| Secrets["Google Cloud Secret Manager"]
+    WebRun -->|"Read GEMINI_API_KEY"| Secrets["Google Cloud Secret Manager"]
     WebRun -->|"Enqueue Agent Job (OIDC Token)"| Tasks["Google Cloud Tasks (aira-agent-queue)"]
 
     Tasks -->|"Authenticated POST /tasks/run-agent"| AgentRun["Cloud Run: aira-agent (Private Playwright gen2, 2 vCPU, 4 GiB)"]
@@ -39,7 +39,7 @@ flowchart TD
 2. **Human-in-the-Loop Submit Gate (Defense in Depth):**
    - **Layer 1 (Agent Action Filter):** `agent/src/actionFilter.ts` runs before every browser action and blocks Common App, UCAS, payment pages, and clicks on Submit / Declaration / Sign unless a valid counselor approval token exists.
    - **Layer 2 (Portal Server Enforcement):** `/portal`'s Submit endpoint verifies and atomically consumes a single-use token in Firestore (`approval_tokens/{token}`) tied to `(caseId, portalUrl, approvedBy, approvedAt)` and returns **HTTP 403** without one.
-   - **No Automatic Tokens:** Clean green cases are pre-approved by rules for fast **batch approval**, but never receive a token until an authenticated counselor clicks **Approve (`A`)** or **Batch Approve**.
+   - **No Automatic Tokens:** Clean green cases are pre-approved by rules for fast **batch approval**, but never receive a token until a counselor enters their approver name and clicks **Approve (`A`)** or **Batch Approve**.
 3. **Strict Isolation & Privacy:**
    - Uploaded documents stay in `multer` memory buffers only and are cleared immediately after extraction — **no Cloud Storage**.
    - Firestore stores only extracted facts, masked identifiers, verbatim quotes, flags, consent records, tokens, and audit logs.
