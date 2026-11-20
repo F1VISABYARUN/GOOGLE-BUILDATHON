@@ -16,6 +16,15 @@ const PRIMARY_MODEL = 'gemini-4-hydrogen';
 const ESCALATION_MODEL = 'gemini-4-carbon';
 const MAX_STEPS_PER_GROUP = 40;
 const FAILURES_BEFORE_ESCALATION = 3;
+const MAX_INLINE_THUMBNAILS = 6;
+
+function pruneStepsForFirestore(steps: AgentStepFeedItem[]): AgentStepFeedItem[] {
+  const trimmed = steps.length > 50 ? steps.slice(-50) : steps;
+  const thumbStartIdx = Math.max(0, trimmed.length - MAX_INLINE_THUMBNAILS);
+  return trimmed.map((step, idx) =>
+    idx >= thumbStartIdx ? step : { ...step, thumbnailDataUrl: undefined }
+  );
+}
 
 export interface AgentStepFeedItem {
   stepNumber: number;
@@ -109,7 +118,7 @@ async function captureScreenshots(page: Page): Promise<{
   const pngBuffer = await page.screenshot({ type: 'png', fullPage: false });
   const jpegThumbBuffer = await page.screenshot({
     type: 'jpeg',
-    quality: 35,
+    quality: 22,
     fullPage: false,
   });
   return {
@@ -526,6 +535,7 @@ export async function runComputerUseAgent(params: {
           status: 'ok',
           thumbnailDataUrl: shots.thumbnailDataUrl,
         });
+        run.steps = pruneStepsForFirestore(run.steps);
 
         if (submittedMatch && tokenStatus.valid) {
           run.status = 'submitted';
@@ -595,6 +605,7 @@ export async function runComputerUseAgent(params: {
             note: decision.message,
             thumbnailDataUrl: shots.thumbnailDataUrl,
           });
+          run.steps = pruneStepsForFirestore(run.steps);
 
           if (decision.blockReason === 'safety_confirmation_required') {
             run.status = 'paused_safety_confirmation';
@@ -704,10 +715,7 @@ export async function runComputerUseAgent(params: {
           note: `${execNote}${emailCodeNote}`,
           thumbnailDataUrl: shots.thumbnailDataUrl,
         });
-        // Keep last 40 steps in Firestore doc (under 1 MiB limit)
-        if (run.steps.length > 40) {
-          run.steps = run.steps.slice(-40);
-        }
+        run.steps = pruneStepsForFirestore(run.steps);
         run.updatedAt = new Date().toISOString();
         await runRef.set(run);
 
@@ -785,6 +793,7 @@ export async function runComputerUseAgent(params: {
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error(`[agent] Fatal error on run ${run.id}:`, message);
+    run.steps = pruneStepsForFirestore(run.steps);
     run.status = 'failed';
     run.statusMessage = `Agent stopped with error: ${message}`;
     run.updatedAt = new Date().toISOString();
