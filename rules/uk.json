@@ -1,0 +1,18 @@
+{
+  "country": "UK",
+  "asOf": "2026-11-30",
+  "sourceUrl": "https://www.gov.uk/student-visa/money",
+  "maintenance": {
+    "currency": "GBP",
+    "londonPerMonth": 1570,
+    "outsideLondonPerMonth": 1203,
+    "maxMonths": 9,
+    "note": "UK Student route monthly maintenance requirement effective from 30 Nov 2026."
+  },
+  "bankStatement": {
+    "minConsecutiveDaysHeld": 28,
+    "maxAgeDays": 31,
+    "sourceUrl": "https://www.gov.uk/guidance/financial-evidence-for-student-and-child-student-route-applicants",
+    "note": "Funds must be held for at least 28 consecutive days; closing date must be within 31 days of application."
+  }
+}
