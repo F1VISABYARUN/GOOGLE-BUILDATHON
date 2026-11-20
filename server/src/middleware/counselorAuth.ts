@@ -60,6 +60,10 @@ export async function loadCounselorPasscode(): Promise<string | null> {
   return null;
 }
 
+export function isCounselorDemoOpen(): boolean {
+  return process.env.COUNSELOR_DEMO_OPEN === 'true';
+}
+
 export function createCounselorAuthMiddleware(
   passcodeLoader: () => Promise<string | null> = loadCounselorPasscode
 ) {
@@ -68,6 +72,10 @@ export function createCounselorAuthMiddleware(
     res: Response,
     next: NextFunction
   ) {
+    if (isCounselorDemoOpen()) {
+      return next();
+    }
+
     const expected = await passcodeLoader();
     if (!expected) {
       return res.status(503).json({

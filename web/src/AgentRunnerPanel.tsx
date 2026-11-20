@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
+import { Bot, ExternalLink, Globe, Play, RefreshCw, ShieldCheck } from 'lucide-react';
 
 interface GroundedSource {
   title: string;
@@ -160,14 +161,21 @@ export default function AgentRunnerPanel({
   return (
     <div className="space-y-6">
       {/* UNIVERSITY RULES GROUNDING (gemini-4-neon + Search + URL context) */}
-      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="text-2xl font-bold text-slate-950">
-          Live University Rules Lookup (Google Search + URL Context)
-        </h2>
-        <p className="mt-1 text-base text-slate-700">
-          Reads official university requirements with <span className="font-mono text-sm">gemini-4-neon</span>{' '}
-          and lists the exact source links.
-        </p>
+      <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+        <div className="flex items-center gap-2.5">
+          <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-blue-100 text-blue-800">
+            <Globe className="h-5 w-5" aria-hidden="true" />
+          </span>
+          <div>
+            <h2 className="text-2xl font-extrabold text-slate-950">
+              Live University Rules Lookup
+            </h2>
+            <p className="text-sm text-slate-600">
+              Reads official university requirements with{' '}
+              <span className="font-mono font-semibold">gemini-4-neon</span> + Google Search + URL Context.
+            </p>
+          </div>
+        </div>
 
         <form onSubmit={handleLookupRules} className="mt-4 space-y-3">
           <div className="grid gap-3 sm:grid-cols-2">
@@ -208,9 +216,10 @@ export default function AgentRunnerPanel({
           <button
             type="submit"
             disabled={rulesLoading}
-            className="rounded-xl bg-slate-900 px-5 py-3 text-base font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-xl bg-slate-950 px-5 py-3 text-base font-bold text-white shadow-sm hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-slate-300 disabled:opacity-50"
           >
-            {rulesLoading ? 'Checking official university pages...' : 'Check Official Rules'}
+            <Globe className="h-4 w-4" aria-hidden="true" />
+            <span>{rulesLoading ? 'Checking official university pages...' : 'Check Official Rules'}</span>
           </button>
         </form>
 
@@ -257,17 +266,28 @@ export default function AgentRunnerPanel({
       </section>
 
       {/* COMPUTER-USE AGENT LAUNCHER & LIVE STEP FEED */}
-      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-2xl font-bold text-slate-950">
-            Computer-Use Application Agent (Live Step Feed)
-          </h2>
+      <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-800">
+              <Bot className="h-5 w-5" aria-hidden="true" />
+            </span>
+            <div>
+              <h2 className="text-2xl font-extrabold text-slate-950">
+                Computer-Use Application Agent
+              </h2>
+              <p className="text-sm text-slate-600">
+                Live Playwright step feed · Submit blocked until counselor approval
+              </p>
+            </div>
+          </div>
           <button
             type="button"
             onClick={onOpenPortal}
-            className="rounded-lg border border-indigo-300 bg-indigo-50 px-3 py-1.5 text-sm font-semibold text-indigo-900 hover:bg-indigo-100"
+            className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-300 bg-indigo-50 px-3.5 py-2 text-sm font-semibold text-indigo-900 hover:bg-indigo-100"
           >
-            Open /portal directly
+            <ExternalLink className="h-4 w-4" aria-hidden="true" />
+            <span>Open /portal directly</span>
           </button>
         </div>
         <p className="mt-1 text-base text-slate-700">
@@ -317,9 +337,10 @@ export default function AgentRunnerPanel({
           <button
             type="submit"
             disabled={launchLoading}
-            className="rounded-xl bg-blue-700 px-6 py-3.5 text-lg font-semibold text-white hover:bg-blue-800 disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-xl bg-blue-700 px-6 py-3.5 text-lg font-bold text-white shadow-md hover:bg-blue-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300 disabled:opacity-50"
           >
-            {launchLoading ? 'Dispatching via Cloud Tasks...' : 'Start Application Agent'}
+            <Play className="h-5 w-5" aria-hidden="true" />
+            <span>{launchLoading ? 'Dispatching via Cloud Tasks...' : 'Start Application Agent'}</span>
           </button>
         </form>
 
@@ -367,9 +388,10 @@ export default function AgentRunnerPanel({
                 <button
                   type="button"
                   onClick={onOpenCounselor}
-                  className="rounded-xl bg-amber-700 px-4 py-2.5 text-base font-semibold text-white hover:bg-amber-800"
+                  className="inline-flex items-center gap-2 rounded-xl bg-amber-700 px-4 py-2.5 text-base font-bold text-white hover:bg-amber-800"
                 >
-                  Open Counselor Queue to Approve
+                  <ShieldCheck className="h-5 w-5" aria-hidden="true" />
+                  <span>Open Counselor Queue to Approve</span>
                 </button>
                 <button
                   type="button"
@@ -377,9 +399,10 @@ export default function AgentRunnerPanel({
                   onClick={() =>
                     void handleResumeRun(activeRun.status === 'paused_safety_confirmation')
                   }
-                  className="rounded-xl bg-emerald-700 px-4 py-2.5 text-base font-semibold text-white hover:bg-emerald-800"
+                  className="inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-4 py-2.5 text-base font-bold text-white hover:bg-emerald-800"
                 >
-                  Resume Agent After Approval
+                  <RefreshCw className="h-4 w-4" aria-hidden="true" />
+                  <span>Resume Agent After Approval</span>
                 </button>
               </div>
             )}

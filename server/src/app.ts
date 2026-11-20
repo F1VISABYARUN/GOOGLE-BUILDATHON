@@ -41,7 +41,10 @@ import {
   saveCounselorSettings,
 } from './services/firestoreStore.js';
 import { createMultiWindowRateLimiter } from './middleware/rateLimit.js';
-import { createCounselorAuthMiddleware } from './middleware/counselorAuth.js';
+import {
+  createCounselorAuthMiddleware,
+  isCounselorDemoOpen,
+} from './middleware/counselorAuth.js';
 import { createPortalRouter } from './routes/portal.js';
 import { fetchUniversityRulesGrounded } from './services/universityRules.js';
 import { enqueueAgentRunTask } from './services/cloudTasks.js';
@@ -439,11 +442,16 @@ export function createApp(options?: CreateAppOptions) {
   });
 
   // =========================================================================
-  // COUNSELOR QUEUE ENDPOINTS (Protected by COUNSELOR_PASSCODE in Secret Manager)
+  // COUNSELOR QUEUE ENDPOINTS (Protected by COUNSELOR_PASSCODE in Secret Manager,
+  // or open immediately when COUNSELOR_DEMO_OPEN=true)
   // =========================================================================
 
+  app.get('/api/counselor/auth-mode', (_req, res) => {
+    res.json({ openDemoMode: isCounselorDemoOpen() });
+  });
+
   app.post('/api/counselor/verify', requireCounselor, (_req, res) => {
-    res.json({ ok: true });
+    res.json({ ok: true, openDemoMode: isCounselorDemoOpen() });
   });
 
   app.get('/api/counselor/queue', requireCounselor, async (_req, res) => {
