@@ -99,6 +99,54 @@ interface CaseRecord {
   facts: VerifiedFact[];
   flags: CheckFlag[];
   statusTimeline: StatusStep[];
+  usageSummary?: {
+    totalInputTokens: number;
+    totalOutputTokens: number;
+    totalTokens: number;
+    agentSteps: number;
+    estimatedUsd: number;
+  };
+}
+
+function parseFundsTableRows(mathLines?: string[]): {
+  required: string | null;
+  lowest28Day: string | null;
+  lowestLabel: string;
+  gap: string | null;
+  isShortfall: boolean;
+} | null {
+  if (!mathLines || mathLines.length === 0) return null;
+  const reqLine = mathLines.find((l) => /^Total required funds:/i.test(l) || /^Required cost/i.test(l));
+  const lowestLine =
+    mathLines.find((l) => /lowest 28-day closing balance/i.test(l)) ||
+    mathLines.find((l) => /^Total available funds/i.test(l));
+  const gapLine = mathLines.find((l) => /^Shortfall:/i.test(l) || /^Buffer above required funds:/i.test(l));
+
+  const extractInr = (line?: string): string | null => {
+    if (!line) return null;
+    const matches = line.match(/[+-]?INR\s*[0-9,]+/gi);
+    if (matches && matches.length > 0) return matches[matches.length - 1].trim();
+    const afterColon = line.split(':').slice(1).join(':').trim();
+    return afterColon || null;
+  };
+
+  const required = extractInr(reqLine);
+  const lowest28Day = extractInr(lowestLine);
+  const gap = extractInr(gapLine);
+  if (!required || !lowest28Day || !gap) return null;
+
+  const dateMatch = lowestLine?.match(/\b(\d{4}-\d{2}-\d{2})\b/);
+  const lowestLabel = dateMatch
+    ? `Lowest balance in 28 days (${dateMatch[1]})`
+    : 'Lowest balance in 28 days';
+
+  return {
+    required,
+    lowest28Day,
+    lowestLabel,
+    gap,
+    isShortfall: Boolean(gapLine && /^Shortfall:/i.test(gapLine)),
+  };
 }
 
 function severityStyles(severity: 'red' | 'amber' | 'green') {
@@ -485,86 +533,88 @@ export default function App() {
         Skip to main content
       </a>
 
-      <TopNav activeRoute="student" onNavigate={navigateTo} />
+      <TopNav
+        activeRoute="student"
+        onNavigate={navigateTo}
+        checkCompleted={step === 'results' && Boolean(caseResult)}
+      />
 
-      <div className="border-b border-amber-200 bg-amber-50 px-4 py-2 text-center text-xs font-semibold text-amber-950 sm:text-sm">
+      <div className="border-b border-amber-200 bg-amber-50 px-4 py-1.5 text-center text-xs font-semibold text-amber-950 sm:text-sm">
         Demo mode: sample data only — use sample documents or non-sensitive test files.
       </div>
 
-      <main id="student-main" className="mx-auto max-w-5xl space-y-8 px-4 py-8 sm:px-6 lg:px-8">
+      <main id="student-main" className="mx-auto max-w-5xl space-y-8 px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
         {/* HERO SPLIT BANNER */}
         <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-md">
-          <div className="grid items-center gap-6 p-6 sm:p-8 lg:grid-cols-12">
-            <div className="space-y-4 lg:col-span-7">
-              <span className="inline-flex items-center gap-2 rounded-full bg-blue-50 px-3.5 py-1 text-xs font-bold uppercase tracking-wider text-blue-800 ring-1 ring-blue-200">
-                <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
-                Powered by Gemini 4 &amp; Google Cloud
-              </span>
-              <h1 className="text-3xl font-extrabold tracking-tight text-slate-950 sm:text-4xl">
-                Verify documents, catch mistakes early, and fill direct university portals safely.
+          <div className="grid items-center gap-8 p-6 sm:p-8 lg:grid-cols-12">
+            <div className="space-y-5 lg:col-span-7">
+              <h1 className="text-3xl font-extrabold tracking-tight text-indigo-950 sm:text-5xl sm:leading-[1.1]">
+                Catch visa-refusal mistakes before you apply.
               </h1>
               <p className="text-base leading-relaxed text-slate-700 sm:text-lg">
-                Upload your marksheets, passport, bank or loan letters, and offer letter. Every
-                extracted fact carries an exact verbatim quote, every money and date rule runs in
-                plain code, and a human counselor approves before Submit.
+                Aira reads your real documents, checks funds, names and dates in plain code, and a
+                counselor approves before anything is submitted.
               </p>
 
-              <div className="flex flex-wrap items-center gap-3 pt-1">
+              <div className="flex flex-wrap gap-2 text-xs font-semibold text-slate-800 sm:text-sm">
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-indigo-200 bg-indigo-50/70 px-3 py-1.5 text-indigo-950">
+                  <FileCheck2 className="h-4 w-4 text-emerald-600" aria-hidden="true" />
+                  Quotes from your own documents
+                </span>
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-indigo-200 bg-indigo-50/70 px-3 py-1.5 text-indigo-950">
+                  <Calculator className="h-4 w-4 text-blue-600" aria-hidden="true" />
+                  Math done in code, not AI
+                </span>
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-indigo-200 bg-indigo-50/70 px-3 py-1.5 text-indigo-950">
+                  <ShieldCheck className="h-4 w-4 text-emerald-600" aria-hidden="true" />
+                  Human approves every submit
+                </span>
+              </div>
+
+              <div className="space-y-2 pt-2">
                 <button
                   type="button"
                   disabled={runningSample || analyzing}
                   onClick={() => void handleRunSampleCase()}
-                  className="inline-flex w-full items-center justify-center gap-2.5 rounded-2xl bg-blue-700 px-7 py-4 text-lg font-extrabold text-white shadow-lg shadow-blue-700/20 transition hover:bg-blue-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300 disabled:cursor-not-allowed disabled:bg-blue-400 sm:w-auto"
+                  className="inline-flex w-full items-center justify-center gap-3 rounded-2xl bg-blue-600 px-8 py-5 text-xl font-extrabold text-white shadow-xl shadow-blue-600/25 transition hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300 disabled:cursor-not-allowed disabled:bg-blue-400 sm:w-auto"
                 >
                   {runningSample ? (
-                    <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" />
+                    <Loader2 className="h-6 w-6 animate-spin" aria-hidden="true" />
                   ) : (
-                    <Sparkles className="h-5 w-5" aria-hidden="true" />
+                    <Sparkles className="h-6 w-6" aria-hidden="true" />
                   )}
                   <span>
                     {runningSample ? 'Running sample UK case...' : 'Try with sample documents'}
                   </span>
-                  {!runningSample && <ArrowRight className="h-5 w-5" aria-hidden="true" />}
+                  {!runningSample && <ArrowRight className="h-6 w-6" aria-hidden="true" />}
                 </button>
-                <span className="text-xs font-medium text-slate-600 sm:text-sm">
-                  One click · Zero typing · Runs fake UK CAS + Bank + Marksheet end-to-end
-                </span>
-              </div>
-
-              <div className="flex flex-wrap gap-2.5 pt-1 text-xs font-semibold text-slate-800 sm:text-sm">
-                <span className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5">
-                  <Lock className="h-4 w-4 text-emerald-700" aria-hidden="true" />
-                  Files deleted right after reading
-                </span>
-                <span className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5">
-                  <Calculator className="h-4 w-4 text-blue-700" aria-hidden="true" />
-                  Plain-code funds &amp; date checks
-                </span>
-                <span className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5">
-                  <ShieldCheck className="h-4 w-4 text-emerald-700" aria-hidden="true" />
-                  Submit blocked until counselor approval
-                </span>
+                <p className="text-xs font-medium text-slate-700 sm:text-sm">
+                  One click · Zero typing · Runs a sample UK bank statement with a hidden 1-day balance dip
+                </p>
               </div>
             </div>
 
             <div className="lg:col-span-5">
-              <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 shadow-inner">
+              <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 shadow-sm">
                 <img
-                  src="/assets/hero-verification.jpg"
-                  alt="Workflow illustration: academic transcript and bank statement verified through a shield into a locked university portal form"
+                  src="/img/hero-student.webp"
+                  alt="Illustration of an Indian student at a laptop reviewing checked bank statement, offer letter, and marksheet documents with a counselor giving a thumbs up"
+                  loading="lazy"
+                  width={1200}
+                  height={900}
                   className="h-auto w-full object-cover"
                 />
               </div>
             </div>
           </div>
 
-          {/* CLEAN 3-STEP PROGRESS BAR */}
+          {/* SUB-STEP PROGRESS FOR STEP 1 (CHECK) */}
           <div className="border-t border-slate-200 bg-slate-50/80 px-6 py-4 sm:px-8">
-            <ol aria-label="Application verification steps" className="grid gap-3 sm:grid-cols-3">
+            <ol aria-label="Document check steps" className="grid gap-3 sm:grid-cols-3">
               {[
                 { n: 1, title: 'Privacy & Authorisation', sub: 'DPDP consent + e-signature' },
-                { n: 2, title: 'Upload Documents', sub: 'PDF / JPG / PNG in memory' },
-                { n: 3, title: 'Flags, Quotes & Agent', sub: 'Verify, audit & fill /portal' },
+                { n: 2, title: 'Upload Documents', sub: 'Files read in memory only' },
+                { n: 3, title: 'Verdict, Quotes & Agent', sub: 'Fix mistakes before applying' },
               ].map((s) => {
                 const isActive = stepNum === s.n;
                 const isDone = stepNum > s.n;
@@ -1110,267 +1160,456 @@ export default function App() {
         )}
 
         {/* STEP 3: STUDENT RESULTS PAGE */}
-        {step === 'results' && caseResult && (
-          <div className="space-y-6">
-            <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
-              <div className="flex flex-wrap items-start justify-between gap-4">
-                <div>
-                  <p className="text-sm font-medium text-slate-600">
-                    Case ID: <span className="font-mono font-semibold text-slate-900">{caseResult.id}</span> ·
-                    Stored in{' '}
-                    {caseResult.storageBackend === 'firestore' ? 'Google Firestore' : 'local memory'}
-                    {caseResult.riskScore && (
-                      <>
-                        {' · '}Risk score: <strong>{caseResult.riskScore.score}/100</strong>
-                      </>
-                    )}
-                  </p>
-                  <h2 className="mt-1 text-2xl font-extrabold text-slate-950">Status Timeline</h2>
+        {step === 'results' && caseResult && (() => {
+          const redCount = caseResult.flags.filter((f) => f.severity === 'red').length;
+          const amberCount = caseResult.flags.filter((f) => f.severity === 'amber').length;
+          const issueCount = redCount + amberCount;
+          const isHighRisk = redCount > 0;
+          const isReady = issueCount === 0;
+          const maskedFactsCount = caseResult.facts.filter((f) =>
+            ['passport_number', 'account_number', 'aadhaar_number', 'pan_number'].includes(f.field)
+          ).length;
+
+          return (
+            <div className="space-y-6">
+              {/* VERDICT CARD AT TOP */}
+              <section
+                aria-label="Document check verdict"
+                className={`rounded-3xl border-2 p-6 shadow-md sm:p-8 ${
+                  isHighRisk
+                    ? 'border-red-300 bg-red-50/90'
+                    : isReady
+                      ? 'border-emerald-300 bg-emerald-50/90'
+                      : 'border-amber-300 bg-amber-50/90'
+                }`}
+              >
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                  <div className="flex items-start gap-4">
+                    <span
+                      className={`mt-0.5 inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${
+                        isHighRisk
+                          ? 'bg-red-700 text-white'
+                          : isReady
+                            ? 'bg-emerald-600 text-white'
+                            : 'bg-amber-600 text-white'
+                      }`}
+                    >
+                      {isHighRisk ? (
+                        <XCircle className="h-7 w-7" aria-hidden="true" />
+                      ) : isReady ? (
+                        <CheckCircle2 className="h-7 w-7" aria-hidden="true" />
+                      ) : (
+                        <AlertTriangle className="h-7 w-7" aria-hidden="true" />
+                      )}
+                    </span>
+                    <div>
+                      <span
+                        className={`inline-flex items-center gap-1.5 rounded-full px-3 py-0.5 text-xs font-extrabold uppercase tracking-wide ${
+                          isHighRisk
+                            ? 'bg-red-700 text-white'
+                            : isReady
+                              ? 'bg-emerald-700 text-white'
+                              : 'bg-amber-700 text-white'
+                        }`}
+                      >
+                        {isHighRisk ? 'High refusal risk' : isReady ? 'Ready for counselor' : 'Needs review'}
+                      </span>
+                      <h2 className="mt-1.5 text-2xl font-extrabold text-slate-950 sm:text-3xl">
+                        {isHighRisk
+                          ? `High refusal risk: ${issueCount} ${issueCount === 1 ? 'issue' : 'issues'}`
+                          : isReady
+                            ? 'Ready for counselor'
+                            : `Review needed: ${issueCount} ${issueCount === 1 ? 'item' : 'items'}`}
+                      </h2>
+                      <p className="mt-1 text-sm font-medium text-slate-700">
+                        Case <span className="font-mono font-bold text-slate-950">{caseResult.id}</span>
+                        {maskedFactsCount > 0 && (
+                          <> · {maskedFactsCount} sensitive ID(s) masked (Passport / PAN / Aadhaar)</>
+                        )}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => navigateTo('counselor')}
+                      className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 text-sm font-extrabold text-white shadow-md transition hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-emerald-300"
+                    >
+                      <ShieldCheck className="h-4 w-4" aria-hidden="true" />
+                      <span>Continue to Counselor Approval →</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setFiles([]);
+                        setCaseResult(null);
+                        setStep('upload');
+                      }}
+                      className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-900 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300"
+                    >
+                      Check another set
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setConfirmDeleteOpen(true)}
+                      className="inline-flex items-center gap-1.5 rounded-xl border border-red-300 bg-white px-4 py-2.5 text-sm font-bold text-red-900 hover:bg-red-100 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-red-300"
+                    >
+                      <Trash2 className="h-4 w-4" aria-hidden="true" />
+                      <span>Delete My Data</span>
+                    </button>
+                  </div>
                 </div>
-                <div className="flex flex-wrap gap-2">
+
+                {confirmDeleteOpen && (
+                  <div
+                    role="alertdialog"
+                    aria-label="Confirm data deletion"
+                    className="mt-4 rounded-2xl border-2 border-red-400 bg-white p-5 text-base text-red-950"
+                  >
+                    <p className="font-bold">Permanently delete this case and all extracted facts?</p>
+                    <p className="mt-1 text-sm text-slate-700">
+                      This removes {caseResult.id}, all facts, quotes, flags, consent records, and
+                      tokens from Google Firestore immediately.
+                    </p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        disabled={deletingData}
+                        onClick={() => void handleDeleteMyData()}
+                        className="rounded-xl bg-red-700 px-4 py-2.5 text-sm font-bold text-white hover:bg-red-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-red-300 disabled:opacity-50"
+                      >
+                        {deletingData ? 'Deleting...' : 'Yes, Permanently Delete My Data'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setConfirmDeleteOpen(false)}
+                        className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-900 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </section>
+
+              {/* FLAGS AS CLEAN CARDS: WHAT'S WRONG -> HIGHLIGHTED QUOTE -> HOW TO FIX */}
+              <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+                <h2 className="text-2xl font-extrabold text-slate-950">Checks &amp; Flags</h2>
+                <p className="mt-1 text-base text-slate-700">
+                  Every check ran in plain code against verbatim quotes from your uploaded files.
+                </p>
+
+                <div className="mt-5 space-y-4">
+                  {caseResult.flags.map((flag) => {
+                    const style = severityStyles(flag.severity);
+                    const FlagIcon = style.Icon;
+                    const fundsTable =
+                      flag.checkType === 'funds' ? parseFundsTableRows(flag.mathLines) : null;
+
+                    return (
+                      <article key={flag.id} className={`rounded-2xl border p-5 ${style.card}`}>
+                        {/* 1. What's wrong */}
+                        <div className="flex flex-wrap items-center gap-2.5">
+                          <FlagIcon className={`h-5 w-5 shrink-0 ${style.iconColor}`} aria-hidden="true" />
+                          <span className={`rounded-md px-2.5 py-0.5 text-xs font-bold ${style.badge}`}>
+                            {style.label}
+                          </span>
+                          <h3 className="text-lg font-extrabold text-slate-950">{flag.title}</h3>
+                        </div>
+
+                        <p className="mt-2 text-base leading-relaxed text-slate-800">
+                          {flag.explanation || flag.summary}
+                        </p>
+
+                        {/* Simple 3-row Funds Math Table */}
+                        {fundsTable && (
+                          <div className="mt-4 overflow-hidden rounded-xl border border-slate-200 bg-white">
+                            <table className="w-full text-left text-sm">
+                              <thead className="bg-slate-50 text-xs font-bold uppercase tracking-wide text-slate-700">
+                                <tr>
+                                  <th className="px-4 py-2.5">UK Funds Check (Plain Code)</th>
+                                  <th className="px-4 py-2.5 text-right">Amount</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-slate-200 text-slate-900">
+                                <tr>
+                                  <td className="px-4 py-2.5 font-medium">Required (unpaid tuition + 9 mo living)</td>
+                                  <td className="px-4 py-2.5 text-right font-mono font-semibold">{fundsTable.required}</td>
+                                </tr>
+                                <tr>
+                                  <td className="px-4 py-2.5 font-medium">{fundsTable.lowestLabel}</td>
+                                  <td className="px-4 py-2.5 text-right font-mono font-semibold">{fundsTable.lowest28Day}</td>
+                                </tr>
+                                <tr className={fundsTable.isShortfall ? 'bg-red-50/70' : 'bg-emerald-50/70'}>
+                                  <td className="px-4 py-3 font-extrabold text-slate-950">Gap</td>
+                                  <td
+                                    className={`px-4 py-3 text-right font-mono text-base font-extrabold ${
+                                      fundsTable.isShortfall ? 'text-red-700' : 'text-emerald-700'
+                                    }`}
+                                  >
+                                    {fundsTable.gap}
+                                  </td>
+                                </tr>
+                              </tbody>
+                            </table>
+                            {flag.mathLines && flag.mathLines.length > 0 && (
+                              <details className="border-t border-slate-200 bg-slate-50/60 px-4 py-2.5 text-xs text-slate-700">
+                                <summary className="cursor-pointer font-semibold text-indigo-900 hover:underline">
+                                  Show full plain-code calculation breakdown
+                                </summary>
+                                <ul className="mt-2 space-y-1 font-mono text-xs text-slate-800">
+                                  {flag.mathLines.map((line, idx) => (
+                                    <li key={idx}>{line}</li>
+                                  ))}
+                                </ul>
+                              </details>
+                            )}
+                          </div>
+                        )}
+
+                        {!fundsTable && flag.mathLines && flag.mathLines.length > 0 && (
+                          <div className="mt-3 rounded-xl border border-slate-200 bg-white p-4">
+                            <p className="text-xs font-bold uppercase tracking-wide text-slate-700">
+                              Funds Math (Plain Code)
+                            </p>
+                            <ul className="mt-2 space-y-1 font-mono text-sm text-slate-900">
+                              {flag.mathLines.map((line, idx) => (
+                                <li key={idx}>{line}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+
+                        {/* 2. Exact quote from the document, highlighted */}
+                        {flag.quote && (
+                          <blockquote className="mt-3 rounded-xl border-l-4 border-amber-500 bg-amber-100/70 px-4 py-2.5 font-mono text-xs font-medium text-slate-950 sm:text-sm">
+                            <span className="font-sans text-xs font-bold uppercase tracking-wide text-amber-950">
+                              Quote from document:{' '}
+                            </span>
+                            {flag.quote}
+                          </blockquote>
+                        )}
+
+                        {/* 3. How to fix */}
+                        {flag.suggestedFix && (
+                          <p className="mt-3 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-900">
+                            <strong className="text-indigo-950">How to fix:</strong> {flag.suggestedFix}
+                          </p>
+                        )}
+
+                        {flag.sourceUrl && (
+                          <p className="mt-2 text-xs text-slate-700">
+                            Official rule source (as of {flag.ruleAsOf}):{' '}
+                            <a
+                              href={flag.sourceUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="font-semibold text-blue-700 underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+                            >
+                              {flag.sourceUrl}
+                            </a>
+                          </p>
+                        )}
+                      </article>
+                    );
+                  })}
+                </div>
+              </section>
+
+              {/* STEP 3 LAUNCHER: APPLICATION AGENT & UNIVERSITY RULES */}
+              <section
+                id="start-application-agent"
+                aria-labelledby="start-application-agent-heading"
+                className="space-y-4 rounded-3xl border-2 border-indigo-200 bg-gradient-to-b from-indigo-50/60 to-slate-50 p-4 shadow-sm sm:p-6"
+              >
+                <div className="flex flex-wrap items-center justify-between gap-3 px-2 pt-1">
+                  <div>
+                    <h2
+                      id="start-application-agent-heading"
+                      className="text-2xl font-extrabold text-indigo-950"
+                    >
+                      Next: Approve &amp; Fill University Portal
+                    </h2>
+                    <p className="mt-0.5 text-sm text-slate-700">
+                      Let Gemini fill the portal draft (it stops before Submit), or jump straight to
+                      Step 2 to approve as counselor.
+                    </p>
+                  </div>
                   <button
                     type="button"
                     onClick={() => navigateTo('counselor')}
-                    className="inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-5 py-2.5 text-sm font-extrabold text-white shadow-md transition hover:bg-emerald-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-emerald-300"
+                    className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 text-sm font-extrabold text-white shadow-md transition hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-emerald-300"
                   >
                     <ShieldCheck className="h-4 w-4" aria-hidden="true" />
-                    <span>Open Counselor Queue to Approve →</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setFiles([]);
-                      setCaseResult(null);
-                      setStep('upload');
-                    }}
-                    className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-900 hover:bg-slate-100"
-                  >
-                    Check another set
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setConfirmDeleteOpen(true)}
-                    className="inline-flex items-center gap-1.5 rounded-xl border border-red-300 bg-red-50 px-4 py-2.5 text-sm font-bold text-red-900 hover:bg-red-100"
-                  >
-                    <Trash2 className="h-4 w-4" aria-hidden="true" />
-                    <span>Delete My Data</span>
+                    <span>Go to Step 2: Counselor Approves →</span>
                   </button>
                 </div>
-              </div>
 
-              {confirmDeleteOpen && (
-                <div
-                  role="alertdialog"
-                  aria-label="Confirm data deletion"
-                  className="mt-4 rounded-2xl border-2 border-red-400 bg-red-50 p-5 text-base text-red-950"
-                >
-                  <p className="font-bold">Permanently delete this case and all extracted facts?</p>
-                  <p className="mt-1 text-sm">
-                    This removes {caseResult.id}, all facts, quotes, flags, consent records, and
-                    tokens from Google Firestore immediately.
-                  </p>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      disabled={deletingData}
-                      onClick={() => void handleDeleteMyData()}
-                      className="rounded-xl bg-red-700 px-4 py-2.5 text-sm font-bold text-white hover:bg-red-800 disabled:opacity-50"
-                    >
-                      {deletingData ? 'Deleting...' : 'Yes, Permanently Delete My Data'}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setConfirmDeleteOpen(false)}
-                      className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-900"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              )}
+                <AgentRunnerPanel
+                  caseId={caseResult.id}
+                  onOpenCounselor={() => navigateTo('counselor')}
+                  onOpenPortal={() => navigateTo('portal')}
+                />
+              </section>
 
-              <ol className="mt-5 space-y-3">
-                {caseResult.statusTimeline.map((item, idx) => (
-                  <li key={idx} className="flex items-start gap-3.5 text-base">
-                    <span
-                      className={`mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
-                        item.status === 'done'
-                          ? 'bg-emerald-700 text-white'
-                          : item.status === 'current'
-                            ? 'bg-blue-700 text-white'
-                            : 'bg-slate-200 text-slate-700'
-                      }`}
-                    >
-                      {item.status === 'done' ? '✓' : idx + 1}
-                    </span>
-                    <div>
-                      <p className="font-semibold text-slate-950">{item.step}</p>
-                      {item.at && (
-                        <p className="text-xs text-slate-600">
-                          {new Date(item.at).toLocaleString()}
-                        </p>
-                      )}
-                    </div>
-                  </li>
-                ))}
-              </ol>
-            </section>
-
-            {/* FLAGS WITH PLAIN-ENGLISH FIXES */}
-            <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
-              <h2 className="text-2xl font-extrabold text-slate-950">Checks &amp; Flags</h2>
-              <p className="mt-1 text-base text-slate-600">
-                All money math, date rules, and name checks were computed in plain code.
-                Explanations were written in plain English.
-              </p>
-
-              <div className="mt-5 space-y-4">
-                {caseResult.flags.map((flag) => {
-                  const style = severityStyles(flag.severity);
-                  const FlagIcon = style.Icon;
-                  return (
-                    <article key={flag.id} className={`rounded-2xl border p-5 ${style.card}`}>
-                      <div className="flex flex-wrap items-center gap-2.5">
-                        <FlagIcon className={`h-5 w-5 ${style.iconColor}`} aria-hidden="true" />
-                        <span className={`rounded-md px-2.5 py-0.5 text-xs font-bold ${style.badge}`}>
-                          {style.label}
-                        </span>
-                        <h3 className="text-lg font-bold text-slate-950">{flag.title}</h3>
-                      </div>
-
-                      <p className="mt-2 text-base leading-relaxed text-slate-900">
-                        {flag.explanation || flag.summary}
-                      </p>
-
-                      {flag.suggestedFix && (
-                        <p className="mt-2.5 rounded-xl bg-white/80 px-3.5 py-2.5 text-sm font-medium text-slate-900">
-                          <strong>Suggested fix:</strong> {flag.suggestedFix}
-                        </p>
-                      )}
-
-                      {flag.mathLines && flag.mathLines.length > 0 && (
-                        <div className="mt-3 rounded-xl border border-slate-200 bg-white p-4">
-                          <p className="text-xs font-bold uppercase tracking-wide text-slate-600">
-                            Funds Math (Plain Code)
-                          </p>
-                          <ul className="mt-2 space-y-1 font-mono text-sm text-slate-900">
-                            {flag.mathLines.map((line, idx) => (
-                              <li key={idx}>{line}</li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-
-                      {flag.quote && (
-                        <blockquote className="mt-3 rounded-xl border border-slate-200 bg-white/90 px-3.5 py-2.5 font-mono text-xs text-slate-800 sm:text-sm">
-                          Quote: {flag.quote}
-                        </blockquote>
-                      )}
-
-                      {flag.sourceUrl && (
-                        <p className="mt-2 text-xs text-slate-700">
-                          Rule source (as of {flag.ruleAsOf}):{' '}
-                          <a
-                            href={flag.sourceUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="font-semibold text-blue-800 underline"
-                          >
-                            {flag.sourceUrl}
-                          </a>
-                        </p>
-                      )}
-                    </article>
-                  );
-                })}
-              </div>
-            </section>
-
-            {/* EXTRACTED FACTS WITH QUOTES */}
-            <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
-              <h2 className="text-2xl font-extrabold text-slate-950">
-                Extracted Facts &amp; Verbatim Quotes
-              </h2>
-              <p className="mt-1 text-sm text-slate-600">
-                Documents read:{' '}
-                {caseResult.documents.map((d) => `${d.fileName} (${d.documentType})`).join(', ')}.{' '}
-                Passport, PAN, Aadhaar, and bank account IDs are automatically masked to the last 4
-                digits.
-              </p>
-
-              <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                {caseResult.facts.map((fact, index) => (
-                  <div
-                    key={`${fact.field}-${index}`}
-                    className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
-                  >
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <span className="font-mono text-xs font-bold uppercase tracking-wide text-slate-600">
-                        {fact.field.replace(/_/g, ' ')}
-                      </span>
-                      <span
-                        className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${
-                          fact.needsReview
-                            ? 'bg-amber-200 text-amber-950'
-                            : 'bg-emerald-200 text-emerald-950'
-                        }`}
-                      >
-                        {fact.needsReview ? 'Needs review' : 'Quote verified'}
-                      </span>
-                    </div>
-                    <p className="mt-1 text-lg font-bold text-slate-950">{fact.value}</p>
-                    <p className="mt-2 rounded-lg border border-slate-200 bg-white px-3 py-2 font-mono text-xs text-slate-800">
-                      &ldquo;{fact.quote}&rdquo;
-                    </p>
-                    <p className="mt-1.5 text-xs text-slate-500">
-                      {fact.sourceDocName} · page {fact.page}
+              {/* COLLAPSED "UNDER THE HOOD" SECTION: GOOGLE AI MODELS, FACTS, TOKENS & COST */}
+              <details className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-xl focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300">
+                  <div>
+                    <h2 className="text-xl font-extrabold text-slate-950">
+                      Under the hood: Gemini models, extracted facts &amp; audit details
+                    </h2>
+                    <p className="mt-0.5 text-sm text-slate-700">
+                      {caseResult.facts.length} verified facts · {caseResult.documents.length} documents read
+                      {caseResult.usageSummary
+                        ? ` · Est. AI cost $${caseResult.usageSummary.estimatedUsd.toFixed(4)}`
+                        : ''}
                     </p>
                   </div>
-                ))}
-              </div>
-            </section>
-
-            {/* PHASE 4: START APPLICATION AGENT & UNIVERSITY RULES GROUNDING */}
-            <section
-              id="start-application-agent"
-              aria-labelledby="start-application-agent-heading"
-              className="space-y-4 rounded-3xl border-2 border-blue-200 bg-gradient-to-b from-blue-50/70 to-slate-50 p-4 shadow-sm sm:p-6"
-            >
-              <div className="flex flex-wrap items-center justify-between gap-3 px-2 pt-1">
-                <div>
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-100 px-3 py-0.5 text-xs font-bold uppercase tracking-wide text-blue-900">
-                    <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
-                    Next Step · Portal Automation &amp; Human Approval Gate
+                  <span className="rounded-xl border border-slate-300 bg-slate-50 px-3.5 py-2 text-xs font-bold text-slate-800">
+                    Expand
                   </span>
-                  <h2
-                    id="start-application-agent-heading"
-                    className="mt-1.5 text-2xl font-extrabold text-slate-950"
-                  >
-                    Start Application Agent
-                  </h2>
-                  <p className="mt-0.5 text-sm text-slate-700">
-                    Fill the direct university portal with verified facts, or jump straight to the
-                    Counselor Queue to approve and unlock final submission.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => navigateTo('counselor')}
-                  className="inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-5 py-3 text-sm font-extrabold text-white shadow-md transition hover:bg-emerald-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-emerald-300"
-                >
-                  <ShieldCheck className="h-4 w-4" aria-hidden="true" />
-                  <span>Open Counselor Queue to Approve →</span>
-                </button>
-              </div>
+                </summary>
 
-              <AgentRunnerPanel
-                caseId={caseResult.id}
-                onOpenCounselor={() => navigateTo('counselor')}
-                onOpenPortal={() => navigateTo('portal')}
-              />
-            </section>
-          </div>
-        )}
+                <div className="mt-6 space-y-6 border-t border-slate-200 pt-6">
+                  {/* GOOGLE AI MODEL STRIP (Real model names from server/src/config/models.ts) */}
+                  <div>
+                    <h3 className="text-sm font-extrabold uppercase tracking-wide text-indigo-900">
+                      Google Gemini Models Used
+                    </h3>
+                    <ul className="mt-3 grid gap-2.5 sm:grid-cols-2">
+                      {[
+                        { model: 'gemini-4-hydrogen', job: 'Reads documents & extracts verbatim quotes' },
+                        { model: 'gemini-4-neon', job: 'Looks up university rules (Search + URL Context)' },
+                        { model: 'gemini-4-hydrogen', job: 'Fills the portal (computer use, escalates to gemini-4-carbon)' },
+                        { model: 'gemini-4-carbon', job: 'Writes plain-English fixes & scores refusal risk' },
+                        { model: 'gemini-3.8-flash', job: 'Classifies document types & reads verification codes' },
+                      ].map((item, idx) => (
+                        <li
+                          key={idx}
+                          className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-indigo-100 bg-indigo-50/50 px-4 py-2.5 text-sm"
+                        >
+                          <span className="font-semibold text-slate-900">{item.job}</span>
+                          <code className="rounded-md bg-white px-2 py-0.5 font-mono text-xs font-bold text-indigo-900 ring-1 ring-indigo-200">
+                            {item.model}
+                          </code>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  {/* TOKEN COUNTS & CASE COST */}
+                  {caseResult.usageSummary && (
+                    <div className="grid gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm sm:grid-cols-4">
+                      <div>
+                        <p className="font-semibold text-slate-700">Input Tokens</p>
+                        <p className="font-mono text-base font-bold text-slate-950">
+                          {caseResult.usageSummary.totalInputTokens.toLocaleString()}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="font-semibold text-slate-700">Output Tokens</p>
+                        <p className="font-mono text-base font-bold text-slate-950">
+                          {caseResult.usageSummary.totalOutputTokens.toLocaleString()}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="font-semibold text-slate-700">Est. AI Cost (USD)</p>
+                        <p className="font-mono text-base font-bold text-emerald-700">
+                          ${caseResult.usageSummary.estimatedUsd.toFixed(4)}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="font-semibold text-slate-700">Storage</p>
+                        <p className="text-base font-bold text-slate-950">
+                          {caseResult.storageBackend === 'firestore' ? 'Google Firestore' : 'Local memory'}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* EXTRACTED FACTS WITH QUOTES */}
+                  <div>
+                    <h3 className="text-base font-extrabold text-slate-950">
+                      Extracted Facts &amp; Verbatim Quotes
+                    </h3>
+                    <p className="mt-1 text-sm text-slate-700">
+                      Documents read:{' '}
+                      {caseResult.documents.map((d) => `${d.fileName} (${d.documentType})`).join(', ')}.{' '}
+                      Passport, PAN, Aadhaar, and bank account numbers are masked to the last 4 digits.
+                    </p>
+                    <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                      {caseResult.facts.map((fact, index) => (
+                        <div
+                          key={`${fact.field}-${index}`}
+                          className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <span className="font-mono text-xs font-bold uppercase tracking-wide text-slate-700">
+                              {fact.field.replace(/_/g, ' ')}
+                            </span>
+                            <span
+                              className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-bold ${
+                                fact.needsReview
+                                  ? 'bg-amber-200 text-amber-950'
+                                  : 'bg-emerald-200 text-emerald-950'
+                              }`}
+                            >
+                              {fact.needsReview ? (
+                                <AlertTriangle className="h-3 w-3" aria-hidden="true" />
+                              ) : (
+                                <CheckCircle2 className="h-3 w-3" aria-hidden="true" />
+                              )}
+                              {fact.needsReview ? 'Needs review' : 'Quote verified'}
+                            </span>
+                          </div>
+                          <p className="mt-1 text-base font-bold text-slate-950">{fact.value}</p>
+                          <p className="mt-2 rounded-lg border border-slate-200 bg-white px-3 py-2 font-mono text-xs text-slate-800">
+                            &ldquo;{fact.quote}&rdquo;
+                          </p>
+                          <p className="mt-1.5 text-xs text-slate-700">
+                            {fact.sourceDocName} · page {fact.page}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* STATUS TIMELINE */}
+                  <div>
+                    <h3 className="text-base font-extrabold text-slate-950">Status Timeline</h3>
+                    <ol className="mt-3 space-y-2.5">
+                      {caseResult.statusTimeline.map((item, idx) => (
+                        <li key={idx} className="flex items-start gap-3 text-sm">
+                          <span
+                            className={`mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                              item.status === 'done'
+                                ? 'bg-emerald-600 text-white'
+                                : item.status === 'current'
+                                  ? 'bg-blue-600 text-white'
+                                  : 'bg-slate-200 text-slate-800'
+                            }`}
+                          >
+                            {item.status === 'done' ? '✓' : idx + 1}
+                          </span>
+                          <div>
+                            <p className="font-semibold text-slate-950">{item.step}</p>
+                            {item.at && (
+                              <p className="text-xs text-slate-700">
+                                {new Date(item.at).toLocaleString()}
+                              </p>
+                            )}
+                          </div>
+                        </li>
+                      ))}
+                    </ol>
+                  </div>
+                </div>
+              </details>
+            </div>
+          );
+        })()}
 
         {/* COLLAPSIBLE GEMINI API & MODELS STATUS */}
         <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">

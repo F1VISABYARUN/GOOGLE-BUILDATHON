@@ -265,82 +265,77 @@ export default function AgentRunnerPanel({
         )}
       </section>
 
-      {/* COMPUTER-USE AGENT LAUNCHER & LIVE STEP FEED */}
+      {/* APPLICATION AGENT LAUNCHER & LIVE STEP FEED */}
       <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2.5">
-            <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-800">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-800">
               <Bot className="h-5 w-5" aria-hidden="true" />
             </span>
             <div>
-              <h2 className="text-2xl font-extrabold text-slate-950">
-                Computer-Use Application Agent
+              <h2 className="text-xl font-extrabold text-slate-950 sm:text-2xl">
+                Application Agent: Gemini fills the portal, stops before Submit until a counselor approves
               </h2>
-              <p className="text-sm text-slate-600">
-                Live Playwright step feed · Submit blocked until counselor approval
+              <p className="mt-0.5 text-sm text-slate-700">
+                Uses your verified facts only. Never automates Common App or UCAS.
               </p>
             </div>
           </div>
           <button
             type="button"
             onClick={onOpenPortal}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-300 bg-indigo-50 px-3.5 py-2 text-sm font-semibold text-indigo-900 hover:bg-indigo-100"
+            className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-300 bg-indigo-50 px-3.5 py-2 text-sm font-semibold text-indigo-900 hover:bg-indigo-100 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-indigo-300"
           >
             <ExternalLink className="h-4 w-4" aria-hidden="true" />
-            <span>Open /portal directly</span>
+            <span>Open University portal</span>
           </button>
         </div>
-        <p className="mt-1 text-base text-slate-700">
-          Creates your portal account, fills every page using only your verified facts, and{' '}
-          <strong>blocks Submit</strong> until a human counselor approves. Common App and UCAS are
-          never automated.
-        </p>
 
         <form onSubmit={handleLaunchAgent} className="mt-4 space-y-3">
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
-              <label htmlFor="ag-email" className="block text-sm font-semibold">Student email</label>
+              <label htmlFor="ag-email" className="block text-sm font-semibold text-slate-800">Student email</label>
               <input
                 id="ag-email"
                 type="email"
                 required
                 value={studentEmail}
                 onChange={(e) => setStudentEmail(e.target.value)}
-                className="mt-1 w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-base"
+                className="mt-1 w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-base text-slate-900 focus:border-blue-600 focus:outline-none focus:ring-4 focus:ring-blue-200"
               />
             </div>
             <div>
-              <label htmlFor="ag-phone" className="block text-sm font-semibold">Student phone</label>
+              <label htmlFor="ag-phone" className="block text-sm font-semibold text-slate-800">Student phone</label>
               <input
                 id="ag-phone"
                 type="tel"
                 required
                 value={studentPhone}
                 onChange={(e) => setStudentPhone(e.target.value)}
-                className="mt-1 w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-base"
+                className="mt-1 w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-base text-slate-900 focus:border-blue-600 focus:outline-none focus:ring-4 focus:ring-blue-200"
               />
             </div>
           </div>
           <div>
-            <label htmlFor="ag-url" className="block text-sm font-semibold">
-              Target direct portal URL (leave <span className="font-mono">/portal</span> for our live test portal)
+            <label htmlFor="ag-url" className="block text-sm font-semibold text-slate-800">
+              University portal destination (pre-configured for the live Sample University portal)
             </label>
             <input
               id="ag-url"
               type="text"
               value={portalUrl}
               onChange={(e) => setPortalUrl(e.target.value)}
-              className="mt-1 w-full rounded-xl border border-slate-300 px-3.5 py-2.5 font-mono text-base"
+              className="mt-1 w-full rounded-xl border border-slate-300 px-3.5 py-2.5 font-mono text-base text-slate-900 focus:border-blue-600 focus:outline-none focus:ring-4 focus:ring-blue-200"
             />
           </div>
 
           <button
             type="submit"
             disabled={launchLoading}
-            className="inline-flex items-center gap-2 rounded-xl bg-blue-700 px-6 py-3.5 text-lg font-bold text-white shadow-md hover:bg-blue-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300 disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-6 py-3.5 text-lg font-bold text-white shadow-md hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300 disabled:opacity-50"
           >
             <Play className="h-5 w-5" aria-hidden="true" />
-            <span>{launchLoading ? 'Dispatching via Cloud Tasks...' : 'Start Application Agent'}</span>
+            <span>{launchLoading ? 'Starting Application Agent...' : 'Start Application Agent'}</span>
           </button>
         </form>
 

@@ -283,34 +283,39 @@ export default function PortalView({ onNavigate }: PortalViewProps) {
 
   return (
     <div className="min-h-screen bg-slate-100 text-slate-900">
-      <TopNav activeRoute="portal" onNavigate={onNavigate} />
+      <TopNav
+        activeRoute="portal"
+        onNavigate={onNavigate}
+        submitCompleted={Boolean(submitReceipt)}
+      />
       <div className="border-b border-amber-200 bg-amber-50 px-4 py-1.5 text-center text-xs font-medium text-amber-900">
         <span className="inline-flex items-center gap-1.5">
           <Info className="h-3.5 w-3.5 text-amber-700" aria-hidden="true" />
           Demo mode: sample data only
         </span>
       </div>
-      <main className="mx-auto max-w-3xl space-y-5 px-4 py-8 sm:px-6 lg:px-8">
+      <main className="mx-auto max-w-3xl space-y-5 px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
         <header className="overflow-hidden rounded-3xl border border-indigo-200 bg-gradient-to-br from-indigo-950 via-indigo-900 to-slate-950 p-6 text-white shadow-lg">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="flex items-center gap-4">
               <img
                 src="/assets/university-crest.jpg"
-                alt="Direct University Admissions Crest"
+                alt="Sample University crest"
+                loading="lazy"
                 className="h-16 w-16 rounded-2xl border border-amber-400/40 object-cover shadow-md"
               />
               <div>
                 <p className="text-xs font-semibold uppercase tracking-widest text-amber-300">
-                  Direct University Admissions Portal
+                  University Application Portal
                 </p>
                 <h1 className="mt-1 text-2xl font-extrabold sm:text-3xl">
-                  Postgraduate Direct Application
+                  Sample University: Postgraduate Application (demo)
                 </h1>
               </div>
             </div>
             <span className="inline-flex items-center gap-1.5 rounded-full border border-indigo-400/40 bg-indigo-900/70 px-3 py-1 text-xs font-semibold text-indigo-100">
               <Lock className="h-3.5 w-3.5 text-amber-300" aria-hidden="true" />
-              403 Submit Gate Active
+              Counselor approval required
             </span>
           </div>
 
@@ -809,13 +814,13 @@ export default function PortalView({ onNavigate }: PortalViewProps) {
                   </button>
                 )}
                 {latestApprovedCaseId && caseId === latestApprovedCaseId && (
-                  <p className="mt-1.5 text-xs text-slate-500">
-                    Matched latest approved case from /counselor.
+                  <p className="mt-1.5 text-xs text-slate-700">
+                    Matched latest approved case from Counselor step.
                   </p>
                 )}
               </div>
               <div>
-                <label htmlFor="p7-tok" className="block text-sm font-semibold">
+                <label htmlFor="p7-tok" className="block text-sm font-semibold text-slate-900">
                   Paste approval token
                 </label>
                 <input
@@ -827,7 +832,7 @@ export default function PortalView({ onNavigate }: PortalViewProps) {
                     setSubmitError(null);
                   }}
                   placeholder="Paste single-use counselor approval token here"
-                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-sm"
+                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-sm text-slate-900 focus:border-blue-600 focus:outline-none focus:ring-4 focus:ring-blue-200"
                 />
               </div>
             </div>
@@ -835,19 +840,34 @@ export default function PortalView({ onNavigate }: PortalViewProps) {
             {submitReceipt ? (
               <div
                 role="status"
-                className="flex items-start gap-3 rounded-2xl border-2 border-emerald-400 bg-emerald-50 p-5 text-emerald-950"
+                className="overflow-hidden rounded-3xl border-2 border-emerald-400 bg-white p-6 text-center shadow-md sm:p-8"
               >
-                <CheckCircle2 className="mt-0.5 h-6 w-6 shrink-0 text-emerald-700" aria-hidden="true" />
-                <div>
-                  <p className="text-xl font-bold">Application Submitted!</p>
-                  <p className="mt-1 font-mono text-base">
-                    Reference ID: <strong>{submitReceipt.submissionId}</strong>
-                  </p>
-                  <p className="mt-1 text-sm">
-                    Approved by counselor <strong>{submitReceipt.approvedBy}</strong> · Submitted at{' '}
-                    {new Date(submitReceipt.submittedAt).toLocaleString()}
-                  </p>
+                <div className="mx-auto max-w-sm overflow-hidden rounded-2xl">
+                  <img
+                    src="/img/submitted-success.webp"
+                    alt="Celebratory illustration of a paper plane landing at a university building under a green check mark"
+                    loading="lazy"
+                    width={600}
+                    height={400}
+                    className="h-auto w-full object-contain"
+                  />
                 </div>
+                <div className="mt-4 inline-flex h-14 w-14 items-center justify-center rounded-full bg-emerald-600 text-white shadow-md">
+                  <CheckCircle2 className="h-8 w-8" aria-hidden="true" />
+                </div>
+                <p className="mt-3 text-2xl font-extrabold text-emerald-950 sm:text-3xl">
+                  Application Submitted!
+                </p>
+                <p className="mt-2 font-mono text-lg text-slate-950">
+                  Receipt ID: <strong className="rounded-lg bg-emerald-50 px-3 py-1 text-emerald-900 ring-1 ring-emerald-300">{submitReceipt.submissionId}</strong>
+                </p>
+                <p className="mt-3 text-base font-bold text-indigo-950">
+                  Submitted only after counselor approval.
+                </p>
+                <p className="mt-1 text-sm text-slate-700">
+                  Approved by <strong>{submitReceipt.approvedBy}</strong> · Submitted at{' '}
+                  {new Date(submitReceipt.submittedAt).toLocaleString()}
+                </p>
               </div>
             ) : (
               <div className="space-y-3">
@@ -863,7 +883,7 @@ export default function PortalView({ onNavigate }: PortalViewProps) {
                   !approvalToken.trim() && (
                     <p className="flex items-center gap-2 rounded-xl border border-amber-300 bg-amber-50 px-4 py-2.5 text-sm font-semibold text-amber-950">
                       <ShieldAlert className="h-4 w-4 shrink-0 text-amber-700" aria-hidden="true" />
-                      No counselor token entered — clicking Submit will return HTTP 403 Blocked.
+                      No counselor token entered — Submit requires counselor approval first.
                     </p>
                   )
                 )}
@@ -871,7 +891,7 @@ export default function PortalView({ onNavigate }: PortalViewProps) {
                   type="button"
                   disabled={busy}
                   onClick={() => void handleFinalSubmit()}
-                  className="rounded-xl bg-emerald-700 px-6 py-4 text-lg font-bold text-white shadow-md hover:bg-emerald-800 disabled:opacity-50"
+                  className="rounded-xl bg-emerald-600 px-6 py-4 text-lg font-bold text-white shadow-md hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-emerald-300 disabled:opacity-50"
                 >
                   {busy ? 'Submitting...' : 'Submit Application'}
                 </button>

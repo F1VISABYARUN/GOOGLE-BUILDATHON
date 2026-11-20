@@ -8,6 +8,7 @@ import {
   Copy,
   DollarSign,
   Edit3,
+  HelpCircle,
   Layers,
   RefreshCw,
   Settings2,
@@ -172,6 +173,7 @@ export default function CounselorView({ onNavigate }: CounselorViewProps) {
 
   const [showSettings, setShowSettings] = useState(false);
   const [showAudit, setShowAudit] = useState(false);
+  const [showShortcuts, setShowShortcuts] = useState(false);
   const [settingsDraft, setSettingsDraft] = useState<CounselorSettings | null>(null);
   const [savingSettings, setSavingSettings] = useState(false);
 
@@ -471,28 +473,27 @@ export default function CounselorView({ onNavigate }: CounselorViewProps) {
         Skip to main content
       </a>
 
-      <TopNav activeRoute="counselor" onNavigate={onNavigate} />
+      <TopNav
+        activeRoute="counselor"
+        onNavigate={onNavigate}
+        approveCompleted={Boolean(lastIssuedToken)}
+      />
 
-      <div className="border-b border-amber-200 bg-amber-50 px-4 py-2 text-center text-xs font-semibold text-amber-950 sm:text-sm">
+      <div className="border-b border-amber-200 bg-amber-50 px-4 py-1.5 text-center text-xs font-semibold text-amber-950 sm:text-sm">
         Demo mode: sample data only — counselor queue opens directly; enter your approver name below for the audit log.
       </div>
 
-      <main id="counselor-main" className="mx-auto max-w-5xl space-y-6 px-4 py-8 sm:px-6 lg:px-8">
-        {/* HERO BANNER WITH CUSTOM COUNSELOR SHIELD VISUAL */}
-        <section className="overflow-hidden rounded-3xl border border-slate-200 bg-gradient-to-br from-slate-950 via-slate-900 to-emerald-950 p-6 text-white shadow-lg sm:p-8">
-          <div className="grid items-center gap-6 md:grid-cols-4">
-            <div className="space-y-3 md:col-span-3">
-              <span className="inline-flex items-center gap-2 rounded-full border border-emerald-400/40 bg-emerald-500/15 px-3.5 py-1 text-xs font-semibold uppercase tracking-wider text-emerald-200">
-                <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
-                Human-in-the-Loop Safety Gate
-              </span>
+      <main id="counselor-main" className="mx-auto max-w-5xl space-y-6 px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+        {/* HERO BANNER */}
+        <section className="overflow-hidden rounded-3xl border border-indigo-900/20 bg-gradient-to-br from-indigo-950 via-indigo-900 to-slate-900 p-6 text-white shadow-lg sm:p-8">
+          <div className="flex flex-wrap items-center justify-between gap-6">
+            <div className="space-y-3">
               <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl">
                 Counselor Exception Queue
               </h1>
-              <p className="max-w-2xl text-base leading-relaxed text-slate-200 sm:text-lg">
-                Review only high-stakes exceptions sorted by highest risk. Clean green cases pass
-                plain-code rules and wait for your one-click batch approval—no Submit happens
-                without your single-use token.
+              <p className="max-w-2xl text-base leading-relaxed text-indigo-100 sm:text-lg">
+                Only students with visa-refusal risks land here. Clean cases clear in one click —
+                nothing is submitted without your single-use approval token.
               </p>
 
               <div className="flex flex-wrap items-center gap-3 pt-1">
@@ -509,17 +510,9 @@ export default function CounselorView({ onNavigate }: CounselorViewProps) {
                   value={counselorName}
                   onChange={(e) => setCounselorName(e.target.value)}
                   placeholder="Enter your name"
-                  className="rounded-xl border border-emerald-400/50 bg-slate-800/90 px-3.5 py-2 text-sm font-semibold text-white placeholder:text-slate-400 focus:border-emerald-300 focus:outline-none focus:ring-2 focus:ring-emerald-400/50"
+                  className="rounded-xl border border-emerald-400/60 bg-indigo-950/90 px-3.5 py-2 text-sm font-semibold text-white placeholder:text-indigo-300 focus:border-emerald-300 focus:outline-none focus:ring-4 focus:ring-emerald-400/40"
                 />
               </div>
-            </div>
-
-            <div className="flex justify-center md:justify-end">
-              <img
-                src="/assets/counselor-shield.jpg"
-                alt="Counselor verification shield illustration"
-                className="h-36 w-36 rounded-2xl border border-white/15 object-cover shadow-xl sm:h-40 sm:w-40"
-              />
             </div>
           </div>
         </section>
@@ -530,70 +523,38 @@ export default function CounselorView({ onNavigate }: CounselorViewProps) {
           </div>
         ) : (
           <div className="space-y-6">
-            {/* KPI SUMMARY STRIP */}
-            <section aria-label="Queue summary" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <div className="rounded-2xl border border-red-200 bg-white p-5 shadow-sm">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-semibold text-slate-600">Exceptions Queue</span>
-                  <ShieldAlert className="h-5 w-5 text-red-700" aria-hidden="true" />
-                </div>
-                <p className="mt-2 text-3xl font-extrabold text-red-700">
-                  {queue?.exceptions.length ?? 0}
-                </p>
-                <p className="mt-1 text-xs text-slate-600">Sorted highest risk first</p>
-              </div>
-
-              <div className="rounded-2xl border border-emerald-200 bg-white p-5 shadow-sm">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-semibold text-slate-600">Green Batch Ready</span>
-                  <Layers className="h-5 w-5 text-emerald-700" aria-hidden="true" />
-                </div>
-                <p className="mt-2 text-3xl font-extrabold text-emerald-700">
-                  {queue?.greenBatch.length ?? 0}
-                </p>
-                <p className="mt-1 text-xs text-slate-600">Zero red flags · 1-click approve</p>
-              </div>
-
-              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-semibold text-slate-600">Cleared Cases</span>
-                  <CheckCircle2 className="h-5 w-5 text-blue-700" aria-hidden="true" />
-                </div>
-                <p className="mt-2 text-3xl font-extrabold text-slate-950">
-                  {queue?.resolved.length ?? 0}
-                </p>
-                <p className="mt-1 text-xs text-slate-600">Approved or returned</p>
-              </div>
-
-              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-semibold text-slate-600">Queue AI Cost</span>
-                  <DollarSign className="h-5 w-5 text-emerald-700" aria-hidden="true" />
-                </div>
-                <p className="mt-2 font-mono text-3xl font-extrabold text-slate-950">
-                  ${totalEstimatedUsd.toFixed(4)}
-                </p>
-                <p className="mt-1 text-xs text-slate-600">Tracked tokens across cases</p>
-              </div>
-            </section>
-
-            {/* TOOLBAR + BATCH APPROVE */}
+            {/* TOP SUMMARY LINE + TOOLBAR */}
             <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
               <div className="flex flex-wrap items-center justify-between gap-3">
-                <p className="text-sm font-medium text-slate-700">
-                  Keyboard shortcuts:{' '}
-                  <kbd className="rounded-md border border-slate-300 bg-slate-100 px-2 py-0.5 font-mono text-xs font-bold text-slate-900">A</kbd>{' '}
-                  Approve ·{' '}
-                  <kbd className="rounded-md border border-slate-300 bg-slate-100 px-2 py-0.5 font-mono text-xs font-bold text-slate-900">E</kbd>{' '}
-                  Edit ·{' '}
-                  <kbd className="rounded-md border border-slate-300 bg-slate-100 px-2 py-0.5 font-mono text-xs font-bold text-slate-900">R</kbd>{' '}
-                  Reject ·{' '}
-                  <kbd className="rounded-md border border-slate-300 bg-slate-100 px-2 py-0.5 font-mono text-xs font-bold text-slate-900">J</kbd>/
-                  <kbd className="rounded-md border border-slate-300 bg-slate-100 px-2 py-0.5 font-mono text-xs font-bold text-slate-900">K</kbd>{' '}
-                  Next / Prev
-                </p>
+                <div>
+                  <p className="text-xl font-extrabold text-indigo-950 sm:text-2xl">
+                    {queue?.exceptions.length ?? 0}{' '}
+                    {(queue?.exceptions.length ?? 0) === 1 ? 'student needs' : 'students need'} you.{' '}
+                    <span className="text-emerald-700">
+                      {queue?.greenBatch.length ?? 0}{' '}
+                      {(queue?.greenBatch.length ?? 0) === 1 ? 'is' : 'are'} ready to approve.
+                    </span>
+                  </p>
+                  <p className="mt-0.5 text-sm text-slate-700">
+                    {queue?.resolved.length ?? 0} already cleared · Sorted highest refusal risk first
+                  </p>
+                </div>
 
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowShortcuts((v) => !v)}
+                    aria-expanded={showShortcuts}
+                    aria-label="Toggle keyboard shortcuts help"
+                    className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-sm font-bold transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300 ${
+                      showShortcuts
+                        ? 'border-indigo-700 bg-indigo-50 text-indigo-900'
+                        : 'border-slate-300 bg-white text-slate-800 hover:bg-slate-100'
+                    }`}
+                  >
+                    <HelpCircle className="h-4 w-4" aria-hidden="true" />
+                    <span>?</span>
+                  </button>
                   <button
                     type="button"
                     onClick={() => void loadQueue(false)}
@@ -629,6 +590,35 @@ export default function CounselorView({ onNavigate }: CounselorViewProps) {
                   </button>
                 </div>
               </div>
+
+              {showShortcuts && (
+                <div
+                  role="note"
+                  className="mt-3 flex flex-wrap items-center gap-3 rounded-xl border border-indigo-200 bg-indigo-50/70 px-4 py-2.5 text-sm font-medium text-indigo-950"
+                >
+                  <span className="font-bold">Keyboard shortcuts:</span>
+                  <span>
+                    <kbd className="rounded-md border border-indigo-300 bg-white px-2 py-0.5 font-mono text-xs font-bold text-indigo-950">J</kbd>{' '}
+                    Next
+                  </span>
+                  <span>
+                    <kbd className="rounded-md border border-indigo-300 bg-white px-2 py-0.5 font-mono text-xs font-bold text-indigo-950">K</kbd>{' '}
+                    Prev
+                  </span>
+                  <span>
+                    <kbd className="rounded-md border border-indigo-300 bg-white px-2 py-0.5 font-mono text-xs font-bold text-indigo-950">A</kbd>{' '}
+                    Approve
+                  </span>
+                  <span>
+                    <kbd className="rounded-md border border-indigo-300 bg-white px-2 py-0.5 font-mono text-xs font-bold text-indigo-950">E</kbd>{' '}
+                    Edit
+                  </span>
+                  <span>
+                    <kbd className="rounded-md border border-indigo-300 bg-white px-2 py-0.5 font-mono text-xs font-bold text-indigo-950">R</kbd>{' '}
+                    Reject
+                  </span>
+                </div>
+              )}
 
               {queue && queue.greenBatch.length > 0 && (
                 <div className="mt-4 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-emerald-300 bg-emerald-50 p-4">
@@ -694,9 +684,9 @@ export default function CounselorView({ onNavigate }: CounselorViewProps) {
                       </button>
                       <a
                         href={`/portal?caseId=${encodeURIComponent(lastIssuedToken.caseId)}&approvalToken=${encodeURIComponent(lastIssuedToken.token)}`}
-                        className="inline-flex items-center gap-1 rounded-xl bg-emerald-700 px-3.5 py-1.5 text-xs font-bold text-white hover:bg-emerald-800"
+                        className="inline-flex items-center gap-1 rounded-xl bg-emerald-600 px-3.5 py-1.5 text-xs font-bold text-white hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-emerald-300"
                       >
-                        Open /portal with Approved Token →
+                        Open University portal with token →
                       </a>
                     </div>
                     <div className="flex flex-wrap items-center gap-2 text-xs text-emerald-900">
@@ -798,33 +788,19 @@ export default function CounselorView({ onNavigate }: CounselorViewProps) {
                   </div>
                 </div>
 
-                {/* COST PER CASE */}
+                {/* PER-CASE AI COST PILL (proves scale economics without dev clutter) */}
                 {currentCase.usageSummary && (
-                  <div className="grid gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm sm:grid-cols-4">
-                    <div>
-                      <p className="font-semibold text-slate-600">Input Tokens</p>
-                      <p className="font-mono text-lg font-bold text-slate-950">
-                        {currentCase.usageSummary.totalInputTokens.toLocaleString()}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="font-semibold text-slate-600">Output Tokens</p>
-                      <p className="font-mono text-lg font-bold text-slate-950">
-                        {currentCase.usageSummary.totalOutputTokens.toLocaleString()}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="font-semibold text-slate-600">Agent Steps</p>
-                      <p className="font-mono text-lg font-bold text-slate-950">
-                        {currentCase.usageSummary.agentSteps}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="font-semibold text-slate-600">Est. AI Cost (USD)</p>
-                      <p className="font-mono text-lg font-bold text-emerald-800">
+                  <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
+                    <span className="inline-flex items-center gap-2 font-semibold text-slate-800">
+                      <DollarSign className="h-4 w-4 text-emerald-700" aria-hidden="true" />
+                      AI verification cost for this student:{' '}
+                      <strong className="font-mono text-emerald-800">
                         ${currentCase.usageSummary.estimatedUsd.toFixed(4)}
-                      </p>
-                    </div>
+                      </strong>
+                    </span>
+                    <span className="text-xs font-medium text-slate-700">
+                      {currentCase.usageSummary.agentSteps} agent step(s)
+                    </span>
                   </div>
                 )}
 
@@ -1031,11 +1007,26 @@ export default function CounselorView({ onNavigate }: CounselorViewProps) {
                 )}
               </section>
             ) : (
-              <section className="rounded-3xl border border-emerald-200 bg-emerald-50 p-8 text-center shadow-sm">
-                <CheckCircle2 className="mx-auto h-10 w-10 text-emerald-700" aria-hidden="true" />
-                <h2 className="mt-3 text-2xl font-bold text-emerald-950">Exception queue is clear</h2>
-                <p className="mt-1 text-base text-emerald-900">
-                  No cases currently need manual exception review.
+              <section className="rounded-3xl border border-emerald-200 bg-white p-8 text-center shadow-sm">
+                <div className="mx-auto max-w-sm overflow-hidden rounded-2xl">
+                  <img
+                    src="/img/empty-queue.webp"
+                    alt="Calm counselor sipping chai at a tidy desk with an empty inbox tray"
+                    loading="lazy"
+                    width={600}
+                    height={400}
+                    className="h-auto w-full object-contain"
+                  />
+                </div>
+                <span className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1 text-xs font-extrabold uppercase tracking-wide text-emerald-900">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-700" aria-hidden="true" />
+                  All clear
+                </span>
+                <h2 className="mt-2 text-2xl font-extrabold text-slate-950">
+                  No students need manual review right now
+                </h2>
+                <p className="mt-1 text-base text-slate-700">
+                  Every exception has been cleared. New high-risk files will appear here automatically.
                 </p>
               </section>
             )}
@@ -1251,7 +1242,7 @@ export default function CounselorView({ onNavigate }: CounselorViewProps) {
                               </button>
                             </div>
                             <p className="font-mono text-xs text-emerald-800">
-                              Portal: {c.targetPortalUrl || '/portal'} · By: {c.approvedBy}
+                              University portal · Approved by {c.approvedBy}
                             </p>
                           </div>
                         )}
@@ -1260,18 +1251,55 @@ export default function CounselorView({ onNavigate }: CounselorViewProps) {
                         )}
                       </div>
                       <span
-                        className={`shrink-0 rounded-full px-3 py-1 text-xs font-bold uppercase ${
+                        className={`inline-flex shrink-0 items-center gap-1 rounded-full px-3 py-1 text-xs font-bold uppercase ${
                           c.status === 'approved'
                             ? 'bg-emerald-200 text-emerald-950'
                             : 'bg-red-200 text-red-950'
                         }`}
                       >
+                        {c.status === 'approved' ? (
+                          <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
+                        ) : (
+                          <XCircle className="h-3.5 w-3.5" aria-hidden="true" />
+                        )}
                         {c.status}
                       </span>
                     </li>
                   ))}
                 </ul>
               </section>
+            )}
+
+            {/* SMALL FOOTER ROW: INPUT / OUTPUT TOKENS & QUEUE AI COST */}
+            {queue && (
+              <footer
+                aria-label="Queue usage and AI cost summary"
+                className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-3.5 text-xs font-medium text-slate-700"
+              >
+                <span className="font-semibold text-slate-800">Queue AI usage</span>
+                <div className="flex flex-wrap items-center gap-4 font-mono">
+                  <span>
+                    Input tokens:{' '}
+                    <strong className="text-slate-950">
+                      {[...queue.exceptions, ...queue.greenBatch, ...queue.resolved]
+                        .reduce((s, c) => s + (c.usageSummary?.totalInputTokens || 0), 0)
+                        .toLocaleString()}
+                    </strong>
+                  </span>
+                  <span>
+                    Output tokens:{' '}
+                    <strong className="text-slate-950">
+                      {[...queue.exceptions, ...queue.greenBatch, ...queue.resolved]
+                        .reduce((s, c) => s + (c.usageSummary?.totalOutputTokens || 0), 0)
+                        .toLocaleString()}
+                    </strong>
+                  </span>
+                  <span>
+                    Queue AI cost:{' '}
+                    <strong className="text-emerald-800">${totalEstimatedUsd.toFixed(4)}</strong>
+                  </span>
+                </div>
+              </footer>
             )}
           </div>
         )}
