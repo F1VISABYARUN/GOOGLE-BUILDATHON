@@ -225,67 +225,108 @@ async function executeBrowserAction(
       await page.waitForTimeout(800);
       return `Navigated to ${page.url()}`;
     }
+    case 'click':
     case 'click_at': {
       const { px, py } = scalePoint(Number(args.x), Number(args.y));
-      await page.mouse.click(px, py);
-      await page.waitForTimeout(700);
-      return `Clicked at (${px}, ${py})`;
+      const button = args.button === 'right' ? 'right' : args.button === 'middle' ? 'middle' : 'left';
+      const clickCount = Number(args.click_count || args.clicks || 1);
+      await page.mouse.click(px, py, { button, clickCount });
+      await page.waitForTimeout(600);
+      return `Clicked (${button} x${clickCount}) at (${px}, ${py})`;
     }
-    case 'hover_at': {
+    case 'double_click': {
+      const { px, py } = scalePoint(Number(args.x), Number(args.y));
+      await page.mouse.dblclick(px, py);
+      await page.waitForTimeout(600);
+      return `Double-clicked at (${px}, ${py})`;
+    }
+    case 'right_click': {
+      const { px, py } = scalePoint(Number(args.x), Number(args.y));
+      await page.mouse.click(px, py, { button: 'right' });
+      await page.waitForTimeout(500);
+      return `Right-clicked at (${px}, ${py})`;
+    }
+    case 'hover':
+    case 'hover_at':
+    case 'mouse_move': {
       const { px, py } = scalePoint(Number(args.x), Number(args.y));
       await page.mouse.move(px, py);
       await page.waitForTimeout(300);
       return `Hovered at (${px}, ${py})`;
     }
+    case 'type':
+    case 'type_text':
     case 'type_text_at': {
-      const { px, py } = scalePoint(Number(args.x), Number(args.y));
-      const text = String(args.text ?? '');
-      const pressEnter = Boolean(args.press_enter);
-      const clearBefore = args.clear_before_typing !== false;
+      const text = String(args.text ?? args.value ?? '');
+      const pressEnter = Boolean(args.press_enter ?? args.submit);
+      const hasCoords = args.x !== undefined && args.y !== undefined;
 
-      await page.mouse.click(px, py);
-      await page.waitForTimeout(150);
-      if (clearBefore) {
+      if (hasCoords) {
+        const { px, py } = scalePoint(Number(args.x), Number(args.y));
+        await page.mouse.click(px, py);
+        await page.waitForTimeout(150);
+      }
+
+      const shouldClear = hasCoords ? args.clear_before_typing !== false : Boolean(args.clear_before_typing);
+      if (shouldClear) {
         // Always Control+A on Linux Chromium (never Meta+A)
         await page.keyboard.press('Control+A');
         await page.keyboard.press('Backspace');
       }
-      await page.keyboard.type(text, { delay: 15 });
+
+      await page.keyboard.type(text, { delay: 12 });
       if (pressEnter) {
         await page.keyboard.press('Enter');
       }
-      await page.waitForTimeout(500);
-      return `Typed text at (${px}, ${py})`;
+      await page.waitForTimeout(450);
+      return hasCoords ? `Typed text at scaled coords` : `Typed text into focused field`;
     }
+    case 'press_key':
+    case 'hotkey':
     case 'key_combination': {
-      const keys = normalizeKeyComboForLinux(String(args.keys || args.key || 'Enter'));
+      const rawKeys = Array.isArray(args.keys)
+        ? (args.keys as unknown[]).map(String).join('+')
+        : String(args.keys || args.key || 'Enter');
+      const keys = normalizeKeyComboForLinux(rawKeys);
       await page.keyboard.press(keys);
       await page.waitForTimeout(400);
       return `Pressed ${keys}`;
     }
-    case 'scroll_document': {
-      const direction = String(args.direction || 'down').toLowerCase();
-      const amount = Number(args.magnitude || 500);
-      const deltaY = direction === 'up' ? -amount : direction === 'down' ? amount : 0;
-      const deltaX = direction === 'left' ? -amount : direction === 'right' ? amount : 0;
-      await page.mouse.wheel(deltaX, deltaY);
-      await page.waitForTimeout(500);
-      return `Scrolled document ${direction}`;
-    }
+    case 'scroll':
+    case 'scroll_document':
     case 'scroll_at': {
-      const { px, py } = scalePoint(Number(args.x), Number(args.y));
+      if (args.x !== undefined && args.y !== undefined) {
+        const { px, py } = scalePoint(Number(args.x), Number(args.y));
+        await page.mouse.move(px, py);
+      }
       const direction = String(args.direction || 'down').toLowerCase();
-      const amount = Number(args.magnitude || 400);
-      const deltaY = direction === 'up' ? -amount : direction === 'down' ? amount : 0;
-      const deltaX = direction === 'left' ? -amount : direction === 'right' ? amount : 0;
-      await page.mouse.move(px, py);
+      const amount = Number(args.magnitude || args.amount || args.pixels || 500);
+      const deltaY =
+        args.delta_y !== undefined
+          ? Number(args.delta_y)
+          : direction === 'up'
+            ? -amount
+            : direction === 'down'
+              ? amount
+              : 0;
+      const deltaX =
+        args.delta_x !== undefined
+          ? Number(args.delta_x)
+          : direction === 'left'
+            ? -amount
+            : direction === 'right'
+              ? amount
+              : 0;
       await page.mouse.wheel(deltaX, deltaY);
-      await page.waitForTimeout(500);
-      return `Scrolled at (${px}, ${py}) ${direction}`;
+      await page.waitForTimeout(450);
+      return `Scrolled ${direction}`;
     }
     case 'drag_and_drop': {
-      const from = scalePoint(Number(args.x), Number(args.y));
-      const to = scalePoint(Number(args.destination_x), Number(args.destination_y));
+      const from = scalePoint(Number(args.x ?? args.start_x), Number(args.y ?? args.start_y));
+      const to = scalePoint(
+        Number(args.destination_x ?? args.end_x),
+        Number(args.destination_y ?? args.end_y)
+      );
       await page.mouse.move(from.px, from.py);
       await page.mouse.down();
       await page.mouse.move(to.px, to.py, { steps: 10 });
@@ -303,12 +344,15 @@ async function executeBrowserAction(
       await page.waitForTimeout(500);
       return `Navigated forward to ${page.url()}`;
     }
+    case 'wait':
     case 'wait_5_seconds': {
-      await page.waitForTimeout(3000);
-      return 'Waited for page update';
+      const secs = Math.min(5, Math.max(1, Number(args.seconds || 2)));
+      await page.waitForTimeout(secs * 1000);
+      return `Waited ${secs}s`;
     }
+    case 'take_screenshot':
     case 'open_web_browser': {
-      return `Browser open at ${page.url()}`;
+      return `Captured browser state at ${page.url()}`;
     }
     default: {
       throw new Error(`Unsupported browser action: ${actionName}`);
@@ -513,7 +557,11 @@ export async function runComputerUseAgent(params: {
         // Inspect target DOM element before clicking/typing
         let targetElementText = '';
         if (
-          (actionName === 'click_at' || actionName === 'type_text_at') &&
+          (actionName === 'click' ||
+            actionName === 'click_at' ||
+            actionName === 'double_click' ||
+            actionName === 'type' ||
+            actionName === 'type_text_at') &&
           args.x !== undefined &&
           args.y !== undefined
         ) {
@@ -664,43 +712,67 @@ export async function runComputerUseAgent(params: {
         run.updatedAt = new Date().toISOString();
         await runRef.set(run);
 
-        // Build function_result payload (one per call, containing current URL as text + PNG screenshot)
-        const resultTextParts = [`Current URL: ${page.url()}`];
-        if (execNote) resultTextParts.push(`Result: ${execNote}`);
-        if (emailCodeNote) resultTextParts.push(emailCodeNote);
+        // Build function_result payload (one per call, containing current URL as JSON text + PNG screenshot)
+        const resultPayloadObj: Record<string, unknown> = {
+          url: page.url(),
+          status: isError ? 'error' : 'ok',
+          detail: `${execNote}${emailCodeNote}`,
+        };
         if (params.safetyAcknowledged) {
-          resultTextParts.push('safety_acknowledgement: true');
+          resultPayloadObj.safety_acknowledgement = true;
         }
 
         const fnResult: Record<string, unknown> = {
           type: 'function_result',
           call_id: fc.id,
           name: actionName,
-          is_error: isError,
           result: [
-            { type: 'text', text: resultTextParts.join('\n') },
+            { type: 'text', text: JSON.stringify(resultPayloadObj) },
             { type: 'image', data: shots.pngBase64, mime_type: 'image/png' },
           ],
         };
-        if (params.safetyAcknowledged) {
-          fnResult.safety_acknowledgement = true;
-        }
         functionResults.push(fnResult);
       }
 
-      // Next Interactions API turn chained via previous_interaction_id
-      interaction = await (ai.interactions as any).create({
-        model: currentModel,
-        previous_interaction_id: previousInteractionId,
-        tools: [
-          {
-            type: 'computer_use',
-            environment: 'browser',
-            enable_prompt_injection_detection: true,
-          },
-        ],
-        input: functionResults,
-      });
+      // Next Interactions API turn chained via previous_interaction_id.
+      // IMPORTANT: Do NOT re-send `tools` when `previous_interaction_id` is set (tools are persisted server-side).
+      if (currentModel === ESCALATION_MODEL && run.currentModel !== ESCALATION_MODEL) {
+        // Fresh interaction when escalating model from hydrogen -> carbon
+        const freshShots = await captureScreenshots(page);
+        interaction = await (ai.interactions as any).create({
+          model: currentModel,
+          system_instruction: systemInstruction,
+          input: [
+            {
+              type: 'user_input',
+              content: [
+                {
+                  type: 'text',
+                  text: `Escalated to ${currentModel}. Current URL: ${page.url()}. Continue filling the application portal from this screen.`,
+                },
+                {
+                  type: 'image',
+                  data: freshShots.pngBase64,
+                  mime_type: 'image/png',
+                },
+              ],
+            },
+          ],
+          tools: [
+            {
+              type: 'computer_use',
+              environment: 'browser',
+              enable_prompt_injection_detection: true,
+            },
+          ],
+        });
+      } else {
+        interaction = await (ai.interactions as any).create({
+          model: currentModel,
+          previous_interaction_id: previousInteractionId,
+          input: functionResults,
+        });
+      }
       previousInteractionId = interaction.id;
     }
 

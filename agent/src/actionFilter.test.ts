@@ -85,7 +85,7 @@ describe('actionFilter (Phase 4)', () => {
       'Sign and Continue',
     ]) {
       const blocked = evaluateActionFilter({
-        actionName: 'click_at',
+        actionName: 'click',
         args: { x: 500, y: 700, intent: `Click ${label}` },
         currentUrl: 'https://aira-web-217073132830.asia-south1.run.app/portal',
         allowlistedDomains: ALLOWLIST,

@@ -190,8 +190,14 @@ export function evaluateActionFilter(input: ActionFilterInput): ActionFilterDeci
 
   // 4. Block clicks / submits / declarations / signatures / payments unless a valid counselor approval token exists
   const isInteractiveAction =
+    actionName === 'click' ||
     actionName === 'click_at' ||
+    actionName === 'double_click' ||
     actionName === 'key_combination' ||
+    actionName === 'press_key' ||
+    actionName === 'hotkey' ||
+    actionName === 'type' ||
+    actionName === 'type_text' ||
     actionName === 'type_text_at';
 
   if (isInteractiveAction) {
