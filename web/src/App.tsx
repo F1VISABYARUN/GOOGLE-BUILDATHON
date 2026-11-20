@@ -1,4 +1,21 @@
 import { useEffect, useState, type FormEvent } from 'react';
+import {
+  AlertTriangle,
+  ArrowRight,
+  Calculator,
+  CheckCircle2,
+  ChevronDown,
+  ChevronUp,
+  FileCheck2,
+  FileText,
+  Lock,
+  ShieldCheck,
+  Sparkles,
+  Trash2,
+  UploadCloud,
+  XCircle,
+} from 'lucide-react';
+import TopNav from './TopNav.tsx';
 import CounselorView from './CounselorView.tsx';
 import PortalView from './PortalView.tsx';
 import AgentRunnerPanel from './AgentRunnerPanel.tsx';
@@ -85,22 +102,28 @@ interface CaseRecord {
 function severityStyles(severity: 'red' | 'amber' | 'green') {
   if (severity === 'red') {
     return {
-      card: 'border-red-300 bg-red-50',
+      card: 'border-red-200 bg-red-50/70',
       badge: 'bg-red-700 text-white',
       label: 'RED FLAG',
+      Icon: XCircle,
+      iconColor: 'text-red-700',
     };
   }
   if (severity === 'amber') {
     return {
-      card: 'border-amber-300 bg-amber-50',
+      card: 'border-amber-200 bg-amber-50/70',
       badge: 'bg-amber-700 text-white',
       label: 'AMBER — REVIEW',
+      Icon: AlertTriangle,
+      iconColor: 'text-amber-700',
     };
   }
   return {
-    card: 'border-emerald-300 bg-emerald-50',
+    card: 'border-emerald-200 bg-emerald-50/70',
     badge: 'bg-emerald-700 text-white',
     label: 'GREEN — PASSED',
+    Icon: CheckCircle2,
+    iconColor: 'text-emerald-700',
   };
 }
 
@@ -117,6 +140,7 @@ export default function App() {
     const path = next === 'counselor' ? '/counselor' : next === 'portal' ? '/portal' : '/';
     window.history.pushState({}, '', path);
     setRoute(next);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   useEffect(() => {
@@ -127,13 +151,12 @@ export default function App() {
     return () => window.removeEventListener('popstate', onPopState);
   }, []);
 
-  // Phase 2 Step state: 'consent' -> 'upload' -> 'results'
   const [step, setStep] = useState<'consent' | 'upload' | 'results'>('consent');
   const [deletingData, setDeletingData] = useState(false);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [deleteConfirmationMsg, setDeleteConfirmationMsg] = useState<string | null>(null);
 
-  // Consent & one-time authorisation state
+  // Consent & authorisation
   const [acceptedStorageNotice, setAcceptedStorageNotice] = useState(false);
   const [acceptedImmediateDeletion, setAcceptedImmediateDeletion] = useState(false);
   const [acceptedDeleteRight, setAcceptedDeleteRight] = useState(false);
@@ -153,7 +176,6 @@ export default function App() {
   const [requiredCostAmount, setRequiredCostAmount] = useState('');
   const [requiredCostCurrency, setRequiredCostCurrency] = useState('GBP');
 
-  // Dated, visible, editable exchange rates (never hard-coded in checks)
   const [rateDate, setRateDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [rateGbp, setRateGbp] = useState('120');
   const [rateUsd, setRateUsd] = useState('96');
@@ -166,7 +188,7 @@ export default function App() {
   const [analyzeError, setAnalyzeError] = useState<string | null>(null);
   const [caseResult, setCaseResult] = useState<CaseRecord | null>(null);
 
-  // Phase 1 Gemini system status
+  // Gemini system status drawer
   const [showSystemCheck, setShowSystemCheck] = useState(false);
   const [models, setModels] = useState<string[]>([]);
   const [helloReply, setHelloReply] = useState<HelloResponse | null>(null);
@@ -205,9 +227,7 @@ export default function App() {
     try {
       const res = await fetch(`/api/cases/${caseResult.id}`, { method: 'DELETE' });
       const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || 'Could not delete your data.');
-      }
+      if (!res.ok) throw new Error(data.error || 'Could not delete your data.');
       setDeleteConfirmationMsg(
         data.message ||
           `Case ${caseResult.id} and all extracted facts, quotes, and tokens have been permanently deleted.`
@@ -224,11 +244,11 @@ export default function App() {
   }
 
   if (route === 'counselor') {
-    return <CounselorView onNavigateHome={() => navigateTo('student')} />;
+    return <CounselorView onNavigate={navigateTo} />;
   }
 
   if (route === 'portal') {
-    return <PortalView onNavigateHome={() => navigateTo('student')} />;
+    return <PortalView onNavigate={navigateTo} />;
   }
 
   function handleConsentSubmit(e: FormEvent) {
@@ -254,6 +274,7 @@ export default function App() {
 
     setSignedAt(new Date().toISOString());
     setStep('upload');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   function handleFileChange(selected: FileList | null) {
@@ -338,6 +359,7 @@ export default function App() {
       }
       setCaseResult(data as CaseRecord);
       setStep('results');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (err) {
       setAnalyzeError(err instanceof Error ? err.message : 'Something went wrong.');
     } finally {
@@ -360,76 +382,117 @@ export default function App() {
     }
   }
 
+  const stepNum = step === 'consent' ? 1 : step === 'upload' ? 2 : 3;
+
   return (
-    <div className="min-h-screen bg-slate-50 px-4 py-6 text-slate-900 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-slate-50 text-slate-900">
       <a
         href="#student-main"
         className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-blue-800 focus:px-4 focus:py-2 focus:text-white"
       >
         Skip to main content
       </a>
-      <main id="student-main" className="mx-auto max-w-3xl space-y-6">
-        <header className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="text-sm font-semibold uppercase tracking-wide text-blue-700">
-              Aira Application Agent
-            </p>
-            <div className="flex flex-wrap items-center gap-2">
-              <nav aria-label="Progress steps" className="flex gap-2 text-sm font-medium">
-                <span
-                  className={`rounded-full px-3 py-1 ${
-                    step === 'consent' ? 'bg-blue-700 text-white' : 'bg-slate-100 text-slate-700'
-                  }`}
-                >
-                  1. Consent
+
+      <TopNav activeRoute="student" onNavigate={navigateTo} />
+
+      <main id="student-main" className="mx-auto max-w-5xl space-y-8 px-4 py-8 sm:px-6 lg:px-8">
+        {/* HERO SPLIT BANNER */}
+        <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-md">
+          <div className="grid items-center gap-6 p-6 sm:p-8 lg:grid-cols-12">
+            <div className="space-y-4 lg:col-span-7">
+              <span className="inline-flex items-center gap-2 rounded-full bg-blue-50 px-3.5 py-1 text-xs font-bold uppercase tracking-wider text-blue-800 ring-1 ring-blue-200">
+                <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+                Powered by Gemini 4 &amp; Google Cloud
+              </span>
+              <h1 className="text-3xl font-extrabold tracking-tight text-slate-950 sm:text-4xl">
+                Verify documents, catch mistakes early, and fill direct university portals safely.
+              </h1>
+              <p className="text-base leading-relaxed text-slate-700 sm:text-lg">
+                Upload your marksheets, passport, bank or loan letters, and offer letter. Every
+                extracted fact carries an exact verbatim quote, every money and date rule runs in
+                plain code, and a human counselor approves before Submit.
+              </p>
+
+              <div className="flex flex-wrap gap-2.5 pt-1 text-xs font-semibold text-slate-800 sm:text-sm">
+                <span className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5">
+                  <Lock className="h-4 w-4 text-emerald-700" aria-hidden="true" />
+                  Files deleted right after reading
                 </span>
-                <span
-                  className={`rounded-full px-3 py-1 ${
-                    step === 'upload' ? 'bg-blue-700 text-white' : 'bg-slate-100 text-slate-700'
-                  }`}
-                >
-                  2. Upload
+                <span className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5">
+                  <Calculator className="h-4 w-4 text-blue-700" aria-hidden="true" />
+                  Plain-code funds &amp; date checks
                 </span>
-                <span
-                  className={`rounded-full px-3 py-1 ${
-                    step === 'results' ? 'bg-blue-700 text-white' : 'bg-slate-100 text-slate-700'
-                  }`}
-                >
-                  3. Results
+                <span className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5">
+                  <ShieldCheck className="h-4 w-4 text-emerald-700" aria-hidden="true" />
+                  Submit blocked until counselor approval
                 </span>
-              </nav>
-              <button
-                type="button"
-                onClick={() => navigateTo('counselor')}
-                className="rounded-lg border border-slate-300 bg-white px-3 py-1 text-sm font-semibold text-slate-900 hover:bg-slate-100"
-              >
-                Counselor Queue
-              </button>
-              <button
-                type="button"
-                onClick={() => navigateTo('portal')}
-                className="rounded-lg border border-indigo-300 bg-indigo-50 px-3 py-1 text-sm font-semibold text-indigo-900 hover:bg-indigo-100"
-              >
-                Test /portal
-              </button>
+              </div>
+            </div>
+
+            <div className="lg:col-span-5">
+              <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 shadow-inner">
+                <img
+                  src="/assets/hero-verification.jpg"
+                  alt="Workflow illustration: academic transcript and bank statement verified through a shield into a locked university portal form"
+                  className="h-auto w-full object-cover"
+                />
+              </div>
             </div>
           </div>
-          <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-950 sm:text-4xl">
-            Document Check &amp; Verification
-          </h1>
-          <p className="mt-2 text-lg text-slate-700">
-            Upload your marksheets, passport, bank or loan letters, and offer letter. Every fact is
-            backed by an exact quote, and every money or date rule is checked in plain code.
-          </p>
-        </header>
+
+          {/* CLEAN 3-STEP PROGRESS BAR */}
+          <div className="border-t border-slate-200 bg-slate-50/80 px-6 py-4 sm:px-8">
+            <ol aria-label="Application verification steps" className="grid gap-3 sm:grid-cols-3">
+              {[
+                { n: 1, title: 'Privacy & Authorisation', sub: 'DPDP consent + e-signature' },
+                { n: 2, title: 'Upload Documents', sub: 'PDF / JPG / PNG in memory' },
+                { n: 3, title: 'Flags, Quotes & Agent', sub: 'Verify, audit & fill /portal' },
+              ].map((s) => {
+                const isActive = stepNum === s.n;
+                const isDone = stepNum > s.n;
+                return (
+                  <li
+                    key={s.n}
+                    className={`flex items-center gap-3 rounded-2xl border px-4 py-3 transition ${
+                      isActive
+                        ? 'border-blue-600 bg-white shadow-sm'
+                        : isDone
+                          ? 'border-emerald-200 bg-emerald-50/60'
+                          : 'border-slate-200 bg-white/60 text-slate-500'
+                    }`}
+                  >
+                    <span
+                      className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-bold ${
+                        isActive
+                          ? 'bg-blue-700 text-white'
+                          : isDone
+                            ? 'bg-emerald-700 text-white'
+                            : 'bg-slate-200 text-slate-700'
+                      }`}
+                    >
+                      {isDone ? '✓' : s.n}
+                    </span>
+                    <div>
+                      <p className="text-sm font-bold text-slate-950">{s.title}</p>
+                      <p className="text-xs text-slate-600">{s.sub}</p>
+                    </div>
+                  </li>
+                );
+              })}
+            </ol>
+          </div>
+        </section>
 
         {deleteConfirmationMsg && (
           <div
             role="status"
-            className="rounded-2xl border border-emerald-300 bg-emerald-50 p-5 text-base font-medium text-emerald-950"
+            className="flex items-start gap-3 rounded-2xl border border-emerald-300 bg-emerald-50 p-5 text-base font-medium text-emerald-950 shadow-sm"
           >
-            <p className="font-bold">Data deleted</p>
-            <p className="mt-1">{deleteConfirmationMsg}</p>
+            <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-700" aria-hidden="true" />
+            <div>
+              <p className="font-bold">Data deleted</p>
+              <p className="mt-0.5">{deleteConfirmationMsg}</p>
+            </div>
           </div>
         )}
 
@@ -437,68 +500,74 @@ export default function App() {
         {step === 'consent' && (
           <form
             onSubmit={handleConsentSubmit}
-            className="space-y-5 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
+            className="space-y-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8"
           >
-            <h2 className="text-2xl font-semibold text-slate-950">
-              Step 1: Privacy Consent &amp; One-Time Authorisation
-            </h2>
+            <div>
+              <h2 className="text-2xl font-extrabold text-slate-950">
+                Step 1: Privacy Consent &amp; One-Time Authorisation
+              </h2>
+              <p className="mt-1 text-base text-slate-600">
+                Built to India’s DPDP Act standards. Review and sign before uploading any document.
+              </p>
+            </div>
 
-            <div className="space-y-4 rounded-xl border border-slate-200 bg-slate-50 p-4 text-base text-slate-800">
-              <label className="flex items-start gap-3">
+            <div className="space-y-3">
+              <label className="flex cursor-pointer items-start gap-3.5 rounded-2xl border border-slate-200 bg-slate-50/70 p-4 transition hover:border-blue-300 hover:bg-blue-50/30">
                 <input
                   type="checkbox"
                   checked={acceptedStorageNotice}
                   onChange={(e) => setAcceptedStorageNotice(e.target.checked)}
                   className="mt-1 h-5 w-5 rounded border-slate-400 text-blue-700 focus:ring-blue-500"
                 />
-                <span>
-                  <strong>What we store:</strong> We store only the extracted facts, their exact
-                  document quotes, check flags, and your consent record. Passport and bank account
-                  numbers are masked to the last 4 digits.
+                <span className="text-base text-slate-800">
+                  <strong className="text-slate-950">What we store:</strong> Only extracted facts,
+                  verbatim document quotes, check flags, and your consent record. Passport, bank
+                  account, Aadhaar, and PAN numbers are masked to the last 4 digits.
                 </span>
               </label>
 
-              <label className="flex items-start gap-3">
+              <label className="flex cursor-pointer items-start gap-3.5 rounded-2xl border border-slate-200 bg-slate-50/70 p-4 transition hover:border-blue-300 hover:bg-blue-50/30">
                 <input
                   type="checkbox"
                   checked={acceptedImmediateDeletion}
                   onChange={(e) => setAcceptedImmediateDeletion(e.target.checked)}
                   className="mt-1 h-5 w-5 rounded border-slate-400 text-blue-700 focus:ring-blue-500"
                 />
-                <span>
-                  <strong>Immediate file deletion:</strong> Your uploaded PDF and image files are
-                  read in memory only and deleted immediately after reading. We never save your
-                  document files to disk or cloud storage.
+                <span className="text-base text-slate-800">
+                  <strong className="text-slate-950">Immediate file deletion:</strong> Uploaded PDF
+                  and image files stay in memory only and are deleted immediately after reading. We
+                  never save document files to disk or cloud storage.
                 </span>
               </label>
 
-              <label className="flex items-start gap-3">
+              <label className="flex cursor-pointer items-start gap-3.5 rounded-2xl border border-slate-200 bg-slate-50/70 p-4 transition hover:border-blue-300 hover:bg-blue-50/30">
                 <input
                   type="checkbox"
                   checked={acceptedDeleteRight}
                   onChange={(e) => setAcceptedDeleteRight(e.target.checked)}
                   className="mt-1 h-5 w-5 rounded border-slate-400 text-blue-700 focus:ring-blue-500"
                 />
-                <span>
-                  <strong>Delete my data (DPDP Act):</strong> You can delete your entire case,
-                  extracted facts, and consent record at any time using the Delete My Data button.
+                <span className="text-base text-slate-800">
+                  <strong className="text-slate-950">Delete my data (DPDP Act):</strong> You can
+                  permanently delete your entire case, extracted facts, quotes, and tokens at any
+                  time with one click.
                 </span>
               </label>
             </div>
 
-            <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-4 text-base text-slate-800">
-              <label className="flex items-start gap-3">
+            <div className="space-y-3 rounded-2xl border border-slate-200 bg-slate-50/70 p-4 text-base text-slate-800">
+              <label className="flex cursor-pointer items-start gap-3.5">
                 <input
                   type="checkbox"
                   checked={isUnder18}
                   onChange={(e) => setIsUnder18(e.target.checked)}
                   className="mt-1 h-5 w-5 rounded border-slate-400 text-blue-700 focus:ring-blue-500"
                 />
-                <span>I am under 18 years old.</span>
+                <span className="font-medium text-slate-900">I am under 18 years old.</span>
               </label>
 
               {isUnder18 && (
-                <label className="ml-8 flex items-start gap-3 text-slate-900">
+                <label className="ml-8 flex cursor-pointer items-start gap-3.5 rounded-xl border border-amber-200 bg-amber-50 p-3.5 text-slate-900">
                   <input
                     type="checkbox"
                     checked={parentalConsentConfirmed}
@@ -513,28 +582,33 @@ export default function App() {
               )}
             </div>
 
-            <div className="space-y-3 rounded-xl border border-blue-200 bg-blue-50 p-4 text-base text-slate-900">
-              <p className="font-semibold text-blue-950">One-Time Student Authorisation</p>
-              <p className="leading-relaxed">
+            <div className="space-y-3 rounded-2xl border border-blue-200 bg-blue-50/80 p-5 text-base text-slate-900">
+              <p className="flex items-center gap-2 font-bold text-blue-950">
+                <ShieldCheck className="h-5 w-5 text-blue-700" aria-hidden="true" />
+                One-Time Student Authorisation
+              </p>
+              <p className="leading-relaxed text-slate-800">
                 I authorise Aira Application Agent to extract facts from my documents, create
                 application accounts on direct university portals (never Common App or UCAS), and
                 prepare my applications using only my own verified facts. No application will be
                 submitted until a human counselor approves it, and I will sign any visa forms (such
                 as the US DS-160) myself.
               </p>
-              <label className="flex items-start gap-3">
+              <label className="flex cursor-pointer items-start gap-3.5 pt-1">
                 <input
                   type="checkbox"
                   checked={authorisationAccepted}
                   onChange={(e) => setAuthorisationAccepted(e.target.checked)}
                   className="mt-1 h-5 w-5 rounded border-slate-400 text-blue-700 focus:ring-blue-500"
                 />
-                <span className="font-medium">I agree to this one-time authorisation.</span>
+                <span className="font-semibold text-blue-950">
+                  I agree to this one-time authorisation.
+                </span>
               </label>
             </div>
 
             <div>
-              <label htmlFor="typed-signature" className="block text-base font-semibold text-slate-900">
+              <label htmlFor="typed-signature" className="block text-base font-bold text-slate-950">
                 Type your full legal name as your e-signature
               </label>
               <input
@@ -543,22 +617,32 @@ export default function App() {
                 value={typedSignature}
                 onChange={(e) => setTypedSignature(e.target.value)}
                 placeholder="e.g. Arun Reddy"
-                className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-lg text-slate-950 focus:border-blue-600 focus:outline-none focus:ring-4 focus:ring-blue-200"
+                className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3.5 text-lg text-slate-950 shadow-sm focus:border-blue-600 focus:outline-none focus:ring-4 focus:ring-blue-200"
               />
             </div>
 
             {consentError && (
-              <div role="alert" className="rounded-xl border border-red-300 bg-red-50 p-4 text-base text-red-900">
+              <div role="alert" className="rounded-xl border border-red-300 bg-red-50 p-4 text-base font-medium text-red-900">
                 {consentError}
               </div>
             )}
 
-            <button
-              type="submit"
-              className="w-full rounded-xl bg-blue-700 px-6 py-4 text-lg font-semibold text-white shadow-sm hover:bg-blue-800 focus:outline-none focus:ring-4 focus:ring-blue-300 sm:w-auto"
-            >
-              Sign &amp; Continue to Upload
-            </button>
+            <div className="flex flex-wrap items-center justify-between gap-4 pt-2">
+              <button
+                type="submit"
+                className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-blue-700 px-7 py-4 text-lg font-bold text-white shadow-md transition hover:bg-blue-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300 sm:w-auto"
+              >
+                <span>Sign &amp; Continue to Upload</span>
+                <ArrowRight className="h-5 w-5" aria-hidden="true" />
+              </button>
+              <button
+                type="button"
+                onClick={() => navigateTo('counselor')}
+                className="text-sm font-semibold text-slate-700 underline underline-offset-4 hover:text-slate-950"
+              >
+                Are you a counselor? Open Exception Queue →
+              </button>
+            </div>
           </form>
         )}
 
@@ -566,44 +650,72 @@ export default function App() {
         {step === 'upload' && (
           <form
             onSubmit={handleAnalyzeSubmit}
-            className="space-y-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
+            className="space-y-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8"
           >
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <h2 className="text-2xl font-semibold text-slate-950">
-                Step 2: Upload Documents
-              </h2>
+              <div>
+                <h2 className="text-2xl font-extrabold text-slate-950">
+                  Step 2: Upload Documents
+                </h2>
+                <p className="mt-1 text-base text-slate-600">
+                  Upload up to 5 PDF, JPG, or PNG files (max 10 MB each).
+                </p>
+              </div>
               <button
                 type="button"
                 onClick={() => setStep('consent')}
-                className="text-base font-medium text-blue-700 underline hover:text-blue-900"
+                className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-100"
               >
                 Edit consent
               </button>
             </div>
 
-            <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-base text-emerald-950">
-              Signed by <strong>{typedSignature}</strong> at{' '}
-              {new Date(signedAt).toLocaleString()}. Files stay in memory only and are deleted
-              right after reading.
-            </p>
+            <div className="flex items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-950">
+              <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-700" aria-hidden="true" />
+              <span>
+                Signed by <strong>{typedSignature}</strong> at{' '}
+                {new Date(signedAt).toLocaleString()}. Uploaded files stay in memory only and are
+                deleted right after reading.
+              </span>
+            </div>
 
+            {/* DRAG-AND-DROP STYLE UPLOAD BOX */}
             <div>
-              <label htmlFor="doc-upload" className="block text-base font-semibold text-slate-900">
-                Choose up to 5 files (PDF, JPG, or PNG — max 10 MB each)
+              <label
+                htmlFor="doc-upload"
+                className="flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-blue-300 bg-blue-50/40 px-6 py-8 text-center transition hover:border-blue-500 hover:bg-blue-50/80"
+              >
+                <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-100 text-blue-700">
+                  <UploadCloud className="h-7 w-7" aria-hidden="true" />
+                </span>
+                <span className="mt-3 text-lg font-bold text-slate-950">
+                  Click to choose marksheets, passport, bank/loan letter, or CAS/offer
+                </span>
+                <span className="mt-1 text-sm text-slate-600">
+                  PDF, JPG, or PNG · Up to 5 files · 10 MB max per file · Never saved to Cloud Storage
+                </span>
+                <input
+                  id="doc-upload"
+                  type="file"
+                  multiple
+                  accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
+                  onChange={(e) => handleFileChange(e.target.files)}
+                  className="sr-only"
+                />
               </label>
-              <input
-                id="doc-upload"
-                type="file"
-                multiple
-                accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
-                onChange={(e) => handleFileChange(e.target.files)}
-                className="mt-2 block w-full rounded-xl border border-slate-300 bg-slate-50 p-3 text-base text-slate-900 file:mr-4 file:rounded-lg file:border-0 file:bg-blue-700 file:px-4 file:py-2 file:text-base file:font-semibold file:text-white hover:file:bg-blue-800"
-              />
+
               {files.length > 0 && (
-                <ul className="mt-3 space-y-1 text-base text-slate-700">
+                <ul className="mt-4 grid gap-2 sm:grid-cols-2">
                   {files.map((f) => (
-                    <li key={f.name} className="rounded-lg bg-slate-100 px-3 py-2">
-                      {f.name} ({(f.size / 1024).toFixed(0)} KB)
+                    <li
+                      key={f.name}
+                      className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-900"
+                    >
+                      <FileText className="h-5 w-5 shrink-0 text-blue-700" aria-hidden="true" />
+                      <span className="truncate">{f.name}</span>
+                      <span className="ml-auto shrink-0 font-mono text-xs text-slate-600">
+                        {(f.size / 1024).toFixed(0)} KB
+                      </span>
                     </li>
                   ))}
                 </ul>
@@ -612,7 +724,7 @@ export default function App() {
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
-                <label htmlFor="country" className="block text-base font-semibold text-slate-900">
+                <label htmlFor="country" className="block text-sm font-bold text-slate-900">
                   Destination country
                 </label>
                 <select
@@ -621,7 +733,7 @@ export default function App() {
                   onChange={(e) =>
                     setDestinationCountry(e.target.value as typeof destinationCountry)
                   }
-                  className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-base text-slate-950"
+                  className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-base text-slate-950 focus:border-blue-600 focus:outline-none focus:ring-4 focus:ring-blue-200"
                 >
                   <option value="UK">United Kingdom (UK)</option>
                   <option value="US">United States (US)</option>
@@ -634,48 +746,46 @@ export default function App() {
 
               {destinationCountry === 'UK' && (
                 <div>
-                  <label htmlFor="uk-region" className="block text-base font-semibold text-slate-900">
+                  <label htmlFor="uk-region" className="block text-sm font-bold text-slate-900">
                     UK study location
                   </label>
                   <select
                     id="uk-region"
                     value={ukRegion}
                     onChange={(e) => setUkRegion(e.target.value as 'london' | 'outside_london')}
-                    className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-base text-slate-950"
+                    className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-base text-slate-950 focus:border-blue-600 focus:outline-none focus:ring-4 focus:ring-blue-200"
                   >
-                    <option value="london">London (GBP 1,570 / month)</option>
-                    <option value="outside_london">Outside London (GBP 1,203 / month)</option>
+                    <option value="london">London (GBP 1,570 / month × 9)</option>
+                    <option value="outside_london">Outside London (GBP 1,203 / month × 9)</option>
                   </select>
                 </div>
               )}
             </div>
 
             {destinationCountry === 'UK' && ukRules && (
-              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
-                <p>
-                  <strong>UK rule source</strong> (effective {ukRules.asOf}):{' '}
-                  <a
-                    href={ukRules.sourceUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-blue-700 underline"
-                  >
-                    gov.uk/student-visa/money
-                  </a>
-                  {' · '}
-                  {ukRules.bankStatement.minConsecutiveDaysHeld}-day holding rule &amp;{' '}
-                  {ukRules.bankStatement.maxAgeDays}-day statement freshness window.
-                </p>
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+                <strong>UK rules</strong> (effective {ukRules.asOf}): Required funds = Unpaid CAS
+                tuition (tuition minus deposit paid) + 9 months living costs ·{' '}
+                <a
+                  href={ukRules.sourceUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="font-semibold text-blue-700 underline"
+                >
+                  gov.uk/student-visa/money
+                </a>{' '}
+                · {ukRules.bankStatement.minConsecutiveDaysHeld}-day holding &amp;{' '}
+                {ukRules.bankStatement.maxAgeDays}-day freshness window.
               </div>
             )}
 
-            <fieldset className="rounded-xl border border-slate-200 p-4">
-              <legend className="px-2 text-base font-semibold text-slate-900">
-                Optional: Required university cost (if not on an uploaded offer letter)
+            <fieldset className="rounded-2xl border border-slate-200 p-4 sm:p-5">
+              <legend className="px-2 text-sm font-bold text-slate-900">
+                Optional: Required university cost (if not on an uploaded CAS / offer letter)
               </legend>
               <div className="mt-2 grid gap-3 sm:grid-cols-2">
                 <div>
-                  <label htmlFor="req-cost" className="block text-sm font-medium text-slate-700">
+                  <label htmlFor="req-cost" className="block text-xs font-semibold text-slate-700">
                     Total required amount
                   </label>
                   <input
@@ -684,19 +794,19 @@ export default function App() {
                     min="0"
                     value={requiredCostAmount}
                     onChange={(e) => setRequiredCostAmount(e.target.value)}
-                    placeholder="Leave blank to use offer / UK rule"
-                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-base"
+                    placeholder="Leave blank to use CAS / UK rule"
+                    className="mt-1 w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-base"
                   />
                 </div>
                 <div>
-                  <label htmlFor="req-curr" className="block text-sm font-medium text-slate-700">
+                  <label htmlFor="req-curr" className="block text-xs font-semibold text-slate-700">
                     Currency
                   </label>
                   <select
                     id="req-curr"
                     value={requiredCostCurrency}
                     onChange={(e) => setRequiredCostCurrency(e.target.value)}
-                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-base"
+                    className="mt-1 w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-base"
                   >
                     <option value="GBP">GBP</option>
                     <option value="USD">USD</option>
@@ -709,13 +819,13 @@ export default function App() {
               </div>
             </fieldset>
 
-            <fieldset className="rounded-xl border border-slate-200 p-4">
-              <legend className="px-2 text-base font-semibold text-slate-900">
+            <fieldset className="rounded-2xl border border-slate-200 p-4 sm:p-5">
+              <legend className="px-2 text-sm font-bold text-slate-900">
                 Visible, Dated Exchange Rates (INR per 1 unit — editable)
               </legend>
               <div className="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-3">
                 <div>
-                  <label htmlFor="rate-date" className="block text-sm font-medium text-slate-700">
+                  <label htmlFor="rate-date" className="block text-xs font-semibold text-slate-700">
                     As-of date
                   </label>
                   <input
@@ -723,80 +833,36 @@ export default function App() {
                     type="date"
                     value={rateDate}
                     onChange={(e) => setRateDate(e.target.value)}
-                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-base"
+                    className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-base"
                   />
                 </div>
-                <div>
-                  <label htmlFor="rate-gbp" className="block text-sm font-medium text-slate-700">
-                    1 GBP in INR
-                  </label>
-                  <input
-                    id="rate-gbp"
-                    type="number"
-                    step="0.01"
-                    value={rateGbp}
-                    onChange={(e) => setRateGbp(e.target.value)}
-                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-base"
-                  />
-                </div>
-                <div>
-                  <label htmlFor="rate-usd" className="block text-sm font-medium text-slate-700">
-                    1 USD in INR
-                  </label>
-                  <input
-                    id="rate-usd"
-                    type="number"
-                    step="0.01"
-                    value={rateUsd}
-                    onChange={(e) => setRateUsd(e.target.value)}
-                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-base"
-                  />
-                </div>
-                <div>
-                  <label htmlFor="rate-eur" className="block text-sm font-medium text-slate-700">
-                    1 EUR in INR
-                  </label>
-                  <input
-                    id="rate-eur"
-                    type="number"
-                    step="0.01"
-                    value={rateEur}
-                    onChange={(e) => setRateEur(e.target.value)}
-                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-base"
-                  />
-                </div>
-                <div>
-                  <label htmlFor="rate-cad" className="block text-sm font-medium text-slate-700">
-                    1 CAD in INR
-                  </label>
-                  <input
-                    id="rate-cad"
-                    type="number"
-                    step="0.01"
-                    value={rateCad}
-                    onChange={(e) => setRateCad(e.target.value)}
-                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-base"
-                  />
-                </div>
-                <div>
-                  <label htmlFor="rate-aud" className="block text-sm font-medium text-slate-700">
-                    1 AUD in INR
-                  </label>
-                  <input
-                    id="rate-aud"
-                    type="number"
-                    step="0.01"
-                    value={rateAud}
-                    onChange={(e) => setRateAud(e.target.value)}
-                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-base"
-                  />
-                </div>
+                {[
+                  { id: 'rate-gbp', label: '1 GBP in INR', val: rateGbp, set: setRateGbp },
+                  { id: 'rate-usd', label: '1 USD in INR', val: rateUsd, set: setRateUsd },
+                  { id: 'rate-eur', label: '1 EUR in INR', val: rateEur, set: setRateEur },
+                  { id: 'rate-cad', label: '1 CAD in INR', val: rateCad, set: setRateCad },
+                  { id: 'rate-aud', label: '1 AUD in INR', val: rateAud, set: setRateAud },
+                ].map((r) => (
+                  <div key={r.id}>
+                    <label htmlFor={r.id} className="block text-xs font-semibold text-slate-700">
+                      {r.label}
+                    </label>
+                    <input
+                      id={r.id}
+                      type="number"
+                      step="0.01"
+                      value={r.val}
+                      onChange={(e) => r.set(e.target.value)}
+                      className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-base"
+                    />
+                  </div>
+                ))}
               </div>
             </fieldset>
 
             {analyzeError && (
-              <div role="alert" className="rounded-xl border border-red-300 bg-red-50 p-4 text-base text-red-900">
-                <p className="font-semibold">Could not check documents</p>
+              <div role="alert" className="rounded-2xl border border-red-300 bg-red-50 p-4 text-base text-red-900">
+                <p className="font-bold">Could not check documents</p>
                 <p className="mt-1">{analyzeError}</p>
               </div>
             )}
@@ -804,9 +870,12 @@ export default function App() {
             <button
               type="submit"
               disabled={analyzing}
-              className="w-full rounded-xl bg-blue-700 px-6 py-4 text-lg font-semibold text-white shadow-sm hover:bg-blue-800 focus:outline-none focus:ring-4 focus:ring-blue-300 disabled:cursor-not-allowed disabled:bg-blue-400 sm:w-auto"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-blue-700 px-7 py-4 text-lg font-bold text-white shadow-md transition hover:bg-blue-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300 disabled:cursor-not-allowed disabled:bg-blue-400 sm:w-auto"
             >
-              {analyzing ? 'Reading documents & running checks...' : 'Extract Facts & Run Checks'}
+              <FileCheck2 className="h-5 w-5" aria-hidden="true" />
+              <span>
+                {analyzing ? 'Reading documents & running checks...' : 'Extract Facts & Run Checks'}
+              </span>
             </button>
           </form>
         )}
@@ -814,11 +883,12 @@ export default function App() {
         {/* STEP 3: STUDENT RESULTS PAGE */}
         {step === 'results' && caseResult && (
           <div className="space-y-6">
-            <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-              <div className="flex flex-wrap items-center justify-between gap-3">
+            <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+              <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
                   <p className="text-sm font-medium text-slate-600">
-                    Case ID: <span className="font-mono">{caseResult.id}</span> · Stored in{' '}
+                    Case ID: <span className="font-mono font-semibold text-slate-900">{caseResult.id}</span> ·
+                    Stored in{' '}
                     {caseResult.storageBackend === 'firestore' ? 'Google Firestore' : 'local memory'}
                     {caseResult.riskScore && (
                       <>
@@ -826,7 +896,7 @@ export default function App() {
                       </>
                     )}
                   </p>
-                  <h2 className="mt-1 text-2xl font-bold text-slate-950">Status Timeline</h2>
+                  <h2 className="mt-1 text-2xl font-extrabold text-slate-950">Status Timeline</h2>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <button
@@ -836,16 +906,17 @@ export default function App() {
                       setCaseResult(null);
                       setStep('upload');
                     }}
-                    className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-base font-medium text-slate-900 hover:bg-slate-100"
+                    className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-900 hover:bg-slate-100"
                   >
                     Check another set
                   </button>
                   <button
                     type="button"
                     onClick={() => setConfirmDeleteOpen(true)}
-                    className="rounded-lg border border-red-300 bg-red-50 px-4 py-2 text-base font-semibold text-red-900 hover:bg-red-100"
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-red-300 bg-red-50 px-4 py-2.5 text-sm font-bold text-red-900 hover:bg-red-100"
                   >
-                    Delete My Data
+                    <Trash2 className="h-4 w-4" aria-hidden="true" />
+                    <span>Delete My Data</span>
                   </button>
                 </div>
               </div>
@@ -854,7 +925,7 @@ export default function App() {
                 <div
                   role="alertdialog"
                   aria-label="Confirm data deletion"
-                  className="mt-4 rounded-xl border-2 border-red-400 bg-red-50 p-4 text-base text-red-950"
+                  className="mt-4 rounded-2xl border-2 border-red-400 bg-red-50 p-5 text-base text-red-950"
                 >
                   <p className="font-bold">Permanently delete this case and all extracted facts?</p>
                   <p className="mt-1 text-sm">
@@ -866,14 +937,14 @@ export default function App() {
                       type="button"
                       disabled={deletingData}
                       onClick={() => void handleDeleteMyData()}
-                      className="rounded-lg bg-red-700 px-4 py-2 text-sm font-semibold text-white hover:bg-red-800 disabled:opacity-50"
+                      className="rounded-xl bg-red-700 px-4 py-2.5 text-sm font-bold text-white hover:bg-red-800 disabled:opacity-50"
                     >
                       {deletingData ? 'Deleting...' : 'Yes, Permanently Delete My Data'}
                     </button>
                     <button
                       type="button"
                       onClick={() => setConfirmDeleteOpen(false)}
-                      className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-900"
+                      className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-900"
                     >
                       Cancel
                     </button>
@@ -881,11 +952,11 @@ export default function App() {
                 </div>
               )}
 
-              <ol className="mt-4 space-y-3">
+              <ol className="mt-5 space-y-3">
                 {caseResult.statusTimeline.map((item, idx) => (
-                  <li key={idx} className="flex items-start gap-3 text-base">
+                  <li key={idx} className="flex items-start gap-3.5 text-base">
                     <span
-                      className={`mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                      className={`mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
                         item.status === 'done'
                           ? 'bg-emerald-700 text-white'
                           : item.status === 'current'
@@ -896,9 +967,9 @@ export default function App() {
                       {item.status === 'done' ? '✓' : idx + 1}
                     </span>
                     <div>
-                      <p className="font-medium text-slate-950">{item.step}</p>
+                      <p className="font-semibold text-slate-950">{item.step}</p>
                       {item.at && (
-                        <p className="text-sm text-slate-600">
+                        <p className="text-xs text-slate-600">
                           {new Date(item.at).toLocaleString()}
                         </p>
                       )}
@@ -909,44 +980,43 @@ export default function App() {
             </section>
 
             {/* FLAGS WITH PLAIN-ENGLISH FIXES */}
-            <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-              <h2 className="text-2xl font-bold text-slate-950">Checks &amp; Flags</h2>
-              <p className="mt-1 text-base text-slate-700">
-                All rules and money math were computed in plain code. Explanations were written in
-                plain words for you.
+            <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+              <h2 className="text-2xl font-extrabold text-slate-950">Checks &amp; Flags</h2>
+              <p className="mt-1 text-base text-slate-600">
+                All money math, date rules, and name checks were computed in plain code.
+                Explanations were written in plain English.
               </p>
 
-              <div className="mt-4 space-y-4">
+              <div className="mt-5 space-y-4">
                 {caseResult.flags.map((flag) => {
                   const style = severityStyles(flag.severity);
+                  const FlagIcon = style.Icon;
                   return (
-                    <article
-                      key={flag.id}
-                      className={`rounded-xl border p-5 ${style.card}`}
-                    >
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className={`rounded-md px-2.5 py-1 text-xs font-bold ${style.badge}`}>
+                    <article key={flag.id} className={`rounded-2xl border p-5 ${style.card}`}>
+                      <div className="flex flex-wrap items-center gap-2.5">
+                        <FlagIcon className={`h-5 w-5 ${style.iconColor}`} aria-hidden="true" />
+                        <span className={`rounded-md px-2.5 py-0.5 text-xs font-bold ${style.badge}`}>
                           {style.label}
                         </span>
-                        <h3 className="text-lg font-semibold text-slate-950">{flag.title}</h3>
+                        <h3 className="text-lg font-bold text-slate-950">{flag.title}</h3>
                       </div>
 
-                      <p className="mt-2 text-base text-slate-900">
+                      <p className="mt-2 text-base leading-relaxed text-slate-900">
                         {flag.explanation || flag.summary}
                       </p>
 
                       {flag.suggestedFix && (
-                        <p className="mt-2 text-base font-medium text-slate-900">
+                        <p className="mt-2.5 rounded-xl bg-white/80 px-3.5 py-2.5 text-sm font-medium text-slate-900">
                           <strong>Suggested fix:</strong> {flag.suggestedFix}
                         </p>
                       )}
 
                       {flag.mathLines && flag.mathLines.length > 0 && (
-                        <div className="mt-3 rounded-lg border border-slate-300 bg-white p-3">
+                        <div className="mt-3 rounded-xl border border-slate-200 bg-white p-4">
                           <p className="text-xs font-bold uppercase tracking-wide text-slate-600">
                             Funds Math (Plain Code)
                           </p>
-                          <ul className="mt-1.5 space-y-1 font-mono text-sm text-slate-900">
+                          <ul className="mt-2 space-y-1 font-mono text-sm text-slate-900">
                             {flag.mathLines.map((line, idx) => (
                               <li key={idx}>{line}</li>
                             ))}
@@ -955,19 +1025,19 @@ export default function App() {
                       )}
 
                       {flag.quote && (
-                        <blockquote className="mt-3 rounded-lg border border-slate-300 bg-white/80 px-3 py-2 font-mono text-sm text-slate-800">
+                        <blockquote className="mt-3 rounded-xl border border-slate-200 bg-white/90 px-3.5 py-2.5 font-mono text-xs text-slate-800 sm:text-sm">
                           Quote: {flag.quote}
                         </blockquote>
                       )}
 
                       {flag.sourceUrl && (
-                        <p className="mt-2 text-sm text-slate-700">
+                        <p className="mt-2 text-xs text-slate-700">
                           Rule source (as of {flag.ruleAsOf}):{' '}
                           <a
                             href={flag.sourceUrl}
                             target="_blank"
                             rel="noreferrer"
-                            className="text-blue-800 underline"
+                            className="font-semibold text-blue-800 underline"
                           >
                             {flag.sourceUrl}
                           </a>
@@ -980,30 +1050,27 @@ export default function App() {
             </section>
 
             {/* EXTRACTED FACTS WITH QUOTES */}
-            <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-              <h2 className="text-2xl font-bold text-slate-950">
+            <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+              <h2 className="text-2xl font-extrabold text-slate-950">
                 Extracted Facts &amp; Verbatim Quotes
               </h2>
-              <p className="mt-1 text-base text-slate-700">
+              <p className="mt-1 text-sm text-slate-600">
                 Documents read:{' '}
                 {caseResult.documents.map((d) => `${d.fileName} (${d.documentType})`).join(', ')}.
               </p>
 
-              <div className="mt-4 space-y-3">
+              <div className="mt-5 grid gap-3 sm:grid-cols-2">
                 {caseResult.facts.map((fact, index) => (
                   <div
                     key={`${fact.field}-${index}`}
-                    className="rounded-xl border border-slate-200 bg-slate-50 p-4"
+                    className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
                   >
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <p className="text-lg font-semibold text-slate-950">
-                        <span className="font-mono text-sm uppercase text-slate-600">
-                          {fact.field.replace(/_/g, ' ')}:
-                        </span>{' '}
-                        {fact.value}
-                      </p>
+                      <span className="font-mono text-xs font-bold uppercase tracking-wide text-slate-600">
+                        {fact.field.replace(/_/g, ' ')}
+                      </span>
                       <span
-                        className={`rounded-full px-3 py-1 text-xs font-bold ${
+                        className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${
                           fact.needsReview
                             ? 'bg-amber-200 text-amber-950'
                             : 'bg-emerald-200 text-emerald-950'
@@ -1012,18 +1079,19 @@ export default function App() {
                         {fact.needsReview ? 'Needs review' : 'Quote verified'}
                       </span>
                     </div>
-                    <p className="mt-2 rounded-lg bg-white px-3 py-2 font-mono text-sm text-slate-800">
+                    <p className="mt-1 text-lg font-bold text-slate-950">{fact.value}</p>
+                    <p className="mt-2 rounded-lg border border-slate-200 bg-white px-3 py-2 font-mono text-xs text-slate-800">
                       &ldquo;{fact.quote}&rdquo;
                     </p>
-                    <p className="mt-1 text-sm text-slate-600">
-                      Source: {fact.sourceDocName} (page {fact.page})
+                    <p className="mt-1.5 text-xs text-slate-500">
+                      {fact.sourceDocName} · page {fact.page}
                     </p>
                   </div>
                 ))}
               </div>
             </section>
 
-            {/* PHASE 4: UNIVERSITY RULES GROUNDING & COMPUTER-USE AGENT LIVE FEED */}
+            {/* PHASE 4: UNIVERSITY RULES GROUNDING & COMPUTER-USE AGENT */}
             <AgentRunnerPanel
               caseId={caseResult.id}
               onOpenCounselor={() => navigateTo('counselor')}
@@ -1032,15 +1100,22 @@ export default function App() {
           </div>
         )}
 
-        {/* COLLAPSIBLE PHASE 1 GEMINI CONNECTION CHECK */}
+        {/* COLLAPSIBLE GEMINI API & MODELS STATUS */}
         <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <button
             type="button"
             onClick={() => setShowSystemCheck((v) => !v)}
-            className="flex w-full items-center justify-between text-left text-base font-semibold text-slate-900"
+            className="flex w-full items-center justify-between text-left text-base font-bold text-slate-900"
           >
-            <span>Gemini API Status &amp; Available Models ({models.length})</span>
-            <span className="text-blue-700">{showSystemCheck ? 'Hide' : 'Show'}</span>
+            <span className="inline-flex items-center gap-2">
+              <Sparkles className="h-4 w-4 text-blue-700" aria-hidden="true" />
+              Live Gemini API Status &amp; Models ({models.length})
+            </span>
+            {showSystemCheck ? (
+              <ChevronUp className="h-5 w-5 text-slate-600" aria-hidden="true" />
+            ) : (
+              <ChevronDown className="h-5 w-5 text-slate-600" aria-hidden="true" />
+            )}
           </button>
 
           {showSystemCheck && (
@@ -1049,32 +1124,32 @@ export default function App() {
                 type="button"
                 onClick={handleSayHello}
                 disabled={helloLoading}
-                className="rounded-xl bg-slate-900 px-4 py-2.5 text-base font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
+                className="rounded-xl bg-slate-950 px-5 py-2.5 text-sm font-bold text-white hover:bg-slate-800 disabled:opacity-50"
               >
-                {helloLoading ? 'Asking Gemini...' : 'Test /api/hello'}
+                {helloLoading ? 'Asking Gemini...' : 'Test Live /api/hello'}
               </button>
 
               {helloError && (
-                <p role="alert" className="text-base text-red-800">
+                <p role="alert" className="text-sm font-medium text-red-800">
                   {helloError}
                 </p>
               )}
 
               {helloReply && (
-                <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-base text-emerald-950">
-                  <p>{helloReply.text}</p>
-                  <p className="mt-1 text-sm">
+                <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-950">
+                  <p className="font-semibold">{helloReply.text}</p>
+                  <p className="mt-1 font-mono text-xs">
                     Model: {helloReply.model} · {helloReply.latencyMs} ms
                   </p>
                 </div>
               )}
 
               {models.length > 0 && (
-                <ul className="grid gap-2 sm:grid-cols-2">
+                <ul className="grid gap-2 sm:grid-cols-3">
                   {models.map((m) => (
                     <li
                       key={m}
-                      className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 font-mono text-sm"
+                      className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 font-mono text-xs font-medium text-slate-900"
                     >
                       {m}
                     </li>

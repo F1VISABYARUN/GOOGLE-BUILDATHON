@@ -1,7 +1,9 @@
 import { useState, type FormEvent } from 'react';
+import { CheckCircle2, Lock, ShieldAlert } from 'lucide-react';
+import TopNav from './TopNav.tsx';
 
 interface PortalViewProps {
-  onNavigateHome: () => void;
+  onNavigate: (route: 'student' | 'counselor' | 'portal') => void;
 }
 
 const PROGRAM_OPTIONS = [
@@ -12,7 +14,7 @@ const PROGRAM_OPTIONS = [
   'MS Electrical Engineering',
 ];
 
-export default function PortalView({ onNavigateHome }: PortalViewProps) {
+export default function PortalView({ onNavigate }: PortalViewProps) {
   const params = new URLSearchParams(window.location.search);
   const initialCaseId = params.get('caseId') || '';
   const initialApprovalToken = params.get('approvalToken') || '';
@@ -181,28 +183,33 @@ export default function PortalView({ onNavigateHome }: PortalViewProps) {
   }
 
   return (
-    <main className="min-h-screen bg-slate-100 px-4 py-6 text-slate-900 sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-3xl space-y-5">
-        <header className="rounded-2xl border border-indigo-200 bg-indigo-950 p-6 text-white shadow-sm">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-widest text-indigo-300">
-                Direct University Admissions Portal (Test &amp; Verification Environment)
-              </p>
-              <h1 className="mt-1 text-2xl font-bold sm:text-3xl">
-                Postgraduate Direct Application
-              </h1>
+    <div className="min-h-screen bg-slate-100 text-slate-900">
+      <TopNav activeRoute="portal" onNavigate={onNavigate} />
+      <main className="mx-auto max-w-3xl space-y-5 px-4 py-8 sm:px-6 lg:px-8">
+        <header className="overflow-hidden rounded-3xl border border-indigo-200 bg-gradient-to-br from-indigo-950 via-indigo-900 to-slate-950 p-6 text-white shadow-lg">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <img
+                src="/assets/university-crest.jpg"
+                alt="Direct University Admissions Crest"
+                className="h-16 w-16 rounded-2xl border border-amber-400/40 object-cover shadow-md"
+              />
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-widest text-amber-300">
+                  Direct University Admissions Portal
+                </p>
+                <h1 className="mt-1 text-2xl font-extrabold sm:text-3xl">
+                  Postgraduate Direct Application
+                </h1>
+              </div>
             </div>
-            <button
-              type="button"
-              onClick={onNavigateHome}
-              className="rounded-lg border border-indigo-400 px-3 py-1.5 text-sm font-semibold text-white hover:bg-indigo-900"
-            >
-              Back to Aira
-            </button>
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-indigo-400/40 bg-indigo-900/70 px-3 py-1 text-xs font-semibold text-indigo-100">
+              <Lock className="h-3.5 w-3.5 text-amber-300" aria-hidden="true" />
+              403 Submit Gate Active
+            </span>
           </div>
 
-          <ol className="mt-4 flex flex-wrap gap-2 text-xs font-semibold">
+          <ol className="mt-5 flex flex-wrap gap-2 text-xs font-semibold">
             {[
               '1. Account',
               '2. Personal',
@@ -214,12 +221,12 @@ export default function PortalView({ onNavigateHome }: PortalViewProps) {
             ].map((label, idx) => (
               <li
                 key={label}
-                className={`rounded-full px-3 py-1 ${
+                className={`rounded-full px-3.5 py-1.5 ${
                   page === idx + 1
-                    ? 'bg-white text-indigo-950'
+                    ? 'bg-white text-indigo-950 shadow-sm'
                     : page > idx + 1
                       ? 'bg-emerald-600 text-white'
-                      : 'bg-indigo-900 text-indigo-200'
+                      : 'bg-indigo-900/80 text-indigo-200'
                 }`}
               >
                 {label}
@@ -688,30 +695,41 @@ export default function PortalView({ onNavigateHome }: PortalViewProps) {
             {submitReceipt ? (
               <div
                 role="status"
-                className="rounded-xl border-2 border-emerald-400 bg-emerald-50 p-5 text-emerald-950"
+                className="flex items-start gap-3 rounded-2xl border-2 border-emerald-400 bg-emerald-50 p-5 text-emerald-950"
               >
-                <p className="text-xl font-bold">Application Submitted!</p>
-                <p className="mt-1 font-mono text-base">
-                  Reference ID: <strong>{submitReceipt.submissionId}</strong>
-                </p>
-                <p className="mt-1 text-sm">
-                  Approved by counselor <strong>{submitReceipt.approvedBy}</strong> · Submitted at{' '}
-                  {new Date(submitReceipt.submittedAt).toLocaleString()}
-                </p>
+                <CheckCircle2 className="mt-0.5 h-6 w-6 shrink-0 text-emerald-700" aria-hidden="true" />
+                <div>
+                  <p className="text-xl font-bold">Application Submitted!</p>
+                  <p className="mt-1 font-mono text-base">
+                    Reference ID: <strong>{submitReceipt.submissionId}</strong>
+                  </p>
+                  <p className="mt-1 text-sm">
+                    Approved by counselor <strong>{submitReceipt.approvedBy}</strong> · Submitted at{' '}
+                    {new Date(submitReceipt.submittedAt).toLocaleString()}
+                  </p>
+                </div>
               </div>
             ) : (
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => void handleFinalSubmit()}
-                className="rounded-xl bg-emerald-700 px-6 py-4 text-lg font-bold text-white hover:bg-emerald-800 disabled:opacity-50"
-              >
-                {busy ? 'Submitting...' : 'Submit Application'}
-              </button>
+              <div className="space-y-3">
+                {!approvalToken && (
+                  <p className="flex items-center gap-2 rounded-xl border border-amber-300 bg-amber-50 px-4 py-2.5 text-sm font-semibold text-amber-950">
+                    <ShieldAlert className="h-4 w-4 shrink-0 text-amber-700" aria-hidden="true" />
+                    No counselor token entered — clicking Submit will return HTTP 403 Blocked.
+                  </p>
+                )}
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void handleFinalSubmit()}
+                  className="rounded-xl bg-emerald-700 px-6 py-4 text-lg font-bold text-white shadow-md hover:bg-emerald-800 disabled:opacity-50"
+                >
+                  {busy ? 'Submitting...' : 'Submit Application'}
+                </button>
+              </div>
             )}
           </section>
         )}
-      </div>
-    </main>
+      </main>
+    </div>
   );
 }
