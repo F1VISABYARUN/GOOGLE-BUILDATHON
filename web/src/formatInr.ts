@@ -17,7 +17,7 @@ export function formatRupees(amount: number): string {
  */
 export function formatInrInText(text: string): string {
   if (!text) return text;
-  return text.replace(/([+-]?)\s*INR\s*([0-9][0-9,]*(?:\.\d+)?)/gi, (_m, sign: string, rawNum: string) => {
+  return text.replace(/([+-]?)INR\s*([0-9][0-9,]*(?:\.\d+)?)/gi, (_m, sign: string, rawNum: string) => {
     const cleaned = Number(rawNum.replace(/,/g, ''));
     if (!Number.isFinite(cleaned)) return `${sign}₹${rawNum}`;
     return `${sign}₹${inrFormatter.format(Math.round(cleaned))}`;
