@@ -128,6 +128,22 @@ export interface RiskAssessment {
   modelUsed: string;
 }
 
+export interface CaseUsageSummary {
+  totalInputTokens: number;
+  totalOutputTokens: number;
+  totalTokens: number;
+  agentSteps: number;
+  estimatedUsd: number;
+  calls: Array<{
+    model: string;
+    task: string;
+    inputTokens: number;
+    outputTokens: number;
+    latencyMs: number;
+    fallbackUsed: boolean;
+  }>;
+}
+
 export interface AuditLogEntry {
   id: string;
   timestamp: string;
@@ -205,5 +221,6 @@ export interface CaseRecord {
   approvedBy?: string;
   approvedAt?: string;
   rejectedReason?: string;
+  usageSummary?: CaseUsageSummary;
   storageBackend: 'firestore' | 'memory_fallback';
 }

@@ -45,6 +45,7 @@ import { createCounselorAuthMiddleware } from './middleware/counselorAuth.js';
 import { createPortalRouter } from './routes/portal.js';
 import { fetchUniversityRulesGrounded } from './services/universityRules.js';
 import { enqueueAgentRunTask } from './services/cloudTasks.js';
+import { summarizeCaseUsage, type ModelUsageEntry } from './services/cloudLogger.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -281,12 +282,14 @@ export function createApp(options?: CreateAppOptions) {
         // Process each document strictly from memory buffers
         const documents: CaseDocumentSummary[] = [];
         const allFacts: VerifiedFact[] = [];
+        const usageCollector: ModelUsageEntry[] = [];
 
         for (const file of files) {
           const docType = await classifyDocument(
             file.buffer,
             file.mimetype,
-            file.originalname
+            file.originalname,
+            usageCollector
           );
           documents.push({
             fileName: file.originalname,
@@ -298,7 +301,8 @@ export function createApp(options?: CreateAppOptions) {
             file.buffer,
             file.mimetype,
             file.originalname,
-            docType
+            docType,
+            usageCollector
           );
           allFacts.push(...facts);
 
@@ -324,9 +328,11 @@ export function createApp(options?: CreateAppOptions) {
 
         // 3. Plain-English explanations & risk score via gemini-4-carbon (fallback argon)
         const [explainedFlags, riskScore] = await Promise.all([
-          explainFlagsWithGemini(rawFlags),
-          scoreCaseRiskWithGemini(rawFlags, allFacts, routing.exceptionReasons),
+          explainFlagsWithGemini(rawFlags, usageCollector),
+          scoreCaseRiskWithGemini(rawFlags, allFacts, routing.exceptionReasons, usageCollector),
         ]);
+
+        const usageSummary = summarizeCaseUsage(usageCollector, 0);
 
         const now = new Date().toISOString();
         const caseId = `case_${crypto.randomBytes(6).toString('hex')}`;
@@ -387,6 +393,7 @@ export function createApp(options?: CreateAppOptions) {
             },
           ],
           auditLog: [createdAudit],
+          usageSummary,
           storageBackend: 'firestore',
         };
 
@@ -447,31 +454,48 @@ export function createApp(options?: CreateAppOptions) {
         getCounselorSettings(),
       ]);
 
-      // Normalize older Phase 2 cases that didn't have queueBucket / riskScore yet
-      const normalized = allCases.map((c) => {
-        if (c.queueBucket && c.riskScore) return c;
-        const routing = evaluateExceptionRouting({ flags: c.flags || [], facts: c.facts || [] });
-        const redCount = (c.flags || []).filter((f) => f.severity === 'red').length;
-        const fallbackScore =
-          redCount > 0 ? Math.min(95, 65 + redCount * 10) : routing.exceptionReasons.length > 0 ? 50 : 15;
-        return {
-          ...c,
-          queueBucket: routing.queueBucket,
-          exceptionReasons: routing.exceptionReasons,
-          riskScore: {
-            score: fallbackScore,
-            level: (fallbackScore >= 65 ? 'high' : fallbackScore >= 35 ? 'medium' : 'low') as
-              | 'high'
-              | 'medium'
-              | 'low',
-            brief:
-              routing.exceptionReasons[0] ||
-              'Pre-checked green case ready for counselor batch approval.',
-            modelUsed: 'code_fallback',
-          },
-          auditLog: c.auditLog || [],
-        };
-      });
+      // Normalize older cases & enrich with live agent step/token counts from agent_runs
+      const normalized = await Promise.all(
+        allCases.map(async (c) => {
+          const runs = await listAgentRunsForCase(c.id);
+          const agentSteps = runs.reduce((acc, r) => acc + Number(r.stepCount || 0), 0);
+          const baseUsage = c.usageSummary ?? {
+            totalInputTokens: 0,
+            totalOutputTokens: 0,
+            totalTokens: 0,
+            agentSteps: 0,
+            estimatedUsd: 0,
+            calls: [],
+          };
+          const enrichedUsage = { ...baseUsage, agentSteps };
+
+          if (c.queueBucket && c.riskScore) {
+            return { ...c, usageSummary: enrichedUsage };
+          }
+          const routing = evaluateExceptionRouting({ flags: c.flags || [], facts: c.facts || [] });
+          const redCount = (c.flags || []).filter((f) => f.severity === 'red').length;
+          const fallbackScore =
+            redCount > 0 ? Math.min(95, 65 + redCount * 10) : routing.exceptionReasons.length > 0 ? 50 : 15;
+          return {
+            ...c,
+            queueBucket: routing.queueBucket,
+            exceptionReasons: routing.exceptionReasons,
+            riskScore: {
+              score: fallbackScore,
+              level: (fallbackScore >= 65 ? 'high' : fallbackScore >= 35 ? 'medium' : 'low') as
+                | 'high'
+                | 'medium'
+                | 'low',
+              brief:
+                routing.exceptionReasons[0] ||
+                'Pre-checked green case ready for counselor batch approval.',
+              modelUsed: 'code_fallback',
+            },
+            auditLog: c.auditLog || [],
+            usageSummary: enrichedUsage,
+          };
+        })
+      );
 
       const exceptions = normalized.filter(
         (c) => c.status === 'needs_counselor_review'
