@@ -29,16 +29,22 @@ import {
   appendAuditLog,
   createApprovalToken,
   deleteCaseAndData,
+  getAgentRun,
   getCaseRecord,
   getCounselorSettings,
+  listAgentRunsForCase,
   listAuditLogs,
   listCaseRecords,
   revokeTokensForCase,
+  saveAgentRun,
   saveCaseRecord,
   saveCounselorSettings,
 } from './services/firestoreStore.js';
 import { createMultiWindowRateLimiter } from './middleware/rateLimit.js';
 import { createCounselorAuthMiddleware } from './middleware/counselorAuth.js';
+import { createPortalRouter } from './routes/portal.js';
+import { fetchUniversityRulesGrounded } from './services/universityRules.js';
+import { enqueueAgentRunTask } from './services/cloudTasks.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -784,6 +790,173 @@ export function createApp(options?: CreateAppOptions) {
   app.get('/api/counselor/audit', requireCounselor, async (_req, res) => {
     const logs = await listAuditLogs(100);
     res.json({ auditLog: logs });
+  });
+
+  // =========================================================================
+  // PHASE 4: /portal API, University Rules Grounding (gemini-4-neon), & Cloud Tasks Agent Dispatch
+  // =========================================================================
+
+  app.use(createPortalRouter());
+
+  app.post('/api/university-rules', async (req, res) => {
+    const universityName = String(req.body?.universityName || '').trim();
+    const programName = String(req.body?.programName || '').trim();
+    const url = req.body?.url ? String(req.body.url).trim() : undefined;
+
+    if (!universityName || !programName) {
+      return res.status(400).json({
+        error: 'Please enter both a university name and a program name.',
+      });
+    }
+
+    try {
+      const result = await fetchUniversityRulesGrounded({
+        universityName,
+        programName,
+        url,
+      });
+      return res.json(result);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Could not fetch university rules right now.';
+      console.error('[api/university-rules] error:', message);
+      return res.status(502).json({
+        error: 'Could not look up university rules right now.',
+        details: message,
+      });
+    }
+  });
+
+  app.post('/api/agent/runs', async (req, res) => {
+    const caseId = String(req.body?.caseId || '').trim();
+    const studentEmail = String(req.body?.studentEmail || '').trim().toLowerCase();
+    const studentPhone = String(req.body?.studentPhone || '').trim();
+    let portalUrl = String(req.body?.portalUrl || '').trim();
+
+    if (!caseId) {
+      return res.status(400).json({ error: 'caseId is required.' });
+    }
+    if (!studentEmail || !studentEmail.includes('@')) {
+      return res.status(400).json({ error: 'Please enter the student email address.' });
+    }
+
+    const record = await getCaseRecord(caseId);
+    if (!record) {
+      return res.status(404).json({ error: `Case ${caseId} not found.` });
+    }
+
+    const publicBaseUrl =
+      process.env.PUBLIC_WEB_URL ||
+      `${req.protocol}://${req.get('host')}`;
+    if (!portalUrl || portalUrl === '/portal') {
+      portalUrl = `${publicBaseUrl.replace(/\/+$/, '')}/portal`;
+    }
+
+    let parsedPortalUrl: URL;
+    try {
+      parsedPortalUrl = new URL(portalUrl);
+    } catch {
+      return res.status(400).json({ error: 'Please provide a valid full portal URL.' });
+    }
+
+    const host = parsedPortalUrl.hostname.toLowerCase();
+    if (host.includes('commonapp.org') || host.includes('ucas.com')) {
+      return res.status(403).json({
+        error:
+          'Blocked: Common App and UCAS ban automated bots. Aira only automates direct university portals (Slate, PeopleSoft, SITS) and /portal.',
+      });
+    }
+
+    const runId = `run_${crypto.randomBytes(6).toString('hex')}`;
+    const now = new Date().toISOString();
+    const ownHost = new URL(publicBaseUrl).hostname.toLowerCase();
+    const allowlistedDomains = Array.from(new Set([ownHost, host, 'localhost', '127.0.0.1']));
+
+    const runRecord = {
+      id: runId,
+      caseId,
+      portalUrl,
+      allowlistedDomains,
+      studentEmail,
+      studentPhone: studentPhone || '+91-9000000000',
+      status: 'queued',
+      currentModel: MODELS.computerUse.primary,
+      stepCount: 0,
+      consecutiveFailures: 0,
+      statusMessage: 'Queued via Google Cloud Tasks for Playwright computer-use worker.',
+      steps: [],
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    await saveAgentRun(runRecord);
+    await appendAuditLog({
+      actor: studentEmail,
+      action: 'case_created',
+      caseId,
+      details: `Dispatched computer-use agent run ${runId} targeting ${portalUrl}.`,
+    });
+
+    try {
+      const dispatch = await enqueueAgentRunTask({ runId });
+      return res.status(202).json({
+        run: runRecord,
+        dispatch,
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      await saveAgentRun({
+        ...runRecord,
+        status: 'failed',
+        statusMessage: `Could not dispatch Cloud Task: ${message}`,
+        updatedAt: new Date().toISOString(),
+      });
+      return res.status(502).json({
+        error: 'Could not dispatch agent worker via Cloud Tasks.',
+        details: message,
+        runId,
+      });
+    }
+  });
+
+  app.get('/api/agent/runs/:runId', async (req, res) => {
+    const run = await getAgentRun(String(req.params.runId));
+    if (!run) {
+      return res.status(404).json({ error: 'Agent run not found.' });
+    }
+    return res.json(run);
+  });
+
+  app.get('/api/cases/:id/agent-runs', async (req, res) => {
+    const runs = await listAgentRunsForCase(String(req.params.id));
+    return res.json({ runs });
+  });
+
+  app.post('/api/agent/runs/:runId/resume', async (req, res) => {
+    const runId = String(req.params.runId);
+    const safetyAcknowledged = Boolean(req.body?.safetyAcknowledged);
+    const run = await getAgentRun(runId);
+    if (!run) {
+      return res.status(404).json({ error: 'Agent run not found.' });
+    }
+
+    await saveAgentRun({
+      ...run,
+      id: runId,
+      status: 'queued',
+      statusMessage: 'Resuming agent run via Google Cloud Tasks...',
+      updatedAt: new Date().toISOString(),
+    });
+
+    try {
+      const dispatch = await enqueueAgentRunTask({ runId, safetyAcknowledged });
+      return res.status(202).json({ ok: true, runId, dispatch });
+    } catch (err) {
+      return res.status(502).json({
+        error: 'Could not enqueue resume task.',
+        details: err instanceof Error ? err.message : String(err),
+      });
+    }
   });
 
   // Serve built web app if present

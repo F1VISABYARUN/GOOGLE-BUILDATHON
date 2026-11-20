@@ -1,5 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import CounselorView from './CounselorView.tsx';
+import PortalView from './PortalView.tsx';
+import AgentRunnerPanel from './AgentRunnerPanel.tsx';
 
 interface HelloResponse {
   model: string;
@@ -103,19 +105,23 @@ function severityStyles(severity: 'red' | 'amber' | 'green') {
 }
 
 export default function App() {
-  const [route, setRoute] = useState<'student' | 'counselor'>(() =>
-    window.location.pathname.startsWith('/counselor') ? 'counselor' : 'student'
-  );
+  function detectRoute(): 'student' | 'counselor' | 'portal' {
+    if (window.location.pathname.startsWith('/counselor')) return 'counselor';
+    if (window.location.pathname.startsWith('/portal')) return 'portal';
+    return 'student';
+  }
 
-  function navigateTo(next: 'student' | 'counselor') {
-    const path = next === 'counselor' ? '/counselor' : '/';
+  const [route, setRoute] = useState<'student' | 'counselor' | 'portal'>(detectRoute);
+
+  function navigateTo(next: 'student' | 'counselor' | 'portal') {
+    const path = next === 'counselor' ? '/counselor' : next === 'portal' ? '/portal' : '/';
     window.history.pushState({}, '', path);
     setRoute(next);
   }
 
   useEffect(() => {
     function onPopState() {
-      setRoute(window.location.pathname.startsWith('/counselor') ? 'counselor' : 'student');
+      setRoute(detectRoute());
     }
     window.addEventListener('popstate', onPopState);
     return () => window.removeEventListener('popstate', onPopState);
@@ -219,6 +225,10 @@ export default function App() {
 
   if (route === 'counselor') {
     return <CounselorView onNavigateHome={() => navigateTo('student')} />;
+  }
+
+  if (route === 'portal') {
+    return <PortalView onNavigateHome={() => navigateTo('student')} />;
   }
 
   function handleConsentSubmit(e: FormEvent) {
@@ -388,6 +398,13 @@ export default function App() {
                 className="rounded-lg border border-slate-300 bg-white px-3 py-1 text-sm font-semibold text-slate-900 hover:bg-slate-100"
               >
                 Counselor Queue
+              </button>
+              <button
+                type="button"
+                onClick={() => navigateTo('portal')}
+                className="rounded-lg border border-indigo-300 bg-indigo-50 px-3 py-1 text-sm font-semibold text-indigo-900 hover:bg-indigo-100"
+              >
+                Test /portal
               </button>
             </div>
           </div>
@@ -999,6 +1016,13 @@ export default function App() {
                 ))}
               </div>
             </section>
+
+            {/* PHASE 4: UNIVERSITY RULES GROUNDING & COMPUTER-USE AGENT LIVE FEED */}
+            <AgentRunnerPanel
+              caseId={caseResult.id}
+              onOpenCounselor={() => navigateTo('counselor')}
+              onOpenPortal={() => navigateTo('portal')}
+            />
           </div>
         )}
 

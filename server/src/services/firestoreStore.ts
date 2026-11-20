@@ -415,3 +415,59 @@ export async function saveCounselorSettings(
   }
   return settings;
 }
+
+const memoryAgentRuns = new Map<string, Record<string, unknown>>();
+
+export async function saveAgentRun(run: Record<string, unknown> & { id: string }): Promise<void> {
+  memoryAgentRuns.set(run.id, run);
+  if (isMemoryOnlyTestMode()) return;
+  try {
+    const db = getFirestore();
+    await db.collection('agent_runs').doc(run.id).set(run);
+  } catch (err) {
+    console.warn(
+      `[firestore] Could not save agent_runs/${run.id}:`,
+      err instanceof Error ? err.message : String(err)
+    );
+  }
+}
+
+export async function getAgentRun(runId: string): Promise<Record<string, unknown> | null> {
+  if (isMemoryOnlyTestMode()) {
+    return memoryAgentRuns.get(runId) ?? null;
+  }
+  try {
+    const db = getFirestore();
+    const snap = await db.collection('agent_runs').doc(runId).get();
+    if (snap.exists) {
+      return snap.data() as Record<string, unknown>;
+    }
+  } catch (err) {
+    console.warn(
+      `[firestore] Could not read agent_runs/${runId}:`,
+      err instanceof Error ? err.message : String(err)
+    );
+  }
+  return memoryAgentRuns.get(runId) ?? null;
+}
+
+export async function listAgentRunsForCase(caseId: string): Promise<Array<Record<string, unknown>>> {
+  if (isMemoryOnlyTestMode()) {
+    return Array.from(memoryAgentRuns.values()).filter((r) => r.caseId === caseId);
+  }
+  try {
+    const db = getFirestore();
+    const snap = await db.collection('agent_runs').where('caseId', '==', caseId).limit(20).get();
+    if (!snap.empty) {
+      return snap.docs
+        .map((d) => d.data() as Record<string, unknown>)
+        .sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
+    }
+  } catch (err) {
+    console.warn(
+      `[firestore] Could not list agent_runs for case ${caseId}:`,
+      err instanceof Error ? err.message : String(err)
+    );
+  }
+  return Array.from(memoryAgentRuns.values()).filter((r) => r.caseId === caseId);
+}
