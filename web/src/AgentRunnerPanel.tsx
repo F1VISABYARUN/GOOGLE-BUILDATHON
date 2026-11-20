@@ -62,7 +62,7 @@ export default function AgentRunnerPanel({
   // Computer-use agent launcher
   const [studentEmail, setStudentEmail] = useState('arun.applicant@example.com');
   const [studentPhone, setStudentPhone] = useState('+91-9876543210');
-  const [portalUrl, setPortalUrl] = useState('/portal');
+  const portalUrl = '/portal';
   const [launchLoading, setLaunchLoading] = useState(false);
   const [launchError, setLaunchError] = useState<string | null>(null);
   const [activeRun, setActiveRun] = useState<AgentRunRecord | null>(null);
@@ -161,25 +161,25 @@ export default function AgentRunnerPanel({
   return (
     <div className="space-y-4">
       {/* APPLICATION AGENT LAUNCHER & LIVE STEP FEED */}
-      <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-7">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-indigo-100 text-indigo-900">
+      <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="flex items-start gap-3">
+            <span className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-blue-700">
               <Bot className="h-5 w-5" aria-hidden="true" />
             </span>
             <div>
-              <h2 className="text-xl font-extrabold text-slate-950">
+              <h2 className="text-lg font-extrabold text-slate-950 sm:text-xl">
                 Application Agent: Gemini fills the portal, stops before Submit until a counselor approves
               </h2>
               <p className="mt-0.5 text-sm text-slate-700">
-                Uses your verified facts only. Never automates Common App or UCAS.
+                Uses your verified details only. Never automates Common App or UCAS.
               </p>
             </div>
           </div>
           <button
             type="button"
             onClick={onOpenPortal}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50 px-3.5 py-2 text-sm font-semibold text-indigo-900 hover:bg-indigo-100 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-indigo-300"
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-sm font-semibold text-slate-900 transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300"
           >
             <ExternalLink className="h-4 w-4" aria-hidden="true" />
             <span>Open University portal</span>
@@ -216,7 +216,7 @@ export default function AgentRunnerPanel({
           <button
             type="submit"
             disabled={launchLoading}
-            className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-6 py-2.5 text-base font-bold text-white shadow-sm hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300 disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-6 py-2.5 text-base font-bold text-white shadow-sm transition hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300 disabled:opacity-50"
           >
             <Play className="h-4 w-4" aria-hidden="true" />
             <span>{launchLoading ? 'Starting Agent...' : 'Start Application Agent'}</span>
@@ -230,12 +230,11 @@ export default function AgentRunnerPanel({
         )}
 
         {activeRun && (
-          <div className="mt-5 space-y-4 rounded-xl border-2 border-slate-200 bg-slate-50 p-5">
+          <div className="mt-5 space-y-4 border-t border-slate-200 pt-5">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
                 <p className="font-mono text-xs text-slate-600">
-                  Run ID: {activeRun.id} · Model: {activeRun.currentModel} · Steps:{' '}
-                  {activeRun.stepCount}
+                  Run {activeRun.id} · Model: {activeRun.currentModel} · Steps: {activeRun.stepCount}
                 </p>
                 <p className="mt-1 text-lg font-bold text-slate-950">{activeRun.statusMessage}</p>
               </div>
@@ -267,9 +266,9 @@ export default function AgentRunnerPanel({
                 <button
                   type="button"
                   onClick={onOpenCounselor}
-                  className="inline-flex items-center gap-2 rounded-xl bg-amber-700 px-4 py-2.5 text-base font-bold text-white hover:bg-amber-800"
+                  className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-bold text-slate-900 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300"
                 >
-                  <ShieldCheck className="h-5 w-5" aria-hidden="true" />
+                  <ShieldCheck className="h-4 w-4" aria-hidden="true" />
                   <span>Open Counselor Queue to Approve</span>
                 </button>
                 <button
@@ -278,7 +277,7 @@ export default function AgentRunnerPanel({
                   onClick={() =>
                     void handleResumeRun(activeRun.status === 'paused_safety_confirmation')
                   }
-                  className="inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-4 py-2.5 text-base font-bold text-white hover:bg-emerald-800"
+                  className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300"
                 >
                   <RefreshCw className="h-4 w-4" aria-hidden="true" />
                   <span>Resume Agent After Approval</span>
@@ -385,7 +384,7 @@ export default function AgentRunnerPanel({
           <button
             type="submit"
             disabled={rulesLoading}
-            className="inline-flex items-center gap-2 rounded-xl bg-indigo-900 px-4 py-2 text-sm font-bold text-white hover:bg-indigo-950 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-indigo-300 disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300 disabled:opacity-50"
           >
             <Globe className="h-4 w-4" aria-hidden="true" />
             <span>{rulesLoading ? 'Checking official pages...' : 'Check Official Rules'}</span>

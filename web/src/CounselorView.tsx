@@ -9,16 +9,15 @@ import {
   DollarSign,
   Edit3,
   HelpCircle,
-  Layers,
   RefreshCw,
   Settings2,
   ShieldAlert,
-  ShieldCheck,
   Sparkles,
   UserCheck,
   XCircle,
 } from 'lucide-react';
 import TopNav from './TopNav.tsx';
+import { formatInrInText, shortTail } from './formatInr.ts';
 
 function isTypingElement(el: EventTarget | null): boolean {
   if (!(el instanceof Element)) return false;
@@ -274,7 +273,7 @@ export default function CounselorView({ onNavigate }: CounselorViewProps) {
         approvedBy: data.approvalToken.approvedBy,
       });
       setActionMessage(
-        `Approved ${currentCase.id} for ${data.approvalToken.portalUrl}. Single-use token issued by ${data.approvalToken.approvedBy}.`
+        `Approved case ${shortTail(currentCase.id)} for University portal. Single-use token issued by ${data.approvalToken.approvedBy}.`
       );
       await loadQueue(true);
     } catch (err) {
@@ -465,10 +464,10 @@ export default function CounselorView({ onNavigate }: CounselorViewProps) {
     : 0;
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900">
+    <div className="flex min-h-screen flex-col bg-slate-50 text-slate-900">
       <a
         href="#counselor-main"
-        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-blue-800 focus:px-4 focus:py-2 focus:text-white"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-blue-700 focus:px-4 focus:py-2 focus:text-white"
       >
         Skip to main content
       </a>
@@ -479,21 +478,22 @@ export default function CounselorView({ onNavigate }: CounselorViewProps) {
         approveCompleted={Boolean(lastIssuedToken)}
       />
 
-      <main id="counselor-main" className="mx-auto max-w-5xl space-y-5 px-4 py-6 sm:px-6 lg:px-8">
-        {/* COMPACT UNIFIED HEADER + APPROVER BAR + CONTROLS (Exception card sits immediately above the fold!) */}
+      <main id="counselor-main" className="mx-auto w-full max-w-5xl flex-1 space-y-5 px-4 py-6 sm:px-6 lg:px-8">
+        {/* COMPACT UNIFIED HEADER + APPROVER BAR + CONTROLS */}
         <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
-              <h1 className="text-2xl font-extrabold tracking-tight text-indigo-950 sm:text-3xl">
+              <h1 className="text-2xl font-extrabold tracking-tight text-slate-950 sm:text-3xl">
                 Counselor Exception Queue
               </h1>
               <p className="mt-1 text-base font-bold text-slate-800">
                 {queue?.exceptions.length ?? 0}{' '}
-                {(queue?.exceptions.length ?? 0) === 1 ? 'student needs' : 'students need'} you.{' '}
-                <span className="text-emerald-700">
-                  {queue?.greenBatch.length ?? 0}{' '}
-                  {(queue?.greenBatch.length ?? 0) === 1 ? 'is' : 'are'} ready to approve.
-                </span>
+                {(queue?.exceptions.length ?? 0) === 1 ? 'case needs' : 'cases need'} review
+                {queue && queue.greenBatch.length > 0 && (
+                  <span className="ml-2 text-emerald-700">
+                    · {queue.greenBatch.length} clean ready for 1-click approval
+                  </span>
+                )}
                 <span className="ml-2 text-sm font-medium text-slate-600">
                   · {queue?.resolved.length ?? 0} cleared
                 </span>
@@ -503,9 +503,9 @@ export default function CounselorView({ onNavigate }: CounselorViewProps) {
             <div className="flex flex-wrap items-center gap-2">
               <label
                 htmlFor="active-counselor-name"
-                className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-slate-700"
+                className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-slate-800"
               >
-                <UserCheck className="h-4 w-4 text-emerald-700" aria-hidden="true" />
+                <UserCheck className="h-4 w-4 text-blue-600" aria-hidden="true" />
                 Approver:
               </label>
               <input
@@ -514,7 +514,7 @@ export default function CounselorView({ onNavigate }: CounselorViewProps) {
                 value={counselorName}
                 onChange={(e) => setCounselorName(e.target.value)}
                 placeholder="Enter your name"
-                className="w-44 rounded-xl border border-slate-300 bg-slate-50 px-3 py-1.5 text-sm font-semibold text-slate-950 focus:border-blue-600 focus:bg-white focus:outline-none focus:ring-4 focus:ring-blue-200"
+                className="w-48 rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-950 focus:border-blue-600 focus:outline-none focus:ring-4 focus:ring-blue-200"
               />
             </div>
           </div>
@@ -531,8 +531,8 @@ export default function CounselorView({ onNavigate }: CounselorViewProps) {
                 aria-label="Toggle keyboard shortcuts help"
                 className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300 sm:text-sm ${
                   showShortcuts
-                    ? 'border-indigo-700 bg-indigo-50 text-indigo-900'
-                    : 'border-slate-300 bg-white text-slate-800 hover:bg-slate-100'
+                    ? 'border-blue-600 bg-blue-50 text-blue-900'
+                    : 'border-slate-300 bg-white text-slate-800 hover:bg-slate-50'
                 }`}
               >
                 <HelpCircle className="h-4 w-4" aria-hidden="true" />
@@ -542,7 +542,7 @@ export default function CounselorView({ onNavigate }: CounselorViewProps) {
                 type="button"
                 onClick={() => void loadQueue(false)}
                 disabled={refreshingQueue}
-                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-900 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300 disabled:opacity-50 sm:text-sm"
+                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-900 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300 disabled:opacity-50 sm:text-sm"
               >
                 <RefreshCw className={`h-3.5 w-3.5 ${refreshingQueue ? 'animate-spin' : ''}`} aria-hidden="true" />
                 <span>{refreshingQueue ? 'Refreshing...' : 'Refresh'}</span>
@@ -552,8 +552,8 @@ export default function CounselorView({ onNavigate }: CounselorViewProps) {
                 onClick={() => setShowSettings((v) => !v)}
                 className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300 sm:text-sm ${
                   showSettings
-                    ? 'border-blue-700 bg-blue-50 text-blue-900'
-                    : 'border-slate-300 bg-white text-slate-900 hover:bg-slate-100'
+                    ? 'border-blue-600 bg-blue-50 text-blue-900'
+                    : 'border-slate-300 bg-white text-slate-900 hover:bg-slate-50'
                 }`}
               >
                 <Settings2 className="h-3.5 w-3.5" aria-hidden="true" />
@@ -564,8 +564,8 @@ export default function CounselorView({ onNavigate }: CounselorViewProps) {
                 onClick={() => setShowAudit((v) => !v)}
                 className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300 sm:text-sm ${
                   showAudit
-                    ? 'border-blue-700 bg-blue-50 text-blue-900'
-                    : 'border-slate-300 bg-white text-slate-900 hover:bg-slate-100'
+                    ? 'border-blue-600 bg-blue-50 text-blue-900'
+                    : 'border-slate-300 bg-white text-slate-900 hover:bg-slate-50'
                 }`}
               >
                 <ClipboardList className="h-3.5 w-3.5" aria-hidden="true" />
@@ -577,24 +577,23 @@ export default function CounselorView({ onNavigate }: CounselorViewProps) {
           {showShortcuts && (
             <div
               role="note"
-              className="mt-3 flex flex-wrap items-center gap-3 rounded-xl border border-indigo-200 bg-indigo-50/70 px-4 py-2 text-xs font-medium text-indigo-950 sm:text-sm"
+              className="mt-3 flex flex-wrap items-center gap-3 rounded-xl border border-blue-200 bg-blue-50/70 px-4 py-2 text-xs font-medium text-slate-900 sm:text-sm"
             >
               <span className="font-bold">Keyboard shortcuts:</span>
-              <span><kbd className="rounded border border-indigo-300 bg-white px-1.5 py-0.5 font-mono text-xs font-bold">J</kbd> Next</span>
-              <span><kbd className="rounded border border-indigo-300 bg-white px-1.5 py-0.5 font-mono text-xs font-bold">K</kbd> Prev</span>
-              <span><kbd className="rounded border border-indigo-300 bg-white px-1.5 py-0.5 font-mono text-xs font-bold">A</kbd> Approve</span>
-              <span><kbd className="rounded border border-indigo-300 bg-white px-1.5 py-0.5 font-mono text-xs font-bold">E</kbd> Edit</span>
-              <span><kbd className="rounded border border-indigo-300 bg-white px-1.5 py-0.5 font-mono text-xs font-bold">R</kbd> Reject</span>
+              <span><kbd className="rounded border border-slate-300 bg-white px-1.5 py-0.5 font-mono text-xs font-bold">A</kbd> Approve</span>
+              <span><kbd className="rounded border border-slate-300 bg-white px-1.5 py-0.5 font-mono text-xs font-bold">E</kbd> Edit</span>
+              <span><kbd className="rounded border border-slate-300 bg-white px-1.5 py-0.5 font-mono text-xs font-bold">R</kbd> Reject</span>
+              <span><kbd className="rounded border border-slate-300 bg-white px-1.5 py-0.5 font-mono text-xs font-bold">J</kbd> / <kbd className="rounded border border-slate-300 bg-white px-1.5 py-0.5 font-mono text-xs font-bold">K</kbd> Next / Prev</span>
             </div>
           )}
 
           {queue && queue.greenBatch.length > 0 && (
-            <div className="mt-4 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-emerald-300 bg-emerald-50 p-4">
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
               <div className="flex items-start gap-3">
                 <Sparkles className="mt-0.5 h-5 w-5 shrink-0 text-emerald-700" aria-hidden="true" />
                 <div>
                   <p className="text-sm font-bold text-emerald-950 sm:text-base">
-                    {queue.greenBatch.length} clean case(s) passed every plain-code rule
+                    {queue.greenBatch.length} clean case(s) passed every rule
                   </p>
                   <p className="text-xs text-emerald-900 sm:text-sm">
                     No tokens are issued automatically — click Batch Approve to issue single-use tokens.
@@ -605,7 +604,7 @@ export default function CounselorView({ onNavigate }: CounselorViewProps) {
                 type="button"
                 onClick={() => void handleBatchApproveGreen()}
                 disabled={actionBusy}
-                className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-emerald-300 disabled:opacity-50"
+                className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300 disabled:opacity-50"
               >
                 <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
                 <span>Batch Approve {queue.greenBatch.length} Case(s)</span>
@@ -636,13 +635,17 @@ export default function CounselorView({ onNavigate }: CounselorViewProps) {
                       <span className="text-xs font-bold uppercase tracking-wide text-emerald-900">
                         Approval Token:
                       </span>
-                      <code className="select-all break-all rounded-lg bg-white px-3 py-1.5 font-mono text-xs font-semibold text-emerald-950 ring-1 ring-emerald-200">
-                        {lastIssuedToken.token}
+                      <code
+                        title={lastIssuedToken.token}
+                        className="rounded-lg bg-white px-2.5 py-1 font-mono text-xs font-semibold text-slate-950 ring-1 ring-emerald-200"
+                      >
+                        <span className="sr-only">{lastIssuedToken.token}</span>
+                        <span aria-hidden="true">{shortTail(lastIssuedToken.token)}</span>
                       </code>
                       <button
                         type="button"
                         onClick={() => void handleCopy(lastIssuedToken.token, 'last-token')}
-                        className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-300 bg-white px-3 py-1.5 text-xs font-bold text-emerald-900 hover:bg-emerald-100 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-emerald-300"
+                        className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold text-slate-900 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300"
                       >
                         {copiedKey === 'last-token' ? (
                           <>
@@ -651,27 +654,31 @@ export default function CounselorView({ onNavigate }: CounselorViewProps) {
                           </>
                         ) : (
                           <>
-                            <Copy className="h-3.5 w-3.5 text-emerald-700" aria-hidden="true" />
+                            <Copy className="h-3.5 w-3.5 text-slate-700" aria-hidden="true" />
                             <span>Copy token</span>
                           </>
                         )}
                       </button>
                       <a
                         href={`/portal?caseId=${encodeURIComponent(lastIssuedToken.caseId)}&approvalToken=${encodeURIComponent(lastIssuedToken.token)}`}
-                        className="inline-flex items-center gap-1 rounded-xl bg-emerald-600 px-3.5 py-1.5 text-xs font-bold text-white hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-emerald-300"
+                        className="inline-flex items-center gap-1 rounded-xl bg-blue-600 px-3.5 py-1.5 text-xs font-bold text-white hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300"
                       >
                         Open University portal with token →
                       </a>
                     </div>
                     <div className="flex flex-wrap items-center gap-2 text-xs text-emerald-900">
                       <span className="font-semibold">Case ID:</span>
-                      <code className="select-all rounded bg-white/90 px-2 py-0.5 font-mono font-semibold text-emerald-950 ring-1 ring-emerald-200">
-                        {lastIssuedToken.caseId}
+                      <code
+                        title={lastIssuedToken.caseId}
+                        className="rounded bg-white/90 px-2 py-0.5 font-mono font-semibold text-slate-950 ring-1 ring-emerald-200"
+                      >
+                        <span className="sr-only">{lastIssuedToken.caseId}</span>
+                        <span aria-hidden="true">{shortTail(lastIssuedToken.caseId)}</span>
                       </code>
                       <button
                         type="button"
                         onClick={() => void handleCopy(lastIssuedToken.caseId, 'last-case-id')}
-                        className="inline-flex items-center gap-1 rounded-lg border border-emerald-300 bg-white px-2 py-0.5 text-xs font-semibold text-emerald-900 hover:bg-emerald-100"
+                        className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-2 py-0.5 text-xs font-semibold text-slate-800 hover:bg-slate-50"
                       >
                         {copiedKey === 'last-case-id' ? (
                           <>
@@ -680,8 +687,8 @@ export default function CounselorView({ onNavigate }: CounselorViewProps) {
                           </>
                         ) : (
                           <>
-                            <Copy className="h-3 w-3 text-emerald-700" aria-hidden="true" />
-                            <span>Copy Case ID</span>
+                            <Copy className="h-3 w-3 text-slate-600" aria-hidden="true" />
+                            <span>Copy ID</span>
                           </>
                         )}
                       </button>
@@ -706,10 +713,33 @@ export default function CounselorView({ onNavigate }: CounselorViewProps) {
               <section className="space-y-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-md sm:p-8">
                 <div className="flex flex-wrap items-start justify-between gap-4 border-b border-slate-200 pb-5">
                   <div>
-                    <p className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                      Exception {selectedIndex + 1} of {queue?.exceptions.length ?? 0} ·{' '}
-                      <span className="font-mono text-slate-700">{currentCase.id}</span>
-                    </p>
+                    <div className="flex flex-wrap items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-500">
+                      <span>
+                        Exception {selectedIndex + 1} of {queue?.exceptions.length ?? 0}
+                      </span>
+                      <span aria-hidden="true">·</span>
+                      <code title={currentCase.id} className="font-mono text-slate-700">
+                        <span className="sr-only">{currentCase.id}</span>
+                        <span aria-hidden="true">{shortTail(currentCase.id)}</span>
+                      </code>
+                      <button
+                        type="button"
+                        onClick={() => void handleCopy(currentCase.id, `current-case-${currentCase.id}`)}
+                        className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-slate-50 px-1.5 py-0.5 font-sans text-[11px] font-semibold normal-case tracking-normal text-slate-700 hover:bg-slate-100"
+                      >
+                        {copiedKey === `current-case-${currentCase.id}` ? (
+                          <>
+                            <Check className="h-3 w-3 text-emerald-700" aria-hidden="true" />
+                            <span>Copied</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="h-3 w-3 text-slate-600" aria-hidden="true" />
+                            <span>Copy ID</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
                     <h2 className="mt-1 text-2xl font-extrabold text-slate-950 sm:text-3xl">
                       {currentCase.consent?.typedSignature || 'Student'}{' '}
                       <span className="font-semibold text-slate-600">
@@ -718,7 +748,7 @@ export default function CounselorView({ onNavigate }: CounselorViewProps) {
                       </span>
                     </h2>
                     <p className="mt-2 max-w-2xl text-base leading-relaxed text-slate-700">
-                      {currentCase.riskScore.brief}
+                      {formatInrInText(currentCase.riskScore.brief)}
                     </p>
                   </div>
 
@@ -740,7 +770,7 @@ export default function CounselorView({ onNavigate }: CounselorViewProps) {
                         type="button"
                         disabled={selectedIndex === 0}
                         onClick={() => setSelectedIndex((i) => Math.max(0, i - 1))}
-                        className="inline-flex items-center gap-1 rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-800 hover:bg-slate-100 disabled:opacity-40"
+                        className="inline-flex items-center gap-1 rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-800 hover:bg-slate-50 disabled:opacity-40"
                       >
                         <ChevronLeft className="h-4 w-4" aria-hidden="true" />
                         <span>Prev (K)</span>
@@ -753,7 +783,7 @@ export default function CounselorView({ onNavigate }: CounselorViewProps) {
                             Math.min((queue?.exceptions.length ?? 1) - 1, i + 1)
                           )
                         }
-                        className="inline-flex items-center gap-1 rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-800 hover:bg-slate-100 disabled:opacity-40"
+                        className="inline-flex items-center gap-1 rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-800 hover:bg-slate-50 disabled:opacity-40"
                       >
                         <span>Next (J)</span>
                         <ChevronRight className="h-4 w-4" aria-hidden="true" />
@@ -762,23 +792,24 @@ export default function CounselorView({ onNavigate }: CounselorViewProps) {
                   </div>
                 </div>
 
-                {/* PER-CASE AI COST PILL (proves scale economics without dev clutter) */}
+                {/* PER-CASE AI COST PILL (clean spacing between cost and agent steps) */}
                 {currentCase.usageSummary && (
-                  <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
-                    <span className="inline-flex items-center gap-2 font-semibold text-slate-800">
-                      <DollarSign className="h-4 w-4 text-emerald-700" aria-hidden="true" />
-                      AI verification cost for this student:{' '}
-                      <strong className="font-mono text-emerald-800">
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
+                    <span className="inline-flex items-center gap-1.5 font-semibold text-slate-800">
+                      <DollarSign className="h-4 w-4 text-slate-600" aria-hidden="true" />
+                      AI verification cost:{' '}
+                      <strong className="font-mono text-slate-950">
                         ${currentCase.usageSummary.estimatedUsd.toFixed(4)}
                       </strong>
                     </span>
+                    <span className="text-slate-400" aria-hidden="true">·</span>
                     <span className="text-xs font-medium text-slate-700">
                       {currentCase.usageSummary.agentSteps} agent step(s)
                     </span>
                   </div>
                 )}
 
-                {/* FLAGGED ISSUES WITH HIGHLIGHTED QUOTES & FIXES */}
+                {/* FLAGGED ISSUES WITH HIGHLIGHTED QUOTES & COLLAPSED CALCULATION */}
                 <div className="space-y-4">
                   {currentCase.flags
                     .filter((f) => f.severity !== 'green')
@@ -798,13 +829,15 @@ export default function CounselorView({ onNavigate }: CounselorViewProps) {
                             }`}
                             aria-hidden="true"
                           />
-                          <p className="text-lg font-extrabold text-slate-950">{flag.title}</p>
+                          <p className="text-lg font-extrabold text-slate-950">
+                            {formatInrInText(flag.title)}
+                          </p>
                         </div>
                         <p className="mt-1.5 text-base text-slate-800">
-                          {flag.explanation || flag.summary}
+                          {formatInrInText(flag.explanation || flag.summary)}
                         </p>
                         {flag.quote && (
-                          <blockquote className="mt-3 rounded-xl border-l-4 border-amber-500 bg-amber-100/70 px-3.5 py-2.5 font-mono text-xs font-medium text-slate-950 sm:text-sm">
+                          <blockquote className="mt-3 rounded-xl border-l-4 border-amber-500 bg-amber-50 px-3.5 py-2.5 font-mono text-xs font-medium text-slate-950 sm:text-sm">
                             <span className="font-sans text-xs font-bold uppercase tracking-wide text-amber-950">
                               Quote:{' '}
                             </span>
@@ -813,17 +846,18 @@ export default function CounselorView({ onNavigate }: CounselorViewProps) {
                         )}
                         {flag.suggestedFix && (
                           <p className="mt-3 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-medium text-slate-900">
-                            <strong className="text-indigo-950">How to fix:</strong> {flag.suggestedFix}
+                            <strong className="text-slate-950">How to fix:</strong>{' '}
+                            {formatInrInText(flag.suggestedFix)}
                           </p>
                         )}
                         {flag.mathLines && flag.mathLines.length > 0 && (
                           <details className="mt-3 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs text-slate-700">
-                            <summary className="cursor-pointer font-bold text-indigo-900 hover:underline">
-                              Show plain-code funds math
+                            <summary className="cursor-pointer font-bold text-blue-700 hover:underline">
+                              Show funds calculation
                             </summary>
                             <ul className="mt-2 space-y-1 font-mono text-xs text-slate-900">
                               {flag.mathLines.map((line, i) => (
-                                <li key={i}>{line}</li>
+                                <li key={i}>{formatInrInText(line)}</li>
                               ))}
                             </ul>
                           </details>
@@ -832,40 +866,38 @@ export default function CounselorView({ onNavigate }: CounselorViewProps) {
                     ))}
                 </div>
 
-                {/* PRIMARY ACTION BUTTONS */}
-                <div className="flex flex-wrap gap-3 pt-2">
-                  <button
-                    type="button"
-                    disabled={actionBusy || approvingCase}
-                    onClick={() => void handleApproveCurrent()}
-                    className="inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-6 py-3.5 text-base font-bold text-white shadow-sm transition hover:bg-emerald-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-emerald-300 disabled:opacity-50"
-                  >
-                    <CheckCircle2 className="h-5 w-5" aria-hidden="true" />
-                    <span>{approvingCase ? 'Approving...' : 'Approve & Issue Token'}</span>
-                    {!approvingCase && (
-                      <kbd className="ml-1 rounded bg-emerald-900/60 px-2 py-0.5 font-mono text-xs">
-                        A
-                      </kbd>
-                    )}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setMode((m) => (m === 'edit' ? 'view' : 'edit'))}
-                    className="inline-flex items-center gap-2 rounded-xl border-2 border-blue-700 bg-white px-5 py-3.5 text-base font-bold text-blue-800 transition hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300"
-                  >
-                    <Edit3 className="h-5 w-5" aria-hidden="true" />
-                    <span>{mode === 'edit' ? 'Cancel Edit' : 'Edit & Recheck'}</span>
-                    <kbd className="ml-1 rounded bg-blue-100 px-2 py-0.5 font-mono text-xs text-blue-900">E</kbd>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setMode((m) => (m === 'reject' ? 'view' : 'reject'))}
-                    className="inline-flex items-center gap-2 rounded-xl bg-red-700 px-5 py-3.5 text-base font-bold text-white shadow-sm transition hover:bg-red-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-red-300"
-                  >
-                    <XCircle className="h-5 w-5" aria-hidden="true" />
-                    <span>{mode === 'reject' ? 'Cancel Reject' : 'Reject'}</span>
-                    <kbd className="ml-1 rounded bg-red-900/60 px-2 py-0.5 font-mono text-xs">R</kbd>
-                  </button>
+                {/* PRIMARY ACTION BUTTONS + VISIBLE SHORTCUT HINT */}
+                <div className="space-y-2.5 pt-2">
+                  <div className="flex flex-wrap gap-3">
+                    <button
+                      type="button"
+                      disabled={actionBusy || approvingCase}
+                      onClick={() => void handleApproveCurrent()}
+                      className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-6 py-3.5 text-base font-bold text-white shadow-sm transition hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300 disabled:opacity-50"
+                    >
+                      <CheckCircle2 className="h-5 w-5" aria-hidden="true" />
+                      <span>{approvingCase ? 'Approving...' : 'Approve & Issue Token'}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setMode((m) => (m === 'edit' ? 'view' : 'edit'))}
+                      className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-5 py-3.5 text-base font-bold text-slate-900 transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300"
+                    >
+                      <Edit3 className="h-5 w-5" aria-hidden="true" />
+                      <span>{mode === 'edit' ? 'Cancel Edit' : 'Edit & Recheck'}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setMode((m) => (m === 'reject' ? 'view' : 'reject'))}
+                      className="inline-flex items-center gap-2 rounded-xl bg-red-600 px-5 py-3.5 text-base font-bold text-white shadow-sm transition hover:bg-red-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-red-300"
+                    >
+                      <XCircle className="h-5 w-5" aria-hidden="true" />
+                      <span>{mode === 'reject' ? 'Cancel Reject' : 'Reject'}</span>
+                    </button>
+                  </div>
+                  <p className="text-xs font-medium text-slate-600">
+                    Shortcuts: A approve · E edit · R reject · J/K next/prev
+                  </p>
                 </div>
 
                 {/* INLINE EDIT PANEL */}
@@ -935,7 +967,7 @@ export default function CounselorView({ onNavigate }: CounselorViewProps) {
                     <button
                       type="submit"
                       disabled={actionBusy}
-                      className="rounded-xl bg-blue-700 px-5 py-3 text-base font-bold text-white hover:bg-blue-800"
+                      className="rounded-xl bg-blue-600 px-5 py-3 text-base font-bold text-white hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300"
                     >
                       Save Edits &amp; Recalculate Flags
                     </button>
@@ -962,7 +994,7 @@ export default function CounselorView({ onNavigate }: CounselorViewProps) {
                     <button
                       type="submit"
                       disabled={actionBusy}
-                      className="rounded-xl bg-red-700 px-5 py-3 text-base font-bold text-white hover:bg-red-800"
+                      className="rounded-xl bg-red-600 px-5 py-3 text-base font-bold text-white hover:bg-red-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-red-300"
                     >
                       Confirm Reject &amp; Log
                     </button>
@@ -1128,7 +1160,7 @@ export default function CounselorView({ onNavigate }: CounselorViewProps) {
                 <button
                   type="submit"
                   disabled={savingSettings}
-                  className="rounded-xl bg-blue-700 px-5 py-3 text-base font-bold text-white hover:bg-blue-800"
+                  className="rounded-xl bg-blue-600 px-5 py-3 text-base font-bold text-white hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-300"
                 >
                   {savingSettings ? 'Saving...' : 'Save Rules & Rates'}
                 </button>
@@ -1162,62 +1194,92 @@ export default function CounselorView({ onNavigate }: CounselorViewProps) {
               </section>
             )}
 
-            {/* RECENTLY CLEARED CASES */}
+            {/* RECENTLY CLEARED CASES (last 3 only) */}
             {queue && queue.resolved.length > 0 && (
               <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-                <h2 className="text-xl font-bold text-slate-950">Recently Cleared Cases</h2>
-                <ul className="mt-3 space-y-2.5 text-base">
-                  {queue.resolved.slice(0, 10).map((c) => (
+                <div className="flex flex-wrap items-baseline justify-between gap-2">
+                  <h2 className="text-xl font-bold text-slate-950">Recently Cleared</h2>
+                  <span className="text-xs font-medium text-slate-600">
+                    Showing last {Math.min(3, queue.resolved.length)} of {queue.resolved.length}
+                  </span>
+                </div>
+                <ul className="mt-3 space-y-2.5 text-sm">
+                  {queue.resolved.slice(0, 3).map((c) => (
                     <li
                       key={c.id}
                       className="flex flex-wrap items-start justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3.5"
                     >
-                      <div className="min-w-0 flex-1">
-                        <span className="font-bold text-slate-950">
-                          {c.consent?.typedSignature || c.id}
-                        </span>{' '}
-                        <span className="font-mono text-sm text-slate-600">({c.id})</span>
+                      <div className="min-w-0 flex-1 space-y-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-bold text-slate-950">
+                            {c.consent?.typedSignature || 'Student'}
+                          </span>
+                          <code
+                            title={c.id}
+                            className="rounded bg-white px-2 py-0.5 font-mono text-xs text-slate-700 ring-1 ring-slate-200"
+                          >
+                            <span className="sr-only">{c.id}</span>
+                            <span aria-hidden="true">{shortTail(c.id)}</span>
+                          </code>
+                          <button
+                            type="button"
+                            onClick={() => void handleCopy(c.id, `cleared-case-${c.id}`)}
+                            className="inline-flex items-center gap-1 rounded-md border border-slate-300 bg-white px-2 py-0.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                          >
+                            {copiedKey === `cleared-case-${c.id}` ? (
+                              <>
+                                <Check className="h-3 w-3 text-emerald-700" aria-hidden="true" />
+                                <span>Copied</span>
+                              </>
+                            ) : (
+                              <>
+                                <Copy className="h-3 w-3 text-slate-500" aria-hidden="true" />
+                                <span>Copy ID</span>
+                              </>
+                            )}
+                          </button>
+                        </div>
                         {c.approvalTokenId && (
-                          <div className="mt-1.5 space-y-1 text-xs text-emerald-900">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <span className="font-semibold">Token:</span>
-                              <code className="select-all break-all rounded bg-white px-2 py-0.5 font-mono text-xs font-semibold text-emerald-950 ring-1 ring-emerald-200">
-                                {c.approvalTokenId}
-                              </code>
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  void handleCopy(c.approvalTokenId!, `cleared-token-${c.id}`)
-                                }
-                                className="inline-flex items-center gap-1 rounded-lg border border-emerald-300 bg-white px-2 py-0.5 text-xs font-semibold text-emerald-900 hover:bg-emerald-100"
-                              >
-                                {copiedKey === `cleared-token-${c.id}` ? (
-                                  <>
-                                    <Check className="h-3 w-3 text-emerald-700" aria-hidden="true" />
-                                    <span>Copied!</span>
-                                  </>
-                                ) : (
-                                  <>
-                                    <Copy className="h-3 w-3 text-emerald-700" aria-hidden="true" />
-                                    <span>Copy</span>
-                                  </>
-                                )}
-                              </button>
-                            </div>
-                            <p className="font-mono text-xs text-emerald-800">
-                              University portal · Approved by {c.approvedBy}
-                            </p>
+                          <div className="flex flex-wrap items-center gap-2 text-xs text-slate-700">
+                            <span className="font-semibold">Token:</span>
+                            <code
+                              title={c.approvalTokenId}
+                              className="rounded bg-white px-2 py-0.5 font-mono font-semibold text-slate-900 ring-1 ring-slate-200"
+                            >
+                              <span className="sr-only">{c.approvalTokenId}</span>
+                              <span aria-hidden="true">{shortTail(c.approvalTokenId)}</span>
+                            </code>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                void handleCopy(c.approvalTokenId!, `cleared-token-${c.id}`)
+                              }
+                              className="inline-flex items-center gap-1 rounded-md border border-slate-300 bg-white px-2 py-0.5 text-xs font-semibold text-slate-800 hover:bg-slate-50"
+                            >
+                              {copiedKey === `cleared-token-${c.id}` ? (
+                                <>
+                                  <Check className="h-3 w-3 text-emerald-700" aria-hidden="true" />
+                                  <span>Copied!</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Copy className="h-3 w-3 text-slate-600" aria-hidden="true" />
+                                  <span>Copy</span>
+                                </>
+                              )}
+                            </button>
+                            <span className="text-slate-500">· Approved by {c.approvedBy}</span>
                           </div>
                         )}
                         {c.rejectedReason && (
-                          <p className="mt-0.5 text-sm text-red-800">Reason: {c.rejectedReason}</p>
+                          <p className="text-sm text-red-800">Reason: {c.rejectedReason}</p>
                         )}
                       </div>
                       <span
                         className={`inline-flex shrink-0 items-center gap-1 rounded-full px-3 py-1 text-xs font-bold uppercase ${
                           c.status === 'approved'
-                            ? 'bg-emerald-200 text-emerald-950'
-                            : 'bg-red-200 text-red-950'
+                            ? 'bg-emerald-100 text-emerald-900'
+                            : 'bg-red-100 text-red-900'
                         }`}
                       >
                         {c.status === 'approved' ? (
@@ -1259,7 +1321,7 @@ export default function CounselorView({ onNavigate }: CounselorViewProps) {
                   </span>
                   <span>
                     Queue AI cost:{' '}
-                    <strong className="text-emerald-800">${totalEstimatedUsd.toFixed(4)}</strong>
+                    <strong className="text-slate-950">${totalEstimatedUsd.toFixed(4)}</strong>
                   </span>
                 </div>
               </footer>
@@ -1268,7 +1330,7 @@ export default function CounselorView({ onNavigate }: CounselorViewProps) {
         )}
       </main>
 
-      <footer className="border-t border-slate-200 bg-white px-4 py-4 text-center text-sm font-semibold text-slate-700">
+      <footer className="mt-10 border-t border-slate-200 bg-white px-4 py-6 text-center text-sm font-semibold text-slate-700 sm:px-6 lg:px-8">
         AI for speed. Code for money. Humans for the final yes.
       </footer>
     </div>
