@@ -17,6 +17,8 @@ export const FACT_FIELDS = [
   'date_of_birth',
   'passport_number',
   'account_number',
+  'aadhaar_number',
+  'pan_number',
   'degree',
   'university',
   'cgpa',
@@ -33,6 +35,7 @@ export const FACT_FIELDS = [
   'course',
   'institution',
   'tuition',
+  'deposit_paid',
   'living_cost',
   'start_date',
 ] as const;
@@ -101,6 +104,7 @@ export interface CheckFlag {
   sourceDocName?: string;
   sourceUrl?: string;
   ruleAsOf?: string;
+  mathLines?: string[];
   explanation?: string;
   suggestedFix?: string;
 }

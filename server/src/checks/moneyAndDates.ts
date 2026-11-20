@@ -92,14 +92,32 @@ export function checkFundsVsRequiredCost(input: FundsCheckInput): CheckFlag {
 
   // 2. Determine required cost ONLY from:
   //    (a) counselor/user override, OR
-  //    (b) I-20 / CAS / offer letter facts (tuition + living_cost), OR
-  //    (c) UK statutory maintenance rules (rules/uk.json) + offer tuition when destination is UK
+  //    (b) I-20 / CAS / offer letter facts: unpaid tuition (tuition - deposit_paid) + living_cost, OR
+  //    (c) For UK: unpaid tuition from CAS/offer (tuition - deposit_paid) + UK maintenance (£1,570 x 9 London / £1,203 x 9 elsewhere)
   //    NEVER invented by the model.
   let requiredInr: number | null = null;
   let requiredSourceSummary = '';
   let sourceUrl: string | undefined;
   let ruleAsOf: string | undefined;
+  let missingUkTuitionNote = false;
   const requiredQuotes: string[] = [];
+  const mathLines: string[] = [];
+
+  for (const fact of fundFacts) {
+    const amount = parseNumericAmount(fact.value);
+    if (amount === null) continue;
+    const currency = findCurrencyForDocument(facts, fact.sourceDocName);
+    const inr = convertToInr(amount, currency, exchangeRates);
+    if (inr !== null) {
+      const label = fact.field === 'loan_amount' ? 'Education loan' : 'Bank balance';
+      mathLines.push(
+        `${label} (${fact.sourceDocName}): ${currency} ${amount.toLocaleString('en-US')} = ${formatInr(inr)}`
+      );
+    }
+  }
+  if (fundFacts.length > 0) {
+    mathLines.push(`Total available funds: ${formatInr(totalAvailableInr)}`);
+  }
 
   if (requiredCostOverride && requiredCostOverride.amount > 0) {
     const converted = convertToInr(
@@ -109,45 +127,61 @@ export function checkFundsVsRequiredCost(input: FundsCheckInput): CheckFlag {
     );
     if (converted !== null) {
       requiredInr = converted;
-      requiredSourceSummary = `counselor/entered cost (${requiredCostOverride.currency} ${requiredCostOverride.amount.toLocaleString('en-US')})`;
+      requiredSourceSummary = `entered/counselor required cost (${requiredCostOverride.currency} ${requiredCostOverride.amount.toLocaleString('en-US')})`;
+      mathLines.push(
+        `Required cost (entered): ${requiredCostOverride.currency} ${requiredCostOverride.amount.toLocaleString('en-US')} = ${formatInr(converted)}`
+      );
     }
   } else {
-    const offerTuition = facts.find(
-      (f) => f.field === 'tuition' && f.sourceDocType === 'i20_cas_offer'
-    );
-    const offerLiving = facts.find(
-      (f) => f.field === 'living_cost' && f.sourceDocType === 'i20_cas_offer'
-    );
+    const offerTuition =
+      facts.find((f) => f.field === 'tuition' && f.sourceDocType === 'i20_cas_offer') ||
+      facts.find((f) => f.field === 'tuition');
+    const offerDeposit =
+      facts.find((f) => f.field === 'deposit_paid' && f.sourceDocType === 'i20_cas_offer') ||
+      facts.find((f) => f.field === 'deposit_paid');
+    const offerLiving =
+      facts.find((f) => f.field === 'living_cost' && f.sourceDocType === 'i20_cas_offer') ||
+      facts.find((f) => f.field === 'living_cost');
 
-    let tuitionInr = 0;
+    let unpaidTuitionInr = 0;
     let livingInr = 0;
-    let hasRequiredSource = false;
+    let hasTuition = false;
+    let hasLiving = false;
 
     if (offerTuition) {
-      const amt = parseNumericAmount(offerTuition.value);
-      if (amt !== null) {
+      const tuitionAmt = parseNumericAmount(offerTuition.value);
+      if (tuitionAmt !== null) {
         const cur = findCurrencyForDocument(facts, offerTuition.sourceDocName);
-        const conv = convertToInr(amt, cur, exchangeRates);
-        if (conv !== null) {
-          tuitionInr = conv;
-          hasRequiredSource = true;
+        const tuitionInr = convertToInr(tuitionAmt, cur, exchangeRates);
+        if (tuitionInr !== null) {
+          hasTuition = true;
           requiredQuotes.push(`${offerTuition.sourceDocName}: "${offerTuition.quote}"`);
+
+          let depositAmt = 0;
+          let depositInr = 0;
+          if (offerDeposit) {
+            const parsedDep = parseNumericAmount(offerDeposit.value);
+            if (parsedDep !== null) {
+              const depCur = findCurrencyForDocument(facts, offerDeposit.sourceDocName);
+              const depConv = convertToInr(parsedDep, depCur, exchangeRates);
+              if (depConv !== null) {
+                depositAmt = parsedDep;
+                depositInr = depConv;
+                requiredQuotes.push(`${offerDeposit.sourceDocName}: "${offerDeposit.quote}"`);
+              }
+            }
+          }
+
+          unpaidTuitionInr = Math.max(0, tuitionInr - depositInr);
+          const unpaidOrig = Math.max(0, tuitionAmt - depositAmt);
+          mathLines.push(
+            `CAS/Offer tuition: ${cur} ${tuitionAmt.toLocaleString('en-US')} minus deposit paid (${cur} ${depositAmt.toLocaleString('en-US')}) = Unpaid tuition ${cur} ${unpaidOrig.toLocaleString('en-US')} (${formatInr(unpaidTuitionInr)})`
+          );
         }
       }
     }
 
-    if (offerLiving) {
-      const amt = parseNumericAmount(offerLiving.value);
-      if (amt !== null) {
-        const cur = findCurrencyForDocument(facts, offerLiving.sourceDocName);
-        const conv = convertToInr(amt, cur, exchangeRates);
-        if (conv !== null) {
-          livingInr = conv;
-          hasRequiredSource = true;
-          requiredQuotes.push(`${offerLiving.sourceDocName}: "${offerLiving.quote}"`);
-        }
-      }
-    } else if (destinationCountry === 'UK') {
+    if (destinationCountry === 'UK') {
       const perMonth =
         ukRegion === 'london'
           ? ukRules.maintenance.londonPerMonth
@@ -156,20 +190,45 @@ export function checkFundsVsRequiredCost(input: FundsCheckInput): CheckFlag {
       const conv = convertToInr(totalGbp, 'GBP', exchangeRates);
       if (conv !== null) {
         livingInr = conv;
-        hasRequiredSource = true;
+        hasLiving = true;
         sourceUrl = ukRules.sourceUrl;
         ruleAsOf = ukRules.asOf;
-        requiredSourceSummary = `UK maintenance (${ukRegion === 'london' ? 'London' : 'Outside London'}: GBP ${perMonth}/mo x ${ukRules.maintenance.maxMonths} months = GBP ${totalGbp})`;
+        mathLines.push(
+          `UK living costs (${ukRegion === 'london' ? 'London' : 'Outside London'}): GBP ${perMonth.toLocaleString('en-US')}/mo × ${ukRules.maintenance.maxMonths} months = GBP ${totalGbp.toLocaleString('en-US')} (${formatInr(livingInr)} at INR ${exchangeRates.ratesToInr.GBP}/GBP as of ${exchangeRates.asOfDate})`
+        );
+      }
+      if (!hasTuition) {
+        missingUkTuitionNote = true;
+        mathLines.push(
+          'Unpaid tuition from CAS/offer: Not uploaded yet (upload CAS/offer letter to include tuition minus deposit paid).'
+        );
+      }
+    } else if (offerLiving) {
+      const amt = parseNumericAmount(offerLiving.value);
+      if (amt !== null) {
+        const cur = findCurrencyForDocument(facts, offerLiving.sourceDocName);
+        const conv = convertToInr(amt, cur, exchangeRates);
+        if (conv !== null) {
+          livingInr = conv;
+          hasLiving = true;
+          requiredQuotes.push(`${offerLiving.sourceDocName}: "${offerLiving.quote}"`);
+          mathLines.push(
+            `Living costs (${offerLiving.sourceDocName}): ${cur} ${amt.toLocaleString('en-US')} = ${formatInr(livingInr)}`
+          );
+        }
       }
     }
 
-    if (hasRequiredSource) {
-      requiredInr = tuitionInr + livingInr;
-      if (!requiredSourceSummary) {
+    if (hasTuition || hasLiving) {
+      requiredInr = unpaidTuitionInr + livingInr;
+      if (destinationCountry === 'UK') {
+        requiredSourceSummary = hasTuition
+          ? `UK unpaid tuition + ${ukRegion === 'london' ? 'London' : 'Outside London'} living costs`
+          : `UK ${ukRegion === 'london' ? 'London' : 'Outside London'} living costs (CAS tuition not yet uploaded)`;
+      } else {
         requiredSourceSummary = 'uploaded I-20 / CAS / offer letter';
-      } else if (tuitionInr > 0) {
-        requiredSourceSummary = `offer tuition + ${requiredSourceSummary}`;
       }
+      mathLines.push(`Total required funds: ${formatInr(requiredInr)}`);
     }
   }
 
@@ -181,6 +240,7 @@ export function checkFundsVsRequiredCost(input: FundsCheckInput): CheckFlag {
       title: 'No financial proof uploaded',
       summary: 'No bank balance or education loan amount was found in the uploaded documents.',
       quote: '',
+      mathLines,
     };
   }
 
@@ -192,6 +252,7 @@ export function checkFundsVsRequiredCost(input: FundsCheckInput): CheckFlag {
       title: 'Required university cost not provided',
       summary: `Found ${formatInr(totalAvailableInr)} in student funds (rate as of ${exchangeRates.asOfDate}), but no I-20/CAS/offer cost or counselor cost override was provided to compare against.`,
       quote: fundQuotes.join(' | '),
+      mathLines,
     };
   }
 
@@ -199,6 +260,7 @@ export function checkFundsVsRequiredCost(input: FundsCheckInput): CheckFlag {
 
   if (totalAvailableInr < requiredInr) {
     const shortfall = requiredInr - totalAvailableInr;
+    mathLines.push(`Shortfall: -${formatInr(shortfall)}`);
     return {
       id: 'funds-shortfall',
       checkType: 'funds',
@@ -208,10 +270,27 @@ export function checkFundsVsRequiredCost(input: FundsCheckInput): CheckFlag {
       quote: combinedQuote,
       sourceUrl,
       ruleAsOf,
+      mathLines,
     };
   }
 
   const surplus = totalAvailableInr - requiredInr;
+  mathLines.push(`Buffer above required funds: +${formatInr(surplus)}`);
+
+  if (missingUkTuitionNote) {
+    return {
+      id: 'funds-missing-cas-tuition',
+      checkType: 'funds',
+      severity: 'amber',
+      title: 'Living costs covered, but CAS unpaid tuition is missing',
+      summary: `Available funds (${formatInr(totalAvailableInr)}) cover UK living costs (${formatInr(requiredInr)}), but no CAS/offer letter was uploaded to add unpaid tuition (tuition minus deposit paid).`,
+      quote: combinedQuote,
+      sourceUrl,
+      ruleAsOf,
+      mathLines,
+    };
+  }
+
   return {
     id: 'funds-sufficient',
     checkType: 'funds',
@@ -221,6 +300,7 @@ export function checkFundsVsRequiredCost(input: FundsCheckInput): CheckFlag {
     quote: combinedQuote,
     sourceUrl,
     ruleAsOf,
+    mathLines,
   };
 }
 

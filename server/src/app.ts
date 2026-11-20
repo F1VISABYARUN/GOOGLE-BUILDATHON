@@ -22,11 +22,18 @@ import {
 import { runAllChecks } from './checks/runChecks.js';
 import { loadUkRules } from './checks/rulesLoader.js';
 import { getCaseRecord, saveCaseRecord } from './services/firestoreStore.js';
+import { createIpRateLimiter } from './middleware/rateLimit.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const ALLOWED_MIME_TYPES = new Set(['application/pdf', 'image/jpeg', 'image/png']);
+const analyzeRateLimiter = createIpRateLimiter({
+  maxRequests: 10,
+  windowMs: 60 * 60 * 1000, // 10 analyses per hour per IP
+  message:
+    'Rate limit reached: you can run up to 10 document analyses per hour from this IP. Please try again later.',
+});
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -46,6 +53,7 @@ const upload = multer({
 export function createApp() {
   const app = express();
 
+  app.set('trust proxy', 1);
   app.use(cors());
   app.use(express.json({ limit: '1mb' }));
 
@@ -108,7 +116,7 @@ export function createApp() {
     }
   });
 
-  app.post('/api/cases/analyze', (req, res) => {
+  app.post('/api/cases/analyze', analyzeRateLimiter.middleware, (req, res) => {
     upload.array('documents', 5)(req, res, async (uploadErr) => {
       if (uploadErr) {
         return res.status(400).json({

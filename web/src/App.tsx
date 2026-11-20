@@ -47,6 +47,7 @@ interface CheckFlag {
   sourceDocName?: string;
   sourceUrl?: string;
   ruleAsOf?: string;
+  mathLines?: string[];
   explanation?: string;
   suggestedFix?: string;
 }
@@ -783,6 +784,19 @@ export default function App() {
                         <p className="mt-2 text-base font-medium text-slate-900">
                           <strong>Suggested fix:</strong> {flag.suggestedFix}
                         </p>
+                      )}
+
+                      {flag.mathLines && flag.mathLines.length > 0 && (
+                        <div className="mt-3 rounded-lg border border-slate-300 bg-white p-3">
+                          <p className="text-xs font-bold uppercase tracking-wide text-slate-600">
+                            Funds Math (Plain Code)
+                          </p>
+                          <ul className="mt-1.5 space-y-1 font-mono text-sm text-slate-900">
+                            {flag.mathLines.map((line, idx) => (
+                              <li key={idx}>{line}</li>
+                            ))}
+                          </ul>
+                        </div>
                       )}
 
                       {flag.quote && (
