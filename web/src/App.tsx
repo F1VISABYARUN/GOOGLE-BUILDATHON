@@ -592,6 +592,30 @@ export default function App() {
                   One click · Zero typing · Runs a sample UK bank statement with a hidden 1-day balance dip
                 </p>
               </div>
+
+              <div className="rounded-2xl border border-indigo-200 bg-indigo-50/70 p-4 shadow-sm">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="min-w-0 flex-1 space-y-1">
+                    <p className="text-sm font-extrabold text-indigo-950">
+                      Already live: Aira 24/7 Counselor
+                    </p>
+                    <p className="text-xs leading-relaxed text-slate-700 sm:text-sm">
+                      Students ask anything, any time, answered from official university pages.
+                      445+ beta students at{' '}
+                      <span className="font-semibold text-indigo-900">airaai.io</span>. This app is
+                      the verified application agent behind it.
+                    </p>
+                  </div>
+                  <a
+                    href="https://airaai.io"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-indigo-300 bg-white px-4 py-2 text-xs font-bold text-indigo-900 shadow-sm transition hover:bg-indigo-100 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-indigo-300 sm:text-sm"
+                  >
+                    <span>Open 24/7 Counselor →</span>
+                  </a>
+                </div>
+              </div>
             </div>
 
             <div className="lg:col-span-5">
@@ -1671,6 +1695,10 @@ export default function App() {
           )}
         </section>
       </main>
+
+      <footer className="border-t border-slate-200 bg-white px-4 py-4 text-center text-sm font-semibold text-slate-700">
+        AI for speed. Code for money. Humans for the final yes.
+      </footer>
     </div>
   );
 }

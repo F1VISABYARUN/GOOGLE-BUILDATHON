@@ -1304,6 +1304,10 @@ export default function CounselorView({ onNavigate }: CounselorViewProps) {
           </div>
         )}
       </main>
+
+      <footer className="border-t border-slate-200 bg-white px-4 py-4 text-center text-sm font-semibold text-slate-700">
+        AI for speed. Code for money. Humans for the final yes.
+      </footer>
     </div>
   );
 }
